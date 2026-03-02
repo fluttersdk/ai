@@ -1,6 +1,7 @@
 name: Deploy Skills Registry
 
 on:
+    workflow_dispatch:
     push:
         branches: ["main"]
         paths: ["skills/**"]
