@@ -1,0 +1,34 @@
+---
+description: "FlutterSDK conventions for Wind UI and Magic Framework projects"
+globs: "**/*.dart"
+alwaysApply: false
+---
+
+# FlutterSDK Conventions
+
+## Wind UI
+
+- All widgets use `W` prefix: `WDiv`, `WText`, `WButton`, `WInput`, `WSelect`, `WIcon`, `WImage`
+- `className` is the primary styling API — utility-first, similar to Tailwind CSS
+- Dark mode via `dark:` prefix classes: `className: 'bg-white dark:bg-gray-900'`
+- Design tokens for colors, spacing, typography — never hardcode values
+- Form widgets: `WFormInput`, `WFormSelect`, `WFormCheckbox`, `WFormDatePicker`
+
+## Magic Framework
+
+- Initialize with `await Magic.init()` in `main()`
+- Use Facades for services: `Auth`, `Http`, `Config`, `Cache`, `DB`, `Gate`, `Log`, `Event`
+- Controllers extend `MagicController`, views extend `MagicView` or `MagicStatefulView`
+- Models extend `Model` with `InteractsWithPersistence` for Eloquent ORM
+- Routes use `MagicRoute` with `RouteServiceProvider`
+- Forms use `MagicFormData` with `ValidatesRequests` mixin
+
+## General Dart/Flutter
+
+- Explicit types on ALL parameters, return types, and properties
+- `@immutable` classes with `const` constructors, `final` fields, and `copyWith`
+- DartDoc (`///`) on all public APIs
+- 4-space indentation, 120-character max line width
+- Multi-line collections with trailing commas — always
+- Flutter-native state only: `InheritedWidget` + `ChangeNotifier` — no BLoC/Riverpod/Provider
+- English-only code, comments, and documentation

@@ -1,0 +1,41 @@
+{
+    "name": "@fluttersdk/mcp",
+    "version": "1.0.0",
+    "description": "FlutterSDK MCP server — Flutter and Dart tools for AI coding agents",
+    "author": "Anilcan Cakir <anilcan.cakir@gmail.com>",
+    "license": "MIT",
+    "type": "module",
+    "bin": {
+        "fluttersdk-mcp": "dist/index.js"
+    },
+    "main": "dist/index.js",
+    "scripts": {
+        "build": "tsc",
+        "lint": "eslint src/",
+        "test": "echo \"No tests yet\" && exit 0",
+        "start": "node dist/index.js"
+    },
+    "dependencies": {
+        "@modelcontextprotocol/sdk": "^1.0.0",
+        "zod": "^3.23.0"
+    },
+    "devDependencies": {
+        "@types/node": "^22.0.0",
+        "typescript": "^5.6.0"
+    },
+    "engines": {
+        "node": ">=18.0.0"
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/fluttersdk/ai",
+        "directory": "mcps/fluttersdk-mcp"
+    },
+    "keywords": [
+        "mcp",
+        "flutter",
+        "dart",
+        "ai",
+        "fluttersdk"
+    ]
+}

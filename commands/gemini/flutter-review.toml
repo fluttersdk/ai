@@ -1,0 +1,20 @@
+[command]
+description = "Review Flutter/Dart code for FlutterSDK conventions"
+
+[command.prompt]
+template = """
+Review the following Flutter/Dart code for adherence to FlutterSDK conventions:
+
+1. Wind UI: W-prefix widgets (WDiv, WText, WButton), className-first styling, design token usage
+2. Magic Framework: Facade usage, Eloquent patterns, controller/view structure
+3. Type Safety: Explicit types on all parameters, return types, and properties
+4. Immutability: @immutable + const constructors + final fields + copyWith
+5. Documentation: DartDoc (///) on all public APIs
+6. Architecture: Thin controllers, fat services, composition over inheritance
+7. Formatting: 120-char max width, 4-space indent, multi-line collections with trailing commas
+
+Focus on correctness, convention adherence, and potential improvements.
+
+Files to review:
+$ARGUMENTS
+"""

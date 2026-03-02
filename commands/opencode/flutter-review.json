@@ -1,0 +1,4 @@
+{
+    "template": "Review the following Flutter/Dart code for adherence to FlutterSDK conventions:\n\n1. Wind UI: W-prefix widgets, className-first styling, design token usage\n2. Magic Framework: Facade usage, Eloquent patterns, controller/view structure\n3. General: Type safety, immutability, DartDoc coverage, 120-char width\n4. Architecture: Thin controllers, fat services, composition over inheritance\n\nFocus on correctness, convention adherence, and potential improvements.\nLoad the wind-ui and magic-framework skills for reference.\n\nFiles to review:\n$ARGUMENTS",
+    "agent": "build"
+}

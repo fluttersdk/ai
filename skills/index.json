@@ -1,0 +1,35 @@
+{
+    "skills": [
+        {
+            "name": "wind-ui",
+            "description": "Wind UI v1 utility-first styling for Flutter. ALWAYS activate for: WDiv, WText, WButton, WInput, WSelect, WCheckbox, WIcon, WImage, WSvg, WPopover, WAnchor, WFormInput, WFormSelect, WFormMultiSelect, WFormCheckbox, WDatePicker, WFormDatePicker, WSpacer, className, WindTheme, wind-ui, Flutter styling, Flutter layout, mobile UI, app design.",
+            "files": [
+                "SKILL.md",
+                "references/widgets.md",
+                "references/layout-patterns.md",
+                "references/design-tokens.md",
+                "references/tokens.md",
+                "references/component-patterns.md",
+                "references/form-patterns.md",
+                "references/theme-setup.md"
+            ]
+        },
+        {
+            "name": "magic-framework",
+            "description": "Magic Framework — Laravel-inspired Flutter framework with IoC Container, Facades, Eloquent ORM, and GoRouter wrapper. Use for ANY Flutter project built on the Magic framework.",
+            "files": [
+                "SKILL.md",
+                "references/controllers-views.md",
+                "references/eloquent-orm.md",
+                "references/facades-api.md",
+                "references/routing-navigation.md",
+                "references/bootstrap-lifecycle.md",
+                "references/auth-system.md",
+                "references/forms-validation.md",
+                "references/http-network.md",
+                "references/secondary-systems.md",
+                "references/testing-patterns.md"
+            ]
+        }
+    ]
+}

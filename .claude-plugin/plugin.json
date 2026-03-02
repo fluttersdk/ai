@@ -1,0 +1,11 @@
+{
+    "name": "fluttersdk",
+    "description": "FlutterSDK AI skills — Wind UI, Magic Framework, and more",
+    "version": "1.0.0",
+    "author": {
+        "name": "Anilcan Cakir",
+        "email": "anilcan.cakir@gmail.com"
+    },
+    "repository": "https://github.com/fluttersdk/ai",
+    "license": "MIT"
+}

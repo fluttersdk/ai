@@ -1,0 +1,4 @@
+{
+    "template": "Write comprehensive tests for the specified Flutter/Dart code following TDD principles:\n\n1. Test the public API contract — not implementation details\n2. Use descriptive test names: 'should [expected behavior] when [condition]'\n3. Group related tests with group() blocks\n4. Mock dependencies using Mockito or manual mocks\n5. Cover edge cases: null inputs, empty collections, error states\n6. Verify Widget tests use pumpWidget + find.byType/find.text patterns\n\nLoad the magic-framework skill for testing patterns reference.\n\nCode to test:\n$ARGUMENTS",
+    "agent": "build"
+}
