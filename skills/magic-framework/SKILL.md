@@ -1,6 +1,6 @@
 ---
 name: magic-framework
-description: "Magic Framework — Laravel-inspired Flutter framework with IoC Container, Facades, Eloquent ORM, and GoRouter wrapper. ALWAYS activate for: Magic.init, MagicApp, MagicController, MagicView, MagicStatefulView, MagicFormData, MagicRoute, MagicResponse, Eloquent Model, InteractsWithPersistence, HasTimestamps, ServiceProvider, MagicMiddleware, ValidatesRequests, MagicStateMixin, Auth facade, Http facade, Config facade, Cache facade, DB facade, Gate facade, Log facade, Event facade, Lang facade, Schema facade, Vault facade, Storage facade, Pick facade, Crypt facade, MagicCan, MagicCannot, MagicBuilder, MagicForm, WFormInput, QueryBuilder, Blueprint, Migration, Seeder, Factory, Magic.findOrPut, Magic.make, Magic.snackbar, Magic.confirm, Magic.loading, Carbon, trans(), env(), rules(), handleApiError, setErrorsFromResponse, MagicApplication, RouteServiceProvider, Kernel. Use for ANY Flutter project built on the Magic framework."
+description: "Magic Framework — Laravel-inspired Flutter framework with IoC Container, Facades, Eloquent ORM, and GoRouter wrapper. ALWAYS activate for: Magic.init, MagicApp, MagicController, MagicView, MagicStatefulView, MagicFormData, MagicRoute, MagicResponse, Eloquent Model, InteractsWithPersistence, HasTimestamps, ServiceProvider, MagicMiddleware, ValidatesRequests, MagicStateMixin, Auth facade, Http facade, Config facade, Cache facade, DB facade, Gate facade, Log facade, Event facade, Lang facade, Schema facade, Vault facade, Storage facade, Pick facade, Crypt facade, Launch facade, LaunchServiceProvider, MagicCan, MagicCannot, MagicBuilder, MagicForm, WFormInput, QueryBuilder, Blueprint, Migration, Seeder, Factory, Magic.findOrPut, Magic.make, Magic.snackbar, Magic.confirm, Magic.loading, Carbon, trans(), env(), rules(), handleApiError, setErrorsFromResponse, MagicApplication, RouteServiceProvider, Kernel, magic install, make:model, make:controller, make:view, make:migration, make:enum, make:event, make:listener, make:middleware, make:factory, make:seeder, make:provider, make:policy, make:request, make:lang, key:generate, magic CLI. Use for ANY Flutter project built on the Magic framework."
 ---
 
 # Magic Framework
@@ -10,7 +10,7 @@ Laravel-inspired Flutter framework. IoC Container + Facades + Eloquent ORM + GoR
 ## Core Laws
 
 1. **await Magic.init()**: Must be awaited in `main()` before ANY facade call. Never `.then()`.
-2. **Facade-first**: Use `Auth`, `Http`, `Config`, `Cache`, `DB`, `Log`, `Event`, `Lang`, `Route`, `Gate`, `Schema`, `Vault`, `Storage`, `Pick`, `Crypt` — never resolve manually unless extending.
+2. **Facade-first**: Use `Auth`, `Http`, `Config`, `Cache`, `DB`, `Log`, `Event`, `Lang`, `Route`, `Gate`, `Schema`, `Vault`, `Storage`, `Pick`, `Crypt`, `Launch` — never resolve manually unless extending.
 3. **Singleton controllers**: `static X get instance => Magic.findOrPut(X.new);` — the canonical pattern.
 4. **Typed getters**: Models use `get<T>('key')` — never `getAttribute()`.
 5. **fillable whitelist**: Models declare `fillable` — never use `guarded = []`.
@@ -227,6 +227,7 @@ await Auth.restore()   // Restore from Vault
 | Forgetting `form.dispose()` | Always in `onClose()` | Memory leak |
 | Missing `setUserFactory` | Call in `boot()` | Auth facade broken |
 | `Event.dispatch(event)` | `EventDispatcher.instance.register(type, [...])` | Facade only has dispatch — register listeners via EventDispatcher |
+| Using `Launch` without `LaunchServiceProvider` | Add `(app) => LaunchServiceProvider(app)` to `app.providers` | Facade unresolvable |
 
 ## Test Setup (Mandatory)
 
@@ -239,17 +240,36 @@ setUp(() {
 
 Mock by extending contracts. Inject via `Magic.put<T>(mockController)`. Never use code generation for mocks.
 
+
+## CLI Quick Reference
+
+Magic CLI provides Artisan-inspired code generation. Install with `dart pub global activate fluttersdk_magic_cli`.
+
+```bash
+magic install                          # Initialize project
+magic make:model Monitor -mcfsp        # Model + migration + controller + factory + seeder + policy
+magic make:controller Monitor -r       # Resource controller with CRUD
+magic make:view Login --stateful        # Stateful view with lifecycle
+magic make:migration create_monitors   # Database migration
+magic make:enum MonitorStatus           # String-backed enum
+magic make:provider Payment             # Service provider
+magic key:generate                      # Generate APP_KEY
+```
+
+All generators support `--force` (overwrite) and nested paths (`Admin/Dashboard`). Auto-suffixes are appended when missing.
+
 ## Reference Index
 
 | File | Content | Load When |
 |------|---------|-----------|
 | `references/bootstrap-lifecycle.md` | Magic.init steps, IoC API, ServiceProvider, Env/Config, Kernel | Setting up app bootstrap or providers |
-| `references/facades-api.md` | All 15 facades with method signatures and return types | Looking up any facade API |
+| `references/facades-api.md` | All 16 facades (incl. Launch) with method signatures and return types | Looking up any facade API |
 | `references/eloquent-orm.md` | Model definition, attributes, casts, relations, QueryBuilder, migrations | Working with models or database |
 | `references/controllers-views.md` | MagicController, MagicStateMixin, MagicView, MagicBuilder, auth widgets | Building controllers or views |
 | `references/forms-validation.md` | MagicFormData, MagicForm, rules(), Validator, built-in rules, i18n | Building forms or validation |
 | `references/routing-navigation.md` | Route registration, groups, transitions, middleware, navigation API | Setting up routes or navigation |
 | `references/http-network.md` | NetworkManager, MagicResponse, interceptors, config | Making HTTP requests or configuring network |
 | `references/auth-system.md` | AuthManager, guards, token refresh, policies, Gate | Implementing authentication or authorization |
-| `references/secondary-systems.md` | Cache, Events, Logging, Localization, Storage, Encryption, Vault, Carbon, Policies | Using any secondary framework system |
+| `references/secondary-systems.md` | Cache, Events, Logging, Localization, Storage, Encryption, Vault, Carbon, Launch, Policies | Using any secondary framework system |
 | `references/testing-patterns.md` | Test setup, mocking, controller/model/middleware testing | Writing tests for Magic framework code |
+| `references/cli-commands.md` | Magic CLI: install, make:* generators, inspection, boost/MCP commands | Scaffolding code or setting up a project with the CLI |

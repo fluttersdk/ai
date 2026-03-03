@@ -28,7 +28,8 @@
                 "references/forms-validation.md",
                 "references/http-network.md",
                 "references/secondary-systems.md",
-                "references/testing-patterns.md"
+                "references/testing-patterns.md",
+                "references/cli-commands.md"
             ]
         }
     ]
