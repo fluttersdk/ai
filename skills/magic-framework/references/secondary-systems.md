@@ -210,6 +210,60 @@ final tomorrow = Carbon.now().addDay().endOfDay();
 print(tomorrow.toDateTimeString()); // "2024-01-16 23:59:59"
 ```
 
+
+## Launch (URL Launcher)
+
+Context-free facade for opening URLs, emails, phone calls, and SMS messages. Built on `url_launcher`. Accessed via the `Launch` facade.
+
+> [!WARNING]
+> `LaunchServiceProvider` is NOT auto-registered. Add `(app) => LaunchServiceProvider(app)` to your `app.providers` config.
+
+### Launch API
+
+| Method | Return Type | Description |
+|:-------|:------------|:------------|
+| `url(String url, {LaunchMode mode})` | `Future<bool>` | Open URL in external app (default) or in-app WebView. |
+| `email(String address, {String? subject, String? body})` | `Future<bool>` | Open email client pre-filled. Subject/body are auto URI-encoded. |
+| `phone(String number)` | `Future<bool>` | Open device phone dialer. |
+| `sms(String number, {String? body})` | `Future<bool>` | Open SMS app pre-filled. Body is auto URI-encoded. |
+| `canLaunch(String url)` | `Future<bool>` | Check if device can handle the URL scheme. |
+
+### Usage
+```dart
+// Open a URL
+await Launch.url('https://flutter.dev');
+
+// Open in-app browser
+await Launch.url('https://flutter.dev', mode: LaunchMode.inAppWebView);
+
+// Send email
+await Launch.email('support@example.com', subject: 'Bug Report', body: 'Details...');
+
+// Phone call
+await Launch.phone('+1234567890');
+
+// SMS
+await Launch.sms('+1234567890', body: 'On my way!');
+
+// Check before launching
+if (await Launch.canLaunch('tel:+1234567890')) {
+    await Launch.phone('+1234567890');
+}
+```
+
+### Error Handling
+
+All methods return `false` on failure — they **never throw**. Errors are logged via `Log`. Empty string inputs return `false` immediately without attempting a launch.
+
+### Testing
+
+The `LaunchService` accepts a `LaunchAdapter` for dependency injection. In tests, provide a mock adapter:
+
+```dart
+final mockAdapter = MockLaunchAdapter();
+app.singleton('launch', () => LaunchService(adapter: mockAdapter));
+```
+
 ## Policies & Gate
 
 Authorization system for checking user permissions. Accessed via the `Gate` facade.
@@ -243,3 +297,4 @@ if (Gate.allows('edit-post', post)) {
 - **Event Listeners**: Always register listeners using factory closures `() => MyListener()` to avoid lifecycle issues.
 - **Vault Availability**: `Vault` operations are async and might fail if the hardware keystore is locked (e.g., on first boot before unlock).
 - **Carbon Immutability**: All `Carbon` manipulation methods return a NEW instance; they do not mutate the original object.
+- **Launch Registration**: `LaunchServiceProvider` must be manually added to `app.providers`. On iOS 9+ and Android 11+, declare URL schemes in the native manifest for `canLaunch()` to work.

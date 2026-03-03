@@ -179,6 +179,18 @@ File and image picker facade.
 | `Pick.directory()` | `Future<String?>` | Pick a directory (not supported on Web). |
 | `Pick.saveFile({fileName, bytes})` | `Future<String?>` | Open save file dialog. |
 
+### Launch
+URL launcher facade for opening URLs, emails, phone calls, and SMS. Requires `LaunchServiceProvider` registration.
+
+| Method | Return Type | Description |
+|--------|-------------|-------------|
+| `Launch.url(String url, {LaunchMode mode})` | `Future<bool>` | Open a URL in external app or in-app WebView. |
+| `Launch.email(String address, {String? subject, String? body})` | `Future<bool>` | Open email client pre-filled with address/subject/body. |
+| `Launch.phone(String number)` | `Future<bool>` | Open device phone dialer. |
+| `Launch.sms(String number, {String? body})` | `Future<bool>` | Open SMS app pre-filled with number/body. |
+| `Launch.canLaunch(String url)` | `Future<bool>` | Check if the device can handle the URL. |
+
+*All methods return `false` on failure (never throw). Errors are logged via `Log`. Empty string inputs return `false` immediately.*
 ## Context-Free UI (Magic Class)
 
 The `Magic` class provides static methods for common UI feedback tasks without needing `BuildContext`.
@@ -202,3 +214,4 @@ The `Magic` class provides static methods for common UI feedback tasks without n
 - **Dot Notation**: `Config.get` and `Lang.get` use dot notation (e.g., `auth.defaults.guard`).
 - **Crypt Setup**: AES encryption will fail if `APP_KEY` is not exactly 32 characters in your `.env`.
 - **Storage Paths**: `Storage` facade defaults to the application's document directory.
+- **Launch Registration**: `LaunchServiceProvider` is NOT auto-registered. Add `(app) => LaunchServiceProvider(app)` to your `app.providers` config. On iOS 9+ and Android 11+, declare URL schemes in the native manifest for `canLaunch()` to work.
