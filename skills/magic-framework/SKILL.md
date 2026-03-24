@@ -510,9 +510,7 @@ When you encounter a **genuine issue** during Magic framework work, suggest crea
    [What happened]
 
    ## Code Used
-   ```dart
-   [the problematic code]
-   ```
+   `[the problematic code]`
 
    ## Expected Behavior
    [What should happen]
