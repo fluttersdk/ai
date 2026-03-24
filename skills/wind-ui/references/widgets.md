@@ -137,8 +137,8 @@ WDiv(
 | className | String? | null | Utility class string |
 | loadingText | String? | null | Optional text beside spinner |
 | loadingWidget | Widget? | null | Custom spinner override |
-| loadingSize | double | 16 | Size of default spinner |
-| loadingColor | Color? | null | Color of default spinner |
+| loadingSize | double | 20 | Size of default spinner |
+| loadingColor | Color? | null | Color of spinner. Falls back to text color, then auto-computes contrast via W3C luminance when no color is resolvable. |
 | states | Set<String>? | null | Custom state triggers |
 
 **Flutter Constraint Notes:**
@@ -340,6 +340,16 @@ WImage(
 | svgString | String? | null | Raw SVG string (use `WSvg.string(...)`) |
 | className | String? | null | Styling (`fill-red-500`, `stroke-blue-500`) |
 
+**Preserve Original Colors:**
+Use `preserve-colors` in className to skip all ColorFilter processing. The SVG renders with its original embedded colors. Ideal for QR codes, multi-color logos, and branded illustrations.
+
+```dart
+WSvg(
+  src: 'assets/logo-colored.svg',
+  className: 'w-32 h-32 preserve-colors',
+)
+```
+
 **Examples:**
 ```dart
 WSvg(
@@ -347,6 +357,51 @@ WSvg(
   className: 'w-8 h-8 fill-blue-600',
 )
 ```
+
+---
+
+## WDynamic
+
+**Purpose:** Renders a Flutter widget tree from JSON/Map at runtime with action handling and form state management.
+
+**Constructor:**
+| Param | Type | Default | Description |
+|-------|------|---------|-------------|
+| json | Map<String, dynamic> | required | JSON widget tree definition |
+| actions | Map<String, Function> | {} | Action handlers keyed by name |
+| controller | WDynamicController? | null | External state access |
+| denyWidgets | Set<String>? | null | Widget types to block |
+| builders | Map<String, WWidgetBuilder>? | null | Custom widget builders |
+| customIcons | Map<String, IconData>? | null | Custom icon name → IconData mappings |
+| maxDepth | int | 50 | Max recursion depth |
+| onError | Widget Function(String, Object)? | null | Error fallback builder |
+| onUnknownWidget | Widget Function(String, Map)? | null | Unknown widget fallback |
+
+**JSON Schema:**
+```dart
+{
+  'type': 'WDiv',           // Widget type (Wind, Flutter, or custom)
+  'props': {'className': 'flex gap-4'},  // Widget properties
+  'children': [...]          // Nested widgets
+}
+```
+
+**Action Handling:**
+```dart
+WDynamic(
+  json: myJson,
+  actions: {
+    'submit': (Map<String, dynamic> args, WDynamicState state) {
+      final email = state.get('email');
+      print('Submitting: $email');
+    },
+  },
+)
+```
+
+**Supported Widgets:**
+- Wind: WDiv, WText, WButton, WInput, WCheckbox, WSelect, WDatePicker, WIcon, WImage, WSvg, WPopover, WAnchor, WSpacer
+- Flutter: Column, Row, Center, SizedBox, Expanded, Container, Wrap, Stack, Positioned, Padding, Align, Opacity, AspectRatio, FittedBox, ClipRRect, Spacer
 
 ---
 

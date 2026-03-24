@@ -19,6 +19,20 @@ void main() {
 }
 ```
 
+### Persisting Theme Preference
+
+Use the `onThemeChanged` callback to save the user's manual theme choice. This fires only on `toggleTheme()` — not on system brightness changes.
+
+```dart
+WindTheme(
+  data: WindThemeData(),
+  onThemeChanged: (brightness) {
+    Vault.set('theme_mode', brightness == Brightness.dark ? 'dark' : 'light');
+  },
+  child: const MyApp(),
+)
+```
+
 ### Builder Pattern (Reactive MaterialApp Theme)
 
 If you want your `MaterialApp` to automatically react to Wind theme changes (like dark mode toggles), use the `builder` parameter instead of `child`:
@@ -101,6 +115,15 @@ context.windTheme.toggleTheme();
 
 // Or using static method
 WindTheme.of(context).toggleTheme();
+```
+
+**4. Resetting to System**
+After manual toggle, system sync is disabled. To re-enable:
+```dart
+// Re-enable automatic system brightness sync
+WindTheme.of(context).resetToSystem();
+// Or via extension
+context.windTheme.resetToSystem();
 ```
 
 ## 4. Registering Custom Colors
