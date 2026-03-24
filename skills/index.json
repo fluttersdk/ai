@@ -2,7 +2,7 @@
     "skills": [
         {
             "name": "wind-ui",
-            "description": "Wind UI v1 utility-first styling for Flutter. ALWAYS activate for: WDiv, WText, WButton, WInput, WSelect, WCheckbox, WIcon, WImage, WSvg, WPopover, WAnchor, WFormInput, WFormSelect, WFormMultiSelect, WFormCheckbox, WDatePicker, WFormDatePicker, WSpacer, className, WindTheme, wind-ui, Flutter styling, Flutter layout, mobile UI, app design.",
+            "description": "Wind UI v1 utility-first styling for Flutter. ALWAYS activate for: WDiv, WText, WButton, WInput, WSelect, WCheckbox, WIcon, WImage, WSvg, WPopover, WAnchor, WFormInput, WFormSelect, WFormMultiSelect, WFormCheckbox, WDatePicker, WFormDatePicker, WSpacer, className, WindTheme, wind-ui, Flutter styling, Flutter layout, mobile UI, app design. Turkish: Flutter tasarım, uygulama arayüzü, mobil UI, Flutter stil, className kullanımı.",
             "files": [
                 "SKILL.md",
                 "references/widgets.md",
