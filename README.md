@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/fluttersdk/ai/main/.github/ai-logo.svg" width="120" alt="FlutterSDK AI Logo" />
+  <img src="https://raw.githubusercontent.com/fluttersdk/ai/main/.github/ai-logo.png" width="120" alt="FlutterSDK AI Logo" />
 </p>
 
 <h1 align="center">FlutterSDK AI</h1>
