@@ -2,181 +2,988 @@
 
 Reference for testing Magic framework applications including service mocking, controller tests, model persistence, and UI integration.
 
-## Required setUp Pattern
+## Essential setUp Pattern
 
-Every Magic test MUST reset the global state in `setUp` to prevent state leakage between tests.
+Every Magic test MUST reset the global state in `setUp()` to prevent state leakage between tests. This is non-negotiable.
 
 ```dart
-setUp(() {
-    // 1. Reset the IoC container
-    MagicApp.reset();
-    
-    // 2. Clear cached facade instances (Log, Auth, Http, etc.)
-    Magic.flush();
+import 'package:flutter_test/flutter_test.dart';
+import 'package:magic/magic.dart';
+
+void main() {
+  group('MyFeature', () {
+    setUp(() {
+      // 1. Reset the IoC container and destroy the singleton instance
+      MagicApp.reset();
+
+      // 2. Clear all cached facade instances (Log, Auth, Cache, Http, etc.)
+      Magic.flush();
+    });
+
+    test('example test', () {
+      // Test code here
+    });
+  });
+}
+```
+
+**Why this matters:**
+- `MagicApp.reset()` destroys the singleton instance and clears all bindings, instances, and configuration state
+- `Magic.flush()` clears the internal controller registry and facade caches so they don't retain stale references between tests
+- Without this setup, tests pollute each other's state (bindings, singletons, facade instances)
+
+## Controller Testing
+
+Controllers are tested by verifying state transitions and side effects. Use `Magic.put<T>()` to inject controller instances that can be resolved within your test.
+
+### Basic Controller Test
+
+```dart
+import 'package:flutter_test/flutter_test.dart';
+import 'package:magic/magic.dart';
+
+class UserController extends MagicController with MagicStateMixin<List<User>> {
+  Future<void> fetchUsers() async {
+    setLoading();
+    try {
+      final users = await Http.get('/users');
+      setSuccess(users);
+    } catch (e) {
+      setError('Failed to fetch users');
+    }
+  }
+}
+
+void main() {
+  group('UserController', () {
+    late UserController controller;
+
+    setUp(() {
+      MagicApp.reset();
+      Magic.flush();
+
+      controller = UserController();
+      Magic.put<UserController>(controller);
+    });
+
+    test('initial state is empty', () {
+      expect(controller.isEmpty, isTrue);
+      expect(controller.isLoading, isFalse);
+      expect(controller.isSuccess, isFalse);
+      expect(controller.isError, isFalse);
+    });
+
+    test('setLoading changes state to loading', () {
+      controller.setLoading();
+      expect(controller.isLoading, isTrue);
+    });
+
+    test('setSuccess stores data and marks state as success', () {
+      final data = [User(id: 1, name: 'Alice')];
+      controller.setSuccess(data);
+
+      expect(controller.isSuccess, isTrue);
+      expect(controller.rxState, equals(data));
+    });
+
+    test('setError stores message and marks state as error', () {
+      controller.setError('Network failed');
+
+      expect(controller.isError, isTrue);
+      expect(controller.rxStatus.message, equals('Network failed'));
+    });
+
+    test('fetchUsers updates state on success', () async {
+      // Mock the HTTP driver
+      final mockHttp = MockNetworkDriver();
+      mockHttp.mock({'data': [{'id': 1, 'name': 'Bob'}]});
+
+      Magic.bind('http.driver', () => mockHttp, shared: true);
+
+      await controller.fetchUsers();
+
+      expect(controller.isSuccess, isTrue);
+      expect(controller.rxState, isNotEmpty);
+    });
+
+    test('fetchUsers sets error state on failure', () async {
+      final mockHttp = MockNetworkDriver();
+      mockHttp.mockError(Exception('Connection timeout'));
+
+      Magic.bind('http.driver', () => mockHttp, shared: true);
+
+      await controller.fetchUsers();
+
+      expect(controller.isError, isTrue);
+    });
+  });
+}
+```
+
+### Injecting Test Controllers
+
+When testing UI widgets that depend on controllers, register a test controller using `Magic.put<T>()`:
+
+```dart
+test('MyWidget displays data from controller', () async {
+  final testController = MyController();
+  testController.setSuccess(['item1', 'item2']);
+
+  Magic.put<MyController>(testController);
+
+  await tester.pumpWidget(MyApp());
+
+  expect(find.text('item1'), findsOneWidget);
+  expect(find.text('item2'), findsOneWidget);
+});
+```
+
+## Model Testing
+
+Models are tested with an in-memory SQLite database for speed. Mobile apps use file-based SQLite; web uses in-memory.
+
+### Setup Database for Model Tests
+
+```dart
+import 'package:flutter_test/flutter_test.dart';
+import 'package:magic/magic.dart';
+import 'package:sqlite3/sqlite3.dart';
+
+class User extends Model with HasTimestamps, InteractsWithPersistence {
+  @override
+  String get table => 'users';
+
+  @override
+  String get resource => 'users';
+
+  @override
+  List<String> get fillable => ['name', 'email', 'born_at'];
+
+  @override
+  Map<String, String> get casts => {
+    'born_at': 'datetime',
+  };
+
+  String? get name => get<String>('name');
+  set name(String? value) => set('name', value);
+
+  String? get email => get<String>('email');
+  set email(String? value) => set('email', value);
+
+  Carbon? get bornAt => get<Carbon>('born_at');
+  set bornAt(dynamic value) => set('born_at', value);
+
+  static Future<User?> find(dynamic id) =>
+    InteractsWithPersistence.findById<User>(id, User.new);
+
+  static Future<List<User>> all() =>
+    InteractsWithPersistence.allModels<User>(User.new);
+}
+
+void main() {
+  group('User Model', () {
+    late Database db;
+
+    setUp(() {
+      MagicApp.reset();
+      Magic.flush();
+
+      // Create in-memory database
+      db = sqlite3.openInMemory();
+      DatabaseManager().setConnection(db);
+
+      // Create test table
+      db.execute('''
+        CREATE TABLE users (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT NOT NULL,
+          email TEXT,
+          born_at TEXT,
+          created_at TEXT,
+          updated_at TEXT
+        )
+      ''');
+    });
+
+    tearDown(() {
+      DatabaseManager().dispose();
+    });
+
+    test('can fill and retrieve attributes', () {
+      final user = User()
+        ..fill({
+          'name': 'Alice',
+          'email': 'alice@example.com',
+        });
+
+      expect(user.name, 'Alice');
+      expect(user.email, 'alice@example.com');
+    });
+
+    test('can save new model to database', () async {
+      final user = User()
+        ..fill({
+          'name': 'Bob',
+          'email': 'bob@example.com',
+        });
+
+      final result = await user.save();
+
+      expect(result, isTrue);
+      expect(user.exists, isTrue);
+      expect(user.id, isNotNull);
+    });
+
+    test('can find model by id', () async {
+      db.execute(
+        "INSERT INTO users (name, email) VALUES ('Carol', 'carol@example.com')"
+      );
+
+      final user = await User.find(1);
+
+      expect(user, isNotNull);
+      expect(user!.name, 'Carol');
+      expect(user.exists, isTrue);
+    });
+
+    test('find returns null for non-existent id', () async {
+      final user = await User.find(999);
+      expect(user, isNull);
+    });
+
+    test('can update existing model', () async {
+      db.execute(
+        "INSERT INTO users (name, email) VALUES ('Dave', 'dave@example.com')"
+      );
+
+      final user = await User.find(1);
+      user!.name = 'David';
+      await user.save();
+
+      final updated = await User.find(1);
+      expect(updated!.name, 'David');
+    });
+
+    test('can delete model', () async {
+      db.execute(
+        "INSERT INTO users (name, email) VALUES ('Eve', 'eve@example.com')"
+      );
+
+      final user = await User.find(1);
+      final result = await user!.delete();
+
+      expect(result, isTrue);
+      expect(user.exists, isFalse);
+
+      final deleted = await User.find(1);
+      expect(deleted, isNull);
+    });
+
+    test('timestamps are updated automatically', () {
+      final user = User()..fill({'name': 'Frank'});
+      user.updateTimestamps();
+
+      expect(user.createdAt, isNotNull);
+      expect(user.updatedAt, isNotNull);
+    });
+
+    test('all returns all models', () async {
+      db.execute("INSERT INTO users (name, email) VALUES ('Alice', 'a@example.com')");
+      db.execute("INSERT INTO users (name, email) VALUES ('Bob', 'b@example.com')");
+
+      final users = await User.all();
+
+      expect(users.length, 2);
+      expect(users[0].name, 'Alice');
+      expect(users[1].name, 'Bob');
+    });
+
+    test('isDirty detects model changes', () {
+      final user = User()
+        ..fill({'name': 'Original'})
+        ..syncOriginal();
+
+      expect(user.isDirty(), isFalse);
+
+      user.name = 'Changed';
+      expect(user.isDirty(), isTrue);
+      expect(user.isDirty('name'), isTrue);
+    });
+
+    test('refresh reloads model from database', () async {
+      db.execute("INSERT INTO users (name, email) VALUES ('Grace', 'grace@example.com')");
+
+      final user = await User.find(1);
+      expect(user!.name, 'Grace');
+
+      // Update directly in database
+      db.execute("UPDATE users SET name = 'Gracey' WHERE id = 1");
+
+      // Refresh the model
+      await user.refresh();
+
+      expect(user.name, 'Gracey');
+    });
+  });
+}
+```
+
+### Casting and Type Conversions
+
+```dart
+test('casts datetime to Carbon', () {
+  final user = User();
+  user.bornAt = Carbon.parse('2000-01-15T10:30:00');
+
+  final bornAt = user.bornAt;
+  expect(bornAt, isA<Carbon>());
+  expect(bornAt!.year, 2000);
+  expect(bornAt.month, 1);
+  expect(bornAt.day, 15);
+});
+
+test('casts json to Map', () {
+  final user = User();
+  user.settings = {'theme': 'dark', 'notifications': true};
+
+  final settings = user.settings;
+  expect(settings, isA<Map<String, dynamic>>());
+  expect(settings!['theme'], 'dark');
 });
 ```
 
 ## Mocking Services
 
-Magic favors manual mocks that extend the base contract over code-generated mocks.
+Magic favors manual mocks that extend the service contract (interface) over code-generated mocks. This is simpler and aligns with Laravel's testing philosophy.
 
-### Mocking the Network Driver
+### Mocking HTTP Requests
+
 ```dart
 class MockNetworkDriver extends NetworkDriver {
-    Map<String, dynamic>? nextResponse;
-    int nextStatusCode = 200;
+  Map<String, dynamic>? nextResponse;
+  int nextStatusCode = 200;
+  Exception? nextException;
 
-    void mock(Map<String, dynamic> data, {int status = 200}) {
-        nextResponse = data;
-        nextStatusCode = status;
-    }
+  void mock(Map<String, dynamic> data, {int status = 200}) {
+    nextResponse = data;
+    nextStatusCode = status;
+    nextException = null;
+  }
 
-    @override
-    Future<MagicResponse> get(String url, {Map<String, dynamic>? query}) async {
-        return MagicResponse(data: nextResponse ?? {}, statusCode: nextStatusCode);
-    }
-    // Implement other methods...
+  void mockError(Exception error) {
+    nextException = error;
+  }
+
+  @override
+  Future<MagicResponse> get(String url, {Map<String, dynamic>? query}) async {
+    if (nextException != null) throw nextException!;
+    return MagicResponse(
+      data: nextResponse ?? {},
+      statusCode: nextStatusCode,
+    );
+  }
+
+  @override
+  Future<MagicResponse> post(String url, {dynamic body}) async {
+    if (nextException != null) throw nextException!;
+    return MagicResponse(
+      data: nextResponse ?? {},
+      statusCode: nextStatusCode,
+    );
+  }
+
+  // Implement other methods as needed
 }
 
 // In test:
-final mock = MockNetworkDriver();
-Magic.setInstance('network', mock); // Inject mock into container
-```
+setUp(() {
+  MagicApp.reset();
+  Magic.flush();
 
-## Testing Controllers
+  final mockHttp = MockNetworkDriver();
+  Magic.bind('http.driver', () => mockHttp, shared: true);
+});
 
-Controllers should be tested for state transitions and side effects.
+test('controller handles HTTP response', () async {
+  final mockHttp = Magic.make<MockNetworkDriver>('http.driver');
+  mockHttp.mock({'user': {'id': 1, 'name': 'Alice'}});
 
-```dart
-test('it fetches monitors and sets success state', () async {
-    final controller = MonitorController();
-    Magic.put<MonitorController>(controller); // Register in container
-
-    mockNetwork.mock({'data': [{'id': 1, 'name': 'Monitor 1'}]});
-
-    await controller.fetchMonitors();
-
-    expect(controller.isSuccess, isTrue);
-    expect(controller.rxState, isNotEmpty);
+  // Test code that uses Http...
 });
 ```
 
-## Testing Models & Persistence
+### Mocking Cache
 
-Use an in-memory SQLite database for fast model testing.
+```dart
+class MockCacheStore extends CacheStore {
+  final Map<String, dynamic> _cache = {};
+
+  @override
+  Future<dynamic> get(String key, {dynamic defaultValue}) async {
+    return _cache[key] ?? defaultValue;
+  }
+
+  @override
+  Future<void> put(String key, dynamic value, {Duration? ttl}) async {
+    _cache[key] = value;
+  }
+
+  @override
+  Future<void> forget(String key) async {
+    _cache.remove(key);
+  }
+
+  @override
+  Future<void> flush() async {
+    _cache.clear();
+  }
+}
+
+setUp(() {
+  MagicApp.reset();
+  Magic.flush();
+
+  final mockCache = MockCacheStore();
+  Magic.bind('cache.store', () => mockCache, shared: true);
+});
+```
+
+## Middleware Testing
+
+Middleware is tested by verifying whether it calls `next()` or halts the pipeline.
+
+```dart
+class EnsureAuthenticated extends MagicMiddleware {
+  @override
+  void handle(void Function() next) {
+    if (!Auth.check()) {
+      // Halt pipeline by not calling next()
+      return;
+    }
+
+    // Allow request to continue
+    next();
+  }
+}
+
+void main() {
+  group('EnsureAuthenticated Middleware', () {
+    setUp(() {
+      MagicApp.reset();
+      Magic.flush();
+    });
+
+    test('blocks unauthenticated users', () {
+      final middleware = EnsureAuthenticated();
+      bool nextCalled = false;
+
+      middleware.handle(() {
+        nextCalled = true;
+      });
+
+      expect(nextCalled, isFalse);
+    });
+
+    test('allows authenticated users', () {
+      // Setup: mock authenticated state
+      final user = User()..fill({'id': 1, 'name': 'Alice'});
+      Auth.manager.setUser(user);
+
+      final middleware = EnsureAuthenticated();
+      bool nextCalled = false;
+
+      middleware.handle(() {
+        nextCalled = true;
+      });
+
+      expect(nextCalled, isTrue);
+    });
+  });
+}
+```
+
+## Validation Testing
+
+Validation rules can be tested in isolation or via `Validator.make()`.
+
+### Testing Individual Rules
+
+```dart
+test('Email rule validates correctly', () {
+  final rule = Email();
+
+  expect(rule.passes('email', 'valid@example.com', {}), isTrue);
+  expect(rule.passes('email', 'invalid-email', {}), isFalse);
+  expect(rule.passes('email', '', {}), isFalse);
+});
+
+test('Min rule enforces minimum length', () {
+  final rule = Min(6);
+
+  expect(rule.passes('password', 'secret', {}), isFalse); // 6 chars exactly - fails (min is 6 exclusive)
+  expect(rule.passes('password', 'password123', {}), isTrue);
+});
+
+test('Required rule validates required fields', () {
+  final rule = Required();
+
+  expect(rule.passes('name', 'Alice', {}), isTrue);
+  expect(rule.passes('name', '', {}), isFalse);
+  expect(rule.passes('name', null, {}), isFalse);
+});
+```
+
+### Testing Validator
+
+```dart
+test('validator collects multiple errors', () {
+  final validator = Validator.make(
+    {
+      'email': 'bad-email',
+      'password': '123',
+      'name': '',
+    },
+    {
+      'email': [Email()],
+      'password': [Min(6)],
+      'name': [Required()],
+    },
+  );
+
+  expect(validator.fails(), isTrue);
+  expect(validator.errors().length, 3);
+  expect(validator.errors()['email'], isNotEmpty);
+  expect(validator.errors()['password'], isNotEmpty);
+  expect(validator.errors()['name'], isNotEmpty);
+});
+
+test('validator passes when all rules pass', () {
+  final validator = Validator.make(
+    {
+      'email': 'alice@example.com',
+      'password': 'secret123',
+    },
+    {
+      'email': [Required(), Email()],
+      'password': [Required(), Min(8)],
+    },
+  );
+
+  expect(validator.passes(), isTrue);
+  expect(validator.errors(), isEmpty);
+});
+```
+
+## Integration Testing
+
+Integration tests verify that multiple modules (Auth + Network + Controller, or Database + Service) work together correctly. Place these in `test/integration/`.
+
+### Full Feature Flow
+
+```dart
+// test/integration/login_flow_test.dart
+
+import 'package:flutter/services.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:magic/magic.dart';
+import 'package:sqlite3/sqlite3.dart';
+
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  setUpAll(() async {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+          const MethodChannel('plugins.flutter.io/path_provider'),
+          (MethodCall methodCall) async => '.',
+        );
+  });
+
+  group('Login Flow Integration', () {
+    late Database db;
+
+    setUp(() async {
+      MagicApp.reset();
+      Magic.flush();
+
+      // Setup database
+      db = sqlite3.openInMemory();
+      DatabaseManager().setConnection(db);
+      db.execute('''
+        CREATE TABLE users (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          email TEXT UNIQUE,
+          password TEXT,
+          created_at TEXT,
+          updated_at TEXT
+        )
+      ''');
+
+      // Setup mock HTTP
+      final mockHttp = MockNetworkDriver();
+      Magic.bind('http.driver', () => mockHttp, shared: true);
+
+      // Initialize auth with user factory
+      await Magic.init(configs: [
+        {
+          'app': {
+            'name': 'Test App',
+            'providers': [
+              (app) => CacheServiceProvider(app),
+              (app) => AuthServiceProvider(app),
+            ],
+          },
+          'auth': {
+            'guards': {
+              'bearer': {
+                'driver': 'bearer',
+              },
+            },
+            'defaults': {
+              'guard': 'bearer',
+            },
+          },
+        },
+      ]);
+
+      // Set user factory for Auth
+      Auth.manager.setUserFactory(User.new);
+
+      // Seed database with test user
+      db.execute(
+        "INSERT INTO users (email, password) VALUES ('alice@example.com', 'hashed_password')"
+      );
+    });
+
+    tearDown(() {
+      DatabaseManager().dispose();
+    });
+
+    test('user can login and access protected resources', () async {
+      // Mock HTTP login endpoint
+      final mockHttp = Magic.make<MockNetworkDriver>('http.driver');
+      mockHttp.mock({
+        'token': 'auth_token_123',
+        'user': {
+          'id': 1,
+          'email': 'alice@example.com',
+        },
+      });
+
+      // Create and test controller
+      final authController = AuthController.instance;
+      await authController.login('alice@example.com', 'password');
+
+      // Verify auth state
+      expect(Auth.check(), isTrue);
+      expect(Auth.user<User>()?.email, 'alice@example.com');
+
+      // Verify token was cached
+      final token = await Vault.get('auth_token');
+      expect(token, 'auth_token_123');
+    });
+
+    test('failed login keeps user unauthenticated', () async {
+      final mockHttp = Magic.make<MockNetworkDriver>('http.driver');
+      mockHttp.mockError(Exception('Invalid credentials'));
+
+      final authController = AuthController.instance;
+
+      try {
+        await authController.login('bob@example.com', 'wrong_password');
+      } catch (_) {
+        // Expected to fail
+      }
+
+      expect(Auth.check(), isFalse);
+      expect(Auth.user(), isNull);
+    });
+
+    test('user can logout and lose access', () async {
+      // First login
+      final mockHttp = Magic.make<MockNetworkDriver>('http.driver');
+      mockHttp.mock({
+        'token': 'auth_token_123',
+        'user': {'id': 1, 'email': 'alice@example.com'},
+      });
+
+      final authController = AuthController.instance;
+      await authController.login('alice@example.com', 'password');
+      expect(Auth.check(), isTrue);
+
+      // Then logout
+      await Auth.logout();
+      expect(Auth.check(), isFalse);
+      expect(await Vault.get('auth_token'), isNull);
+    });
+  });
+}
+```
+
+## Test Directory Structure
+
+Tests must mirror the `lib/src/` structure. This makes tests easy to locate and organize.
+
+```
+test/
+├── foundation/          # Container, Config, Env tests
+│   ├── container_test.dart
+│   └── config_test.dart
+├── auth/                # Auth guards and managers
+│   └── auth_test.dart
+├── cache/               # Cache drivers and managers
+│   ├── cache_test.dart
+│   └── drivers/
+│       └── file_store_test.dart
+├── database/            # Models, QueryBuilder, Migrations
+│   ├── eloquent/
+│   │   └── model_test.dart
+│   ├── query_builder_test.dart
+│   ├── migrator_test.dart
+│   └── schema_test.dart
+├── events/              # Event dispatcher and listeners
+│   └── events_test.dart
+├── http/                # Controllers, Middleware, Kernel
+│   ├── magic_controller_test.dart
+│   └── middleware_test.dart
+├── localization/        # Translator and loaders
+│   └── localization_test.dart
+├── logging/             # Log manager and drivers
+│   └── logging_test.dart
+├── routing/             # Router tests
+│   └── router_test.dart
+├── storage/             # File storage and disk operations
+│   └── storage_test.dart
+├── ui/                  # Views, Forms, responsive widgets
+│   ├── magic_view_test.dart
+│   ├── magic_form_data_test.dart
+│   └── magic_builder_test.dart
+├── validation/          # Rules and validator
+│   └── validation_test.dart
+└── integration/         # Multi-module workflows
+    ├── magic_init_test.dart
+    └── login_flow_test.dart
+```
+
+## Common Testing Patterns
+
+### Testing Config Access
+
+```dart
+test('config values can be retrieved', () async {
+  await Magic.init(configs: [
+    {
+      'app': {
+        'name': 'My App',
+        'debug': true,
+      },
+    },
+  ]);
+
+  expect(Config.get('app.name'), 'My App');
+  expect(Config.get('app.debug'), isTrue);
+  expect(Config.get('app.missing', 'default'), 'default');
+});
+```
+
+### Testing Service Providers
+
+```dart
+class TestServiceProvider extends ServiceProvider {
+  bool registerCalled = false;
+  bool bootCalled = false;
+
+  @override
+  void register() {
+    registerCalled = true;
+    app.singleton('test.service', () => TestService());
+  }
+
+  @override
+  Future<void> boot() async {
+    bootCalled = true;
+  }
+}
+
+test('service provider is registered and booted', () async {
+  final provider = TestServiceProvider(MagicApp.instance);
+  MagicApp.instance.register(provider);
+  await MagicApp.instance.boot();
+
+  expect(provider.registerCalled, isTrue);
+  expect(provider.bootCalled, isTrue);
+  expect(MagicApp.instance.bound('test.service'), isTrue);
+});
+```
+
+### Testing Facade Access
+
+```dart
+test('Log facade resolves underlying service', () {
+  Magic.bind('log', () => TestLogger(), shared: true);
+
+  Log.info('Test message');
+
+  expect(Magic.make<TestLogger>('log').lastMessage, 'Test message');
+});
+
+test('Cache facade stores and retrieves values', () async {
+  Magic.bind('cache.store', () => TestCacheStore(), shared: true);
+
+  await Cache.put('key', 'value');
+  final retrieved = await Cache.get('key');
+
+  expect(retrieved, 'value');
+});
+```
+
+## Common Gotchas
+
+### Missing setUp Reset
+
+**Problem:** Tests fail intermittently due to state pollution.
+
+**Solution:** Always call `MagicApp.reset()` and `Magic.flush()` in `setUp()`.
 
 ```dart
 setUp(() {
-    final db = sqlite3.openInMemory();
-    DatabaseManager().setConnection(db);
-    
-    // Run migrations or create tables
-    db.execute('CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT)');
-});
-
-test('model can save to database', () async {
-    final user = User()..name = 'Anilcan';
-    await user.save();
-    
-    final found = await User.find(1);
-    expect(found?.name, 'Anilcan');
+  MagicApp.reset();
+  Magic.flush();
 });
 ```
 
-Middleware are tested by verifying they call or skip `next()`.
+### Facade Caching Issues
+
+**Problem:** After binding a new service, the facade still returns the old instance.
+
+**Solution:** Call `Magic.flush()` to clear facade caches.
 
 ```dart
-test('EnsureAuthenticated blocks guest users', () async {
-    await Auth.logout(); // Ensure guest state
-    
-    final middleware = EnsureAuthenticated();
-    bool nextCalled = false;
-    
-    middleware.handle(() {
-        nextCalled = true;
-    });
-    
-    expect(nextCalled, isFalse); // Middleware halted the pipeline
-});
-
-test('EnsureAuthenticated allows authenticated users', () async {
-    // Setup: mock auth state
-    final user = User()..fill({'id': 1, 'name': 'Test'});
-    await Auth.login({'token': 'test'}, user);
-    
-    final middleware = EnsureAuthenticated();
-    bool nextCalled = false;
-    
-    middleware.handle(() {
-        nextCalled = true;
-    });
-    
-    expect(nextCalled, isTrue);
+setUp(() {
+  MagicApp.reset();
+  Magic.flush(); // Required to clear cached facade instances
 });
 ```
 
-## Testing Forms & Validation
+### Database Connection Not Set
 
-Test validation rules in isolation or via `Validator.make()`.
+**Problem:** Model tests fail because `DatabaseManager` has no active connection.
+
+**Solution:** Create and set the database connection in `setUp()`.
 
 ```dart
-test('email rule validates correctly', () {
-    final rule = Email();
-    
-    expect(rule.passes('email', 'valid@example.com', {}), isTrue);
-    expect(rule.passes('email', 'invalid-email', {}), isFalse);
-});
-
-test('validator catches multiple errors', () {
-    final validator = Validator.make(
-        {'email': 'bad', 'password': '123'},
-        {'email': [Email()], 'password': [Min(6)]}
-    );
-    
-    expect(validator.fails(), isTrue);
-    expect(validator.errors().length, 2);
+setUp(() {
+  final db = sqlite3.openInMemory();
+  DatabaseManager().setConnection(db);
 });
 ```
 
-## Integration Test Patterns
+### Auth User Factory Not Set
 
-Integration tests verify that multiple modules (e.g., Auth + Network + Controller) work together.
+**Problem:** `Auth.user<T>()` returns null or throws an error in integration tests.
+
+**Solution:** Call `Auth.manager.setUserFactory()` after `Magic.init()`.
 
 ```dart
-test('full login flow', () async {
-    await Magic.init(configFactories: [() => testConfig]);
-    
-    final controller = AuthController.instance;
-    mockNetwork.mock({'token': 'secret_token', 'user': {'id': 1, 'name': 'Anilcan'}});
-    
-    await controller.login('anilcan@example.com', 'password');
-    
-    expect(Auth.check(), isTrue);
-    expect(Auth.user()?.name, 'Anilcan');
-    expect(await Vault.get('auth_token'), 'secret_token');
+await Magic.init(configs: [...]);
+Auth.manager.setUserFactory(User.new);
+```
+
+### Platform Channels in Tests
+
+**Problem:** File storage or path provider tests fail with "No implementation found for method".
+
+**Solution:** Mock the platform channel in `setUpAll()`.
+
+```dart
+setUpAll(() {
+  TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+      .setMockMethodCallHandler(
+        const MethodChannel('plugins.flutter.io/path_provider'),
+        (MethodCall methodCall) async => '.',
+      );
 });
 ```
 
-## Directory Structure
+### Testing Async Operations
 
-Test files MUST mirror the `lib/src/` structure.
+**Problem:** Test completes before async operation finishes.
 
-```text
-test/
-├── foundation/    # Container, Config, Env
-├── auth/          # Guards, Gates
-├── cache/         # Drivers
-├── database/      # Models, QueryBuilder
-├── events/        # Dispatcher, Listeners
-├── http/          # Controllers, Middleware
-├── integration/   # Multi-module flows
-└── validation/    # Rules, Validator
+**Solution:** Use `await` or `expectLater()` for async operations.
+
+```dart
+test('async operation completes', () async {
+  final controller = MyController();
+
+  await controller.fetchData(); // Wait for completion
+
+  expect(controller.isSuccess, isTrue);
+});
+
+test('listenable updates state', () {
+  final controller = MyController();
+
+  expectLater(
+    controller.rxState,
+    emits(['item1', 'item2']),
+  );
+
+  controller.fetchData();
+});
 ```
 
-## Gotchas
+### Comparing Model Instances
 
-- **Magic.flush()**: Crucial if your tests change container bindings. Facades cache instances internally and won't see new bindings without a flush.
-- **SQLite In-Memory**: Use `sqlite3.openInMemory()` to avoid filesystem artifacts.
-- **Platform Channels**: Use `TestDefaultBinaryMessengerBinding` to mock platform-specific logic (e.g., `path_provider` for `FileStore`).
-- **Kernel.flush()**: Call `Kernel.flush()` in `setUp` alongside `MagicApp.reset()` and `Magic.flush()` when testing middleware registration.
-- **Auth User Factory**: Always call `Auth.manager.setUserFactory()` in your integration test setup if testing `Auth.user<T>()`.
+**Problem:** Two models with the same data are not equal.
+
+**Solution:** Compare using `.toMap()` or individual fields.
+
+```dart
+test('models with same data are equivalent', () {
+  final user1 = User()..fill({'id': 1, 'name': 'Alice'});
+  final user2 = User()..fill({'id': 1, 'name': 'Alice'});
+
+  // Don't use expect(user1, user2)
+  expect(user1.toMap(), user2.toMap());
+});
+```
+
+## Running Tests
+
+```bash
+# Run all tests
+flutter test
+
+# Run tests in specific module
+flutter test test/database/eloquent/model_test.dart
+
+# Run tests matching pattern
+flutter test --name "User Model"
+
+# Run with verbose output
+flutter test -v
+
+# Run with coverage
+flutter test --coverage
+```
+
+## Imports
+
+All test files should start with:
+
+```dart
+import 'package:flutter_test/flutter_test.dart';
+import 'package:magic/magic.dart';
+```
+
+For database tests, also add:
+
+```dart
+import 'package:sqlite3/sqlite3.dart';
+```
+
+For integration tests with platform channels:
+
+```dart
+import 'package:flutter/services.dart';
+```

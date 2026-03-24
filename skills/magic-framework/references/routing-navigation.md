@@ -1,183 +1,427 @@
 # Routing & Navigation
 
-Comprehensive guide to route registration, context-free navigation, middleware, and route transitions in the Magic framework.
-
+Comprehensive guide to route registration, context-free navigation, middleware, transitions, and persistent layouts in the Magic framework.
 
 ## Route Registration
 
-Routes are registered using the `MagicRoute` class. A route maps a path to a widget, usually returned by a controller.
+Routes are registered using the `MagicRoute.page()` method. Each route maps a path to a widget builder function.
 
 ```dart
-// Simple page registration
-MagicRoute.page('/monitors', () => MonitorController.instance.index());
-MagicRoute.page('/monitors/:id', () => MonitorController.instance.show());
+import 'package:magic/magic.dart';
 
-// Fluent builder for advanced configuration
-MagicRoute.page('/admin', () => AdminController.instance.index())
-    .name('admin.index')
+// Simple route
+MagicRoute.page('/', () => HomePage());
+
+// Route with path parameters (accessed via handler signature)
+MagicRoute.page('/users/:id', (id) => UserPage(id: id));
+
+// Fluent API for advanced configuration
+MagicRoute.page('/dashboard', () => DashboardPage())
+    .name('dashboard')
     .middleware(['auth'])
     .transition(RouteTransition.fade);
 ```
 
-### RouteDefinition Fluent API
+Path parameters are injected directly into the handler function signature. The framework matches parameter count and passes them in order.
 
-| Method | Purpose |
-|--------|---------|
-| `.name(String)` | Assigns a unique name for named navigation. |
-| `.middleware(List<dynamic>)` | Applies middleware aliases (Strings) or factory functions. |
-| `.transition(RouteTransition)` | Sets the page transition animation for this route. |
+```dart
+// Single parameter
+MagicRoute.page('/posts/:id', (id) => PostPage(id: id));
+
+// Multiple parameters
+MagicRoute.page('/users/:userId/posts/:postId', (userId, postId) {
+  return PostDetailPage(userId: userId, postId: postId);
+});
+```
+
+## Fluent Route Definition API
+
+After calling `MagicRoute.page()`, chain these methods:
+
+| Method | Purpose | Example |
+|--------|---------|---------|
+| `.name(String)` | Assign a name for named navigation | `.name('users.show')` |
+| `.middleware(List<dynamic>)` | Attach middleware (aliases or factories) | `.middleware(['auth', 'admin'])` |
+| `.transition(RouteTransition)` | Set page transition animation | `.transition(RouteTransition.slideUp)` |
 
 ## Route Groups
 
-Groups allow you to apply shared layouts (ShellRoutes) and middleware to a set of routes.
+Group related routes to share a prefix, middleware, or layout.
 
 ```dart
 MagicRoute.group(
-  layout: (child) => AppLayout(child: child),
-  middleware: ['auth'],
+  prefix: '/admin',
+  middleware: ['auth', 'admin'],
   routes: () {
-    MagicRoute.page('/', () => DashboardController.instance.index());
-    MagicRoute.page('/monitors', () => MonitorController.instance.index());
-    MagicRoute.page('/monitors/:id', () => MonitorController.instance.show());
+    MagicRoute.page('/', () => AdminDashboard());
+    MagicRoute.page('/users', () => AdminUsersPage());
+    MagicRoute.page('/settings', () => AdminSettingsPage());
   },
 );
 ```
 
+Nested groups combine their prefixes and middleware:
+
+```dart
+MagicRoute.group(
+  prefix: '/api',
+  routes: () {
+    MagicRoute.group(
+      prefix: '/v1',
+      middleware: ['api-auth'],
+      routes: () {
+        MagicRoute.page('/status', () => ApiStatusPage()); // /api/v1/status
+      },
+    );
+  },
+);
+```
+
+### Route Group Options
+
+| Option | Type | Purpose |
+|--------|------|---------|
+| `prefix` | `String?` | URL prefix for all routes in the group |
+| `middleware` | `List<dynamic>` | Middleware applied to all routes |
+| `as` | `String?` | Named prefix (e.g., 'admin.') for route names |
+| `layout` | `Widget Function(Widget)` | Persistent shell layout for grouped routes |
+| `layoutId` | `String?` | Layout identifier for merging groups with same layout |
+| `routes` | `void Function()` | Callback to register child routes |
+
+## Persistent Layouts (Shell Routes)
+
+Use layouts to maintain persistent UI (tabs, navigation rails, sidebars) while child routes change.
+
+### Via Route Group
+
+```dart
+MagicRoute.group(
+  layout: (child) => AppLayout(
+    sidebar: NavigationSidebar(),
+    child: child,
+  ),
+  routes: () {
+    MagicRoute.page('/dashboard', () => DashboardPage());
+    MagicRoute.page('/settings', () => SettingsPage());
+  },
+);
+```
+
+The layout builder receives the child widget and returns the wrapped layout.
+
+### Via Direct Layout Registration
+
+```dart
+MagicRoute.layout(
+  id: 'main-layout',
+  builder: (child) => AppLayout(child: child),
+  routes: [
+    MagicRoute.page('/dashboard', () => DashboardPage()),
+    MagicRoute.page('/profile', () => ProfilePage()),
+  ],
+);
+```
+
+Multiple layout groups with the same ID merge their routes under a single layout shell.
+
 ## Route Transitions
 
-Magic supports several built-in transition animations via the `RouteTransition` enum.
+Built-in transition animations via the `RouteTransition` enum:
 
 | Value | Animation |
 |-------|-----------|
-| `RouteTransition.none` | Uses the platform-default transition. |
-| `RouteTransition.fade` | Cross-fade effect. |
-| `RouteTransition.slideRight` | Slides in from the right. |
-| `RouteTransition.slideUp` | Slides in from the bottom. |
-| `RouteTransition.scale` | Scales up while fading in. |
+| `RouteTransition.none` | No animation (instant page switch) |
+| `RouteTransition.fade` | Cross-fade effect |
+| `RouteTransition.slideRight` | Slide in from right, slide out to left |
+| `RouteTransition.slideUp` | Slide in from bottom |
+| `RouteTransition.scale` | Scale up with fade |
 
-## Navigation API
+```dart
+MagicRoute.page('/modal', () => ModalPage())
+    .transition(RouteTransition.slideUp);
 
-Navigation is context-free, meaning you don't need a `BuildContext` to move between pages.
+MagicRoute.page('/details', () => DetailsPage())
+    .transition(RouteTransition.slideRight);
+```
 
-| Method | Purpose |
-|--------|---------|
-| `MagicRoute.to('/path')` | Standard push navigation to a path. |
-| `MagicRoute.back()` | Pops the current route. |
-| `MagicRoute.replace('/path')` | Replaces the current route (removes from history). |
-| `MagicRoute.toNamed('name')` | Navigates using the route's assigned name. |
+## Context-Free Navigation
+
+Navigate from anywhere without `BuildContext`: controllers, services, callbacks.
+
+```dart
+import 'package:magic/magic.dart';
+
+// Navigate to a path
+MagicRoute.to('/dashboard');
+MagicRoute.to('/users/42');
+
+// Navigate with query parameters
+MagicRoute.to('/search', query: {'q': 'flutter'});
+
+// Navigate to a named route
+MagicRoute.toNamed('users.show', params: {'id': '42'});
+
+// Push onto stack (preserves history)
+MagicRoute.push('/details');
+
+// Go back
+MagicRoute.back();
+
+// Replace current route (removes from history)
+MagicRoute.replace('/home');
+```
 
 ## Path & Query Parameters
 
-Parameters are extracted from the current GoRouter state managed by `MagicRouter`.
+Access parameters from the current route:
 
 ```dart
-// For route: '/monitors/:id'
+// Extract from route definition
+MagicRoute.page('/posts/:id', (id) {
+  // `id` is injected directly
+  return PostPage(id: id);
+});
+
+// Access globally from anywhere
 final id = MagicRouter.instance.pathParameter('id');
-
-// For route: '/search?q=flutter'
 final query = MagicRouter.instance.queryParameter('q');
+
+// Get all parameters at once
+final allPathParams = MagicRouter.instance.pathParameters;
+final allQueryParams = MagicRouter.instance.queryParameters;
+
+// Current location (path + query)
+final location = MagicRouter.instance.currentLocation;
 ```
 
-## Intended URL
+## Named Routes
 
-Used to redirect users back to their original destination after a successful login.
+Assign names to routes for navigation without hardcoding paths.
 
 ```dart
-// Inside a guest/auth middleware:
-MagicRouter.instance.setIntendedUrl('/dashboard/settings');
-MagicRoute.replace('/auth/login');
+MagicRoute.page('/users/:id', (id) => UserPage(id: id))
+    .name('users.show');
 
-// Inside login logic after success:
-final url = MagicRouter.instance.pullIntendedUrl(); // Returns and clears the stored URL
-MagicRoute.to(url ?? '/');
+MagicRoute.page('/posts/:id/edit', (id) => EditPostPage(id: id))
+    .name('posts.edit');
+
+// Navigate by name
+MagicRoute.toNamed('users.show', params: {'id': '42'});
+MagicRoute.toNamed('posts.edit', params: {'id': 'abc'}, query: {'tab': 'content'});
 ```
+
+## Intended URL (Redirect-After-Login Pattern)
+
+Save a user's intended destination before redirecting to login, then restore it after authentication.
+
+```dart
+// Inside auth middleware
+if (!Auth.check()) {
+  MagicRouter.instance.setIntendedUrl(currentPath);
+  MagicRoute.replace('/login');
+}
+
+// Inside login success handler
+final intended = MagicRouter.instance.pullIntendedUrl();
+MagicRoute.to(intended ?? '/');
+```
+
+`pullIntendedUrl()` returns and clears the URL (one-time read).
 
 ## Middleware Pipeline
 
-Middleware allows you to intercept navigation. They must be registered in the `Kernel`.
+Middleware intercepts navigation to enforce authentication, authorization, logging, etc.
 
 ### Registration
 
-Middleware must be registered in the `Kernel` before use. Use `Kernel.registerAll()` for bulk or `Kernel.register()` individually.
+Middleware must be registered in the `Kernel` (usually in `lib/app/kernel.dart`):
 
 ```dart
-// Global middleware (runs on every route)
-Kernel.global([
-  () => LoggingMiddleware(),
-]);
+import 'package:magic/magic.dart';
 
-// Named route middleware
-Kernel.registerAll({
-  'auth': () => EnsureAuthenticated(),
-  'guest': () => RedirectIfAuthenticated(),
-});
+class Kernel extends HttpKernel {
+  @override
+  void registerMiddleware() {
+    // Named middleware (referenced by string alias)
+    registerAll({
+      'auth': () => EnsureAuthenticated(),
+      'guest': () => RedirectIfAuthenticated(),
+      'admin': () => EnsureAdmin(),
+    });
+
+    // Global middleware (runs on every route)
+    global([
+      () => LoggingMiddleware(),
+    ]);
+  }
+}
 ```
 
-**Kernel API:**
+### Attachment
 
-| Method | Purpose |
-|--------|---------|
-| `Kernel.global(List<MagicMiddleware Function()>)` | Middleware that runs on every route |
-| `Kernel.register(String name, MagicMiddleware Function())` | Register a named middleware alias |
-| `Kernel.registerAll(Map<String, MagicMiddleware Function()>)` | Bulk register named middleware |
-| `Kernel.resolve(dynamic)` | Resolve by string alias, factory, or instance |
-| `Kernel.execute(List<MagicMiddleware>)` | Run chain sequentially — returns `false` if halted |
-| `Kernel.flush()` | Clear all middleware (for testing) |
+Attach middleware to routes or groups:
+
+```dart
+// Route-level
+MagicRoute.page('/admin', () => AdminPage())
+    .middleware(['auth', 'admin']);
+
+// Group-level
+MagicRoute.group(
+  middleware: ['auth'],
+  routes: () {
+    MagicRoute.page('/dashboard', () => DashboardPage());
+  },
+);
+```
 
 ### Implementation
 
 ```dart
+import 'package:magic/magic.dart';
+
 class EnsureAuthenticated extends MagicMiddleware {
   @override
   void handle(void Function() next) {
     if (Auth.check()) {
       next(); // Proceed to next middleware or route
     } else {
-      MagicRouter.instance.setIntendedUrl(currentPath);
-      MagicRoute.replace('/auth/login');
-      // Halting pipeline by NOT calling next()
+      // Halt pipeline (do not call next())
+      MagicRouter.instance.setIntendedUrl(MagicRouter.instance.currentLocation ?? '/');
+      MagicRoute.replace('/login');
     }
   }
 }
 ```
 
+Middleware must call `next()` to proceed. If it doesn't, the pipeline halts and the route is blocked.
+
 ## RouteServiceProvider Pattern
 
-The recommended way to organize routing is within a `ServiceProvider`. Routes **must** be registered in the `register()` method.
+Organize routing in a `ServiceProvider`:
 
 ```dart
+import 'package:magic/magic.dart';
+
+import '../kernel.dart';
+import '../../routes/app.dart';
+
 class RouteServiceProvider extends ServiceProvider {
   RouteServiceProvider(super.app);
 
   @override
   void register() {
-    registerKernel();    // Register middleware
-    registerAppRoutes(); // Register actual routes
+    registerKernel();      // Register middleware
+    registerAppRoutes();   // Register routes
+  }
+
+  @override
+  Future<void> boot() async {
+    // Async initialization if needed
   }
 }
 ```
 
-## MagicApplication Widget
-
-The root widget of your Flutter app that initializes the routing system and themes.
+Then define routes in a dedicated file:
 
 ```dart
+// lib/routes/app.dart
+import 'package:magic/magic.dart';
+import '../resources/views/home_page.dart';
+
+void registerAppRoutes() {
+  MagicRoute.page('/', () => HomePage());
+
+  MagicRoute.group(
+    prefix: '/admin',
+    middleware: ['auth', 'admin'],
+    routes: () {
+      MagicRoute.page('/dashboard', () => AdminDashboardPage());
+    },
+  );
+}
+```
+
+## Router Configuration
+
+Access the `GoRouter` instance for `MaterialApp.router`:
+
+```dart
+import 'package:flutter/material.dart';
+import 'package:magic/magic.dart';
+
 void main() async {
   await Magic.init(configFactories: [() => appConfig]);
 
-  runApp(MagicApplication(
-    title: 'My Magic App',
-    windTheme: windTheme,
-    onInit: () => Log.info('App starting...'),
+  runApp(MaterialApp.router(
+    title: 'My App',
+    routerConfig: MagicRoute.config,
+    theme: ThemeData.light(),
   ));
 }
 ```
 
+## Key Patterns
+
+**Redirect After Login**
+
+```dart
+// Middleware
+class EnsureAuthenticated extends MagicMiddleware {
+  @override
+  void handle(void Function() next) {
+    if (!Auth.check()) {
+      MagicRouter.instance.setIntendedUrl(MagicRouter.instance.currentLocation ?? '/');
+      MagicRoute.replace('/login');
+    } else {
+      next();
+    }
+  }
+}
+
+// Login success
+final intended = MagicRouter.instance.pullIntendedUrl();
+MagicRoute.to(intended ?? '/');
+```
+
+**Nested Route Groups**
+
+```dart
+MagicRoute.group(
+  prefix: '/api',
+  middleware: ['api-rate-limit'],
+  routes: () {
+    MagicRoute.group(
+      prefix: '/v1',
+      middleware: ['api-auth'],
+      routes: () {
+        MagicRoute.page('/status', () => ApiStatusPage()); // /api/v1/status
+      },
+    );
+  },
+);
+```
+
+**Persistent Navigation Layout**
+
+```dart
+MagicRoute.layout(
+  builder: (child) => DashboardShell(
+    navigation: BottomNavigationBar(items: [...]),
+    child: child,
+  ),
+  routes: [
+    MagicRoute.page('/dashboard', () => DashboardHome()),
+    MagicRoute.page('/settings', () => SettingsPage()),
+  ],
+);
+```
+
 ## Gotchas
 
-- **Registration Phase:** Routes must be registered during the `ServiceProvider.register()` phase. Registering in `boot()` is too late because the GoRouter configuration is generated during the bootstrap process.
-- **Next is Required:** Middleware **must** call `next()` to allow the request to proceed. If `next()` is never called, the navigation will stall and the screen will remain unchanged.
-- **Named Navigation:** Named navigation only works if you explicitly call `.name()` on the `RouteDefinition`.
-- **Param Extraction:** `pathParameter()` and `queryParameter()` read directly from the current router state, not from a manual parsing of the URL string.
-- **History Management:** `replace()` should be used carefully (e.g., after login or on splash screens) as it prevents the user from going "back" to that specific entry.
-- **Root Widget:** `MagicApplication` is mandatory as it provides the `MaterialApp.router` configuration required by the framework.
+- **Route Registration Timing:** Routes must be registered during `ServiceProvider.register()` or `boot()`. They cannot be added after `MagicRouter.instance.routerConfig` is accessed.
+- **Middleware Next Required:** Middleware must call `next()` to allow the request to proceed. Failing to call it halts the pipeline.
+- **Path Parameters:** Parameters are injected by position into the handler function. Ensure the function signature matches the number of parameters in the route.
+- **Named Routes:** Only use named navigation if the route was explicitly named with `.name()`.
+- **Replace vs. To:** Use `replace()` carefully—it removes the current route from history, preventing back navigation to that point. Use for login redirects and splash screens.
+- **Intended URL Cleanup:** `pullIntendedUrl()` is a one-time read that clears the stored URL. Call it only once per login flow.
