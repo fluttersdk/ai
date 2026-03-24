@@ -1,36 +1,73 @@
-# FlutterSDK AI
+<p align="center">
+  <img src="https://raw.githubusercontent.com/fluttersdk/ai/main/.github/ai-logo.svg" width="120" alt="FlutterSDK AI Logo" />
+</p>
 
-AI coding skills, MCP servers, commands, and scripts for the FlutterSDK ecosystem — distributed across **all major AI coding tools**.
+<h1 align="center">FlutterSDK AI</h1>
+
+<p align="center">
+  <strong>AI coding skills for the FlutterSDK ecosystem.</strong><br/>
+  Teach your AI assistant Wind UI, Magic Framework, and more — across every major coding tool.
+</p>
+
+<p align="center">
+  <a href="https://github.com/fluttersdk/ai/actions"><img src="https://img.shields.io/github/actions/workflow/status/fluttersdk/ai/deploy-registry.yml?branch=main&label=Registry" alt="Registry"></a>
+  <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT"></a>
+  <a href="https://github.com/fluttersdk/ai/stargazers"><img src="https://img.shields.io/github/stars/fluttersdk/ai?style=flat" alt="GitHub stars"></a>
+</p>
+
+<p align="center">
+  <a href="https://fluttersdk.github.io/ai/">Registry</a> ·
+  <a href="https://github.com/fluttersdk/ai/issues">Issues</a> ·
+  <a href="#quick-start">Quick Start</a>
+</p>
+
+---
+
+## Why?
+
+AI coding assistants are powerful — but they don't know your frameworks. They hallucinate widget names, guess at API patterns, and miss conventions.
+
+**FlutterSDK AI fixes this.** It gives your AI structured knowledge about Wind UI's className system, Magic Framework's Laravel-inspired architecture, and more — so it generates correct code on the first try.
+
+One install, every tool:
 
 | Tool | Integration |
-|------|-------------|
+|:-----|:------------|
 | [OpenCode](https://github.com/opencodetool/opencode) | URL-based skill registry |
 | [Claude Code](https://docs.anthropic.com/en/docs/claude-code) | Plugin + Marketplace |
 | [Cursor](https://cursor.sh) | Rules (`.mdc`) |
 | [Gemini CLI](https://github.com/google-gemini/gemini-cli) | Command templates (`.toml`) |
 | [VS Code Copilot](https://code.visualstudio.com/) | Instructions (`.md`) |
 
-## Available Skills
+## Skills
 
 ### Wind UI
 
-Utility-first styling framework for Flutter — think Tailwind CSS, but for widgets.
+Utility-first styling for Flutter — Tailwind CSS syntax, but for widgets.
 
 ```dart
+// Your AI generates this correctly — every time
 WDiv(
-    className: 'p-4 bg-white dark:bg-gray-900 rounded-lg shadow-md',
-    child: WText(
-        'Hello, Wind UI!',
-        className: 'text-lg font-semibold text-gray-800 dark:text-white',
-    ),
+    className: 'flex flex-col gap-6 p-6 bg-white dark:bg-gray-900 rounded-xl shadow-lg',
+    children: [
+        WText('Dashboard', className: 'text-2xl font-bold text-gray-900 dark:text-white'),
+        WButton(
+            onTap: _refresh,
+            className: 'bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg',
+            child: Text('Refresh'),
+        ),
+    ],
 )
 ```
+
+20 widgets · responsive breakpoints · dark mode · state styling · server-driven UI
 
 ### Magic Framework
 
 Laravel-inspired Flutter framework with IoC Container, Facades, Eloquent ORM, and GoRouter wrapper.
 
 ```dart
+// Your AI knows the full Magic API — controllers, facades, ORM, routing
 class UserController extends MagicController {
     Future<MagicResponse> index() async {
         final users = await User.query().where('active', true).get();
@@ -40,36 +77,29 @@ class UserController extends MagicController {
 }
 ```
 
+Eloquent ORM · Facades · Auth · Forms & Validation · HTTP · CLI scaffolding
+
 ## Quick Start
 
 ### Option 1: `npx skills` (Recommended)
 
-The fastest way to install — works with [40+ AI coding agents](https://github.com/vercel-labs/skills) including OpenCode, Claude Code, Cursor, Gemini CLI, and more.
+The fastest way — works with [40+ AI coding agents](https://github.com/vercel-labs/skills).
 
 ```bash
 # Install all FlutterSDK skills to all detected agents
 npx skills add fluttersdk/ai
 
-# Install to specific agents only
-npx skills add fluttersdk/ai -a opencode -a claude-code -a cursor
-
 # Install a specific skill
 npx skills add fluttersdk/ai --skill wind-ui
-npx skills add fluttersdk/ai --skill magic-framework
 
 # Install globally (available across all projects)
 npx skills add fluttersdk/ai -g
-
-# Preview available skills without installing
-npx skills add fluttersdk/ai --list
 ```
 
 ### Option 2: Universal Installer
 
 ```bash
-# Clone the repository
-git clone https://github.com/fluttersdk/ai.git
-cd ai
+git clone https://github.com/fluttersdk/ai.git && cd ai
 
 # Preview what would be installed
 bash scripts/install.sh --dry-run --global
@@ -81,27 +111,27 @@ bash scripts/install.sh --global
 bash scripts/install.sh --project
 ```
 
-### Option 3: Tool-Specific Setup
+### Option 3: Tool-Specific
 
-#### OpenCode
+<details>
+<summary><strong>OpenCode</strong></summary>
 
 Add the registry URL to your `opencode.json`:
 
 ```json
 {
     "skills": {
-        "urls": [
-            "https://fluttersdk.github.io/ai/"
-        ]
+        "urls": ["https://fluttersdk.github.io/ai/"]
     }
 }
 ```
 
-Skills are fetched automatically and cached locally. Use them by name — OpenCode activates them when it detects relevant trigger keywords.
+Skills are fetched automatically and cached locally.
 
-#### Claude Code
+</details>
 
-Install as a plugin:
+<details>
+<summary><strong>Claude Code</strong></summary>
 
 ```bash
 # From local clone
@@ -114,20 +144,22 @@ claude plugin install --plugin-dir ./path/to/fluttersdk-ai
 
 Skills are namespaced as `/fluttersdk:wind-ui` and `/fluttersdk:magic-framework`.
 
-#### Cursor
+</details>
 
-Copy the rule file into your project:
+<details>
+<summary><strong>Cursor</strong></summary>
 
 ```bash
 mkdir -p .cursor/rules
 cp commands/cursor/fluttersdk.mdc .cursor/rules/
 ```
 
-The rule activates automatically for all `.dart` files.
+Activates automatically for all `.dart` files.
 
-#### Gemini CLI
+</details>
 
-Copy command templates to your Gemini config:
+<details>
+<summary><strong>Gemini CLI</strong></summary>
 
 ```bash
 mkdir -p ~/.gemini/commands
@@ -136,69 +168,33 @@ cp commands/gemini/*.toml ~/.gemini/commands/
 
 Use with `/flutter-review` and `/flutter-test` commands.
 
-#### VS Code Copilot
+</details>
 
-Copy the instructions file into your project:
+<details>
+<summary><strong>VS Code Copilot</strong></summary>
 
 ```bash
 mkdir -p .github
 cp .github/copilot-instructions.md .github/
 ```
 
-## Repository Structure
-
-```
-fluttersdk-ai/
-├── skills/                     ← Skill definitions (GitHub Pages root)
-│   ├── index.json              ← OpenCode discovery manifest
-│   ├── wind-ui/                ← Wind UI skill + references
-│   └── magic-framework/        ← Magic Framework skill + references
-│
-├── mcps/                       ← MCP server projects
-│   └── fluttersdk-mcp/         ← TypeScript MCP server (@fluttersdk/mcp)
-│
-├── commands/                   ← Command templates per tool
-│   ├── opencode/               ← OpenCode commands (JSON)
-│   ├── claude/                 ← Claude Code commands (Markdown)
-│   ├── cursor/                 ← Cursor rules (.mdc)
-│   └── gemini/                 ← Gemini CLI commands (TOML)
-│
-├── scripts/
-│   └── install.sh              ← Universal multi-tool installer
-│
-├── .claude-plugin/             ← Claude Code plugin manifest
-│   ├── plugin.json
-│   └── marketplace.json
-│
-├── .github/
-│   ├── workflows/
-│   │   └── deploy-registry.yml ← GitHub Pages deployment
-│   └── copilot-instructions.md ← VS Code Copilot instructions
-│
-├── AGENTS.md                   ← AI contributor guide
-├── LICENSE                     ← MIT
-└── README.md                   ← This file
-```
+</details>
 
 ## How It Works
 
-### Skill Registry (OpenCode)
-
-OpenCode fetches `https://fluttersdk.github.io/ai/index.json`, which lists available skills and their files. Each skill's files are downloaded from the same base URL and cached locally.
-
 ```
-index.json → lists skills with file arrays
-  → wind-ui/SKILL.md, wind-ui/references/widgets.md, ...
-  → magic-framework/SKILL.md, magic-framework/references/eloquent-orm.md, ...
+skills/index.json              ← OpenCode fetches this from GitHub Pages
+  → wind-ui/SKILL.md           ← Skill definition + className rules
+  → wind-ui/references/*.md    ← On-demand widget docs, layout patterns, tokens
+  → magic-framework/SKILL.md   ← Skill definition + framework laws
+  → magic-framework/refs/*.md  ← Controllers, ORM, facades, routing, auth, ...
 ```
 
-### Claude Code Plugin
+**OpenCode**: Fetches `fluttersdk.github.io/ai/index.json`, downloads listed skill files, caches locally.
 
-The `.claude-plugin/plugin.json` manifest at the repository root makes this entire repo installable as a Claude Code plugin. Skills in `skills/` are automatically discovered and namespaced under `/fluttersdk:`.
+**Claude Code**: Plugin manifest (`.claude-plugin/plugin.json`) makes the repo installable. Skills in `skills/` are auto-discovered and namespaced under `/fluttersdk:`.
 
-### GitHub Pages Deployment
-
-Pushing to `main` triggers automatic deployment of the `skills/` directory to GitHub Pages via the `deploy-registry.yml` workflow. The `.nojekyll` file ensures Markdown files are served as-is.
+**Deployment**: Push to `main` → GitHub Actions deploys `skills/` to GitHub Pages automatically.
 
 ## Contributing
 
@@ -206,19 +202,21 @@ Pushing to `main` triggers automatic deployment of the `skills/` directory to Gi
 
 1. Create `skills/<skill-name>/SKILL.md` with YAML frontmatter (`name`, `description`)
 2. Add reference files in `skills/<skill-name>/references/`
-3. Update `skills/index.json` — list every file in the `files` array
+3. Update `skills/index.json` — list **every** file in the `files` array
 4. Bump version in `.claude-plugin/plugin.json` and `.claude-plugin/marketplace.json`
 5. Push to `main`
 
-See [AGENTS.md](AGENTS.md) for the complete specification.
+See [CLAUDE.md](CLAUDE.md) for the full specification.
 
-### Checklist
-
-- [ ] `SKILL.md` has valid frontmatter (`name`, `description`)
-- [ ] Every file listed in `index.json` `files` array
-- [ ] `index.json` description matches `SKILL.md` frontmatter
-- [ ] Version bumped in both `plugin.json` and `marketplace.json`
+> **Important**: Every file must be listed in `index.json` — OpenCode only downloads listed files. Forgetting a file means users get incomplete skills.
 
 ## License
 
-[MIT](LICENSE) — Anilcan Cakir
+MIT — see [LICENSE](LICENSE) for details.
+
+---
+
+<p align="center">
+  <sub>Built with care by <a href="https://github.com/fluttersdk">FlutterSDK</a></sub><br/>
+  <sub>If this saves you time, <a href="https://github.com/fluttersdk/ai">give it a star</a> — it helps others discover it.</sub>
+</p>
