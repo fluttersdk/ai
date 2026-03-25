@@ -16,20 +16,24 @@
         },
         {
             "name": "magic-framework",
-            "description": "Magic Framework -- Laravel-inspired Flutter framework with IoC Container, Facades, Eloquent ORM, Service Providers, and GoRouter wrapper. ALWAYS activate for: Magic.init, MagicApp, MagicController, MagicView, MagicStatefulView, MagicStatefulViewState, MagicResponsiveView, MagicFormData, MagicForm, MagicBuilder, MagicRoute, MagicResponse, Eloquent Model, InteractsWithPersistence, HasTimestamps, ServiceProvider, MagicMiddleware, MagicStateMixin, ValidatesRequests, RxStatus, SimpleMagicController, Auth facade, Http facade, Config facade, Cache facade, DB facade, Gate facade, Log facade, Event facade, Lang facade, Schema facade, Vault facade, Storage facade, Pick facade, Crypt facade, Launch facade, Route facade, MagicCan, MagicCannot, MagicApplication, MagicAppWidget, MagicRouterOutlet, RouteServiceProvider, Kernel, Magic.findOrPut, Magic.make, Magic.bind, Magic.singleton, Magic.put, Magic.find, Magic.delete, Magic.snackbar, Magic.success, Magic.error, Magic.toast, Magic.confirm, Magic.dialog, Magic.loading, Magic.closeLoading, Magic.reload, Magic.seed, Magic.flush, Magic.view, Carbon, trans(), env(), rules(), handleApiError, setErrorsFromResponse, MagicViewRegistry, MagicFeedback, dart run magic:magic, magic install, make:model, make:controller, make:view, make:migration, make:enum, make:event, make:listener, make:middleware, make:factory, make:seeder, make:provider, make:policy, make:request, make:lang, key:generate. Use for ANY Flutter project built on the Magic framework.",
+            "description": "Magic Framework -- Laravel-inspired Flutter framework with IoC Container, Facades, Eloquent ORM, Service Providers, and GoRouter wrapper. ALWAYS activate for: Magic.init, MagicApp, MagicController, MagicView, MagicStatefulView, MagicStatefulViewState, MagicResponsiveView, MagicFormData, MagicForm, MagicBuilder, MagicRoute, MagicResponse, Eloquent Model, InteractsWithPersistence, HasTimestamps, ServiceProvider, MagicMiddleware, MagicStateMixin, ValidatesRequests, RxStatus, SimpleMagicController, Auth facade, Http facade, Config facade, Cache facade, DB facade, Gate facade, Log facade, Event facade, Lang facade, Schema facade, Vault facade, Storage facade, Pick facade, Crypt facade, Launch facade, Route facade, MagicCan, MagicCannot, MagicApplication, MagicAppWidget, MagicRouterOutlet, RouteServiceProvider, Kernel, Magic.findOrPut, Magic.make, Magic.bind, Magic.singleton, Magic.put, Magic.find, Magic.delete, Magic.snackbar, Magic.success, Magic.error, Magic.toast, Magic.confirm, Magic.dialog, Magic.loading, Magic.closeLoading, Magic.reload, Magic.seed, Magic.flush, Magic.view, Carbon, trans(), env(), rules(), handleApiError, setErrorsFromResponse, MagicViewRegistry, MagicFeedback, dart run magic:magic, magic install, make:model, make:controller, make:view, make:migration, make:enum, make:event, make:listener, make:middleware, make:factory, make:seeder, make:provider, make:policy, make:request, make:lang, key:generate, magic_deeplink, DeeplinkManager, DeeplinkHandler, DeeplinkDriver, RouteDeeplinkHandler, magic_notifications, Notify, NotificationManager, DatabaseNotification, Notifiable, PushDriver, NotificationChannel, magic_social_auth, SocialAuth, SocialAuthManager, SocialDriver, SocialAuthButtons, SocialToken, magic_starter, MagicStarter, MagicStarterServiceProvider, MagicStarterViewRegistry. Use for ANY Flutter project built on the Magic framework.",
             "files": [
                 "SKILL.md",
+                "references/auth-system.md",
+                "references/bootstrap-lifecycle.md",
+                "references/cli-commands.md",
                 "references/controllers-views.md",
                 "references/eloquent-orm.md",
                 "references/facades-api.md",
-                "references/routing-navigation.md",
-                "references/bootstrap-lifecycle.md",
-                "references/auth-system.md",
                 "references/forms-validation.md",
                 "references/http-network.md",
+                "references/plugin-deeplink.md",
+                "references/plugin-notifications.md",
+                "references/plugin-social-auth.md",
+                "references/plugin-starter.md",
+                "references/routing-navigation.md",
                 "references/secondary-systems.md",
-                "references/testing-patterns.md",
-                "references/cli-commands.md"
+                "references/testing-patterns.md"
             ]
         }
     ]
