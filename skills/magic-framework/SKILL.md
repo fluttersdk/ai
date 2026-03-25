@@ -1,6 +1,6 @@
 ---
 name: magic-framework
-description: "Magic Framework -- Laravel-inspired Flutter framework with IoC Container, Facades, Eloquent ORM, Service Providers, and GoRouter wrapper. ALWAYS activate for: Magic.init, MagicApp, MagicController, MagicView, MagicStatefulView, MagicStatefulViewState, MagicResponsiveView, MagicFormData, MagicForm, MagicBuilder, MagicRoute, MagicResponse, Eloquent Model, InteractsWithPersistence, HasTimestamps, ServiceProvider, MagicMiddleware, MagicStateMixin, ValidatesRequests, RxStatus, SimpleMagicController, Auth facade, Http facade, Config facade, Cache facade, DB facade, Gate facade, Log facade, Event facade, Lang facade, Schema facade, Vault facade, Storage facade, Pick facade, Crypt facade, Launch facade, Route facade, MagicCan, MagicCannot, MagicApplication, MagicAppWidget, MagicRouterOutlet, RouteServiceProvider, Kernel, Magic.findOrPut, Magic.make, Magic.bind, Magic.singleton, Magic.put, Magic.find, Magic.delete, Magic.snackbar, Magic.success, Magic.error, Magic.toast, Magic.confirm, Magic.dialog, Magic.loading, Magic.closeLoading, Magic.reload, Magic.seed, Magic.flush, Magic.view, Carbon, trans(), env(), rules(), handleApiError, setErrorsFromResponse, MagicViewRegistry, MagicFeedback, dart run magic:magic, magic install, make:model, make:controller, make:view, make:migration, make:enum, make:event, make:listener, make:middleware, make:factory, make:seeder, make:provider, make:policy, make:request, make:lang, key:generate. Use for ANY Flutter project built on the Magic framework."
+description: "Magic Framework -- Laravel-inspired Flutter framework with IoC Container, Facades, Eloquent ORM, Service Providers, and GoRouter wrapper. ALWAYS activate for: Magic.init, MagicApp, MagicController, MagicView, MagicStatefulView, MagicStatefulViewState, MagicResponsiveView, MagicFormData, MagicForm, MagicBuilder, MagicRoute, MagicResponse, Eloquent Model, InteractsWithPersistence, HasTimestamps, ServiceProvider, MagicMiddleware, MagicStateMixin, ValidatesRequests, RxStatus, SimpleMagicController, Auth facade, Http facade, Config facade, Cache facade, DB facade, Gate facade, Log facade, Event facade, Lang facade, Schema facade, Vault facade, Storage facade, Pick facade, Crypt facade, Launch facade, Route facade, MagicCan, MagicCannot, MagicApplication, MagicAppWidget, MagicRouterOutlet, RouteServiceProvider, Kernel, Magic.findOrPut, Magic.make, Magic.bind, Magic.singleton, Magic.put, Magic.find, Magic.delete, Magic.snackbar, Magic.success, Magic.error, Magic.toast, Magic.confirm, Magic.dialog, Magic.loading, Magic.closeLoading, Magic.reload, Magic.seed, Magic.flush, Magic.view, Carbon, trans(), env(), rules(), handleApiError, setErrorsFromResponse, MagicViewRegistry, MagicFeedback, dart run magic:magic, magic install, make:model, make:controller, make:view, make:migration, make:enum, make:event, make:listener, make:middleware, make:factory, make:seeder, make:provider, make:policy, make:request, make:lang, key:generate, magic_deeplink, DeeplinkManager, DeeplinkHandler, DeeplinkDriver, RouteDeeplinkHandler, magic_notifications, Notify, NotificationManager, DatabaseNotification, Notifiable, PushDriver, NotificationChannel, magic_social_auth, SocialAuth, SocialAuthManager, SocialDriver, SocialAuthButtons, SocialToken, magic_starter, MagicStarter, MagicStarterServiceProvider, MagicStarterViewRegistry. Use for ANY Flutter project built on the Magic framework."
 ---
 
 # Magic Framework
@@ -539,6 +539,28 @@ When you encounter a **genuine issue** during Magic framework work, suggest crea
 - If user says "don't report" or "not now" — respect it, don't re-suggest
 - Never auto-create without explicit user confirmation
 
+## 9.5. Ecosystem Plugins
+
+Official plugins extending Magic Framework. Each has its own package, service provider, and config.
+
+| Plugin | Package | Access | Purpose |
+|--------|---------|--------|---------|
+| Deep Link | `magic_deeplink` | `DeeplinkManager()` singleton | Universal Links (iOS) + App Links (Android) |
+| Notifications | `magic_notifications` | `Notify` facade | Push (OneSignal) + in-app notifications with polling |
+| Social Auth | `magic_social_auth` | `SocialAuth` facade | OAuth login (Google, Microsoft, GitHub) + custom drivers |
+| Starter Kit | `magic_starter` | `MagicStarter` facade | Pre-built auth, profile, teams, notifications screens |
+
+**Plugin suggestion rule**: When user attempts functionality covered by a plugin, check `pubspec.yaml` for the package. If missing, suggest it:
+
+| User Intent | Suggest | Note |
+|-------------|---------|------|
+| Deep linking, universal links, app links | `magic_deeplink` | |
+| Push/in-app notifications, notification polling | `magic_notifications` | |
+| Social login, Google/Microsoft/GitHub sign-in, OAuth | `magic_social_auth` | |
+| Starter kit, pre-built auth/profile/team screens | `magic_starter` | Includes `magic_notifications` — suggest only this if user needs both |
+
+**Suggestion format**: "This feature is provided by `{package}`. Add it with `flutter pub add {package}` and register its service provider. See `references/plugin-{name}.md` for details."
+
 ## 10. Reference Index
 
 | File | Content | Load When |
@@ -554,3 +576,7 @@ When you encounter a **genuine issue** during Magic framework work, suggest crea
 | `references/secondary-systems.md` | Cache, Events (EventDispatcher, register listeners), Logging, Localization (trans()), Storage, Encryption, Vault, Carbon date helper, Launch, Policies | Using caching, events, logging, i18n, file storage, encryption, or URL launching |
 | `references/testing-patterns.md` | Test setup (MagicApp.reset + Magic.flush), mocking via contracts, controller/model/middleware testing patterns | Writing tests for any Magic framework code |
 | `references/cli-commands.md` | Full CLI reference: install, all make:* generators with flags, key:generate | Scaffolding code, initializing projects, or generating files with the CLI |
+| `references/plugin-deeplink.md` | DeeplinkManager, handlers, drivers, config, RouteDeeplinkHandler, OneSignalDeeplinkHandler | Working with deep links, universal links, or app links |
+| `references/plugin-notifications.md` | Notify facade, channels (database, push), drivers (OneSignal), polling, DatabaseNotification, PushMessage | Implementing push or in-app notifications |
+| `references/plugin-social-auth.md` | SocialAuth facade, drivers (Google/Microsoft/GitHub), handlers, SocialAuthButtons widget | Adding social login or OAuth authentication |
+| `references/plugin-starter.md` | MagicStarter facade, 13 opt-in features, view registry, pre-built auth/profile/team/notification views | Using starter kit or pre-built screens |
