@@ -143,7 +143,7 @@ Multi-channel logging system following RFC 5424 severity levels. Accessed via th
 | `Log.info(message, [context])` | `String message`, `dynamic context` | `void` | Log an informational message. |
 | `Log.debug(message, [context])` | `String message`, `dynamic context` | `void` | Log a detailed debug message. |
 | `Log.log(level, message, [context])` | `String level`, `String message`, `dynamic context` | `void` | Log at an arbitrary level. |
-| `Log.channel(name)` | `String name` | `LogManager` | Get a specific named channel. |
+| `Log.channel(name)` | `String name` | `LoggerDriver` | Get a specific named channel driver. |
 
 ### Usage
 
@@ -790,7 +790,7 @@ await file.storeAs(diskName); // Store with disk selection
 
 - **Cache**: `remember<T>()` returns cached value directly (not awaited) if it exists; only awaits callback on miss.
 - **Events**: Listeners run sequentially. If one throws, others still execute. Errors are logged, not re-thrown.
-- **Logging**: `Log.channel(name)` currently returns the default manager; true multi-channel support per-call is not yet implemented.
+- **Logging**: `Log.channel(name)` returns a `LoggerDriver` resolved via `LogManager.driver(name)`, enabling per-channel logging.
 - **Lang**: `trans()` helper is a shorthand for `Lang.get()`. Translations must be loaded before first use.
 - **Storage**: `put()` returns the path, `get()` returns raw bytes. Use `getFile()` for metadata.
 - **Crypt**: App key must be exactly 32 characters. Device keys are auto-generated on first `encryptWithDeviceKey()` call.

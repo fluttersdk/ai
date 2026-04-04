@@ -26,6 +26,8 @@ Proxies calls to the default guard via the `AuthManager` singleton.
 | `Auth.manager.setUserFactory(Authenticatable Function(Map<String, dynamic>) f)` | `void` | **Required** in `ServiceProvider.boot()` — auth won't work without it. |
 | `Auth.manager.extend(String name, Guard Function(Map) f)` | `void` | Register a custom authentication guard. |
 | `Auth.stateNotifier` | `ValueNotifier<int>` | **Getter.** Bumps on every login/logout/restore — use in layout widgets to rebuild reactively. |
+| `Auth.fake({Authenticatable? user})` | `FakeAuthManager` | **Testing.** Swap real `AuthManager` with `FakeAuthManager`. Pass `user` to pre-authenticate. Returns fake for assertions (`assertLoggedIn`, `assertLoggedOut`, `assertLoginAttempted`, `assertLoginCount`). |
+| `Auth.unfake()` | `void` | **Testing.** Remove fake and restore real `AuthManager`. Call in `tearDown`. |
 
 ```dart
 import 'package:magic/magic.dart';
@@ -65,6 +67,8 @@ Resolves `Magic.make<CacheManager>('cache')`.
 | `Cache.forget(String key)` | `Future<void>` | Remove a single cache item. |
 | `Cache.flush()` | `Future<void>` | Clear all items from the current cache driver. |
 | `Cache.remember<T>(String key, Duration ttl, Future<T> Function() callback)` | `Future<T>` | Return cached value or execute callback, store, and return. |
+| `Cache.fake()` | `FakeCacheManager` | **Testing.** Swap real `CacheManager` with in-memory `FakeCacheManager` that records operations. Returns fake for assertions (`assertHas`, `assertMissing`, `assertPut`). |
+| `Cache.unfake()` | `void` | **Testing.** Remove fake and restore real `CacheManager`. Call in `tearDown`. |
 
 ```dart
 import 'package:magic/magic.dart';
@@ -273,6 +277,14 @@ Resolves `Magic.make<NetworkDriver>('network')`.
 | `Http.delete(String url, {Map<String, String>? headers})` | `Future<MagicResponse>` | DELETE. |
 | `Http.upload(String url, {required Map<String, dynamic> data, required Map<String, dynamic> files, Map<String, String>? headers})` | `Future<MagicResponse>` | Multipart file upload. |
 
+**Testing utilities:**
+
+| Signature | Return Type | Notes |
+|-----------|-------------|-------|
+| `Http.fake([dynamic stubs])` | `FakeNetworkDriver` | Swap real driver for testing. No args = all 200. Map = URL pattern stubs (`*` wildcard). `FakeRequestHandler` = callback stub. |
+| `Http.response([dynamic data, int statusCode = 200])` | `MagicResponse` | Build a stub response. Use as values in the `fake()` stubs map. |
+| `Http.unfake()` | `void` | Restore real driver. Call in `tearDown`. |
+
 ```dart
 import 'package:magic/magic.dart';
 
@@ -370,7 +382,9 @@ Resolves `Magic.make<LogManager>('log')`. Supports all RFC 5424 levels.
 | `Log.info(String message, [dynamic context])` | `void` | Interesting events. |
 | `Log.debug(String message, [dynamic context])` | `void` | Detailed debug information. |
 | `Log.log(String level, String message, [dynamic context])` | `void` | Log at an arbitrary level string. |
-| `Log.channel(String name)` | `LogManager` | Get a named log channel. |
+| `Log.channel(String name)` | `LoggerDriver` | Get a named log channel driver. |
+| `Log.fake()` | `FakeLogManager` | **Testing.** Swap real `LogManager` with `FakeLogManager` that captures entries in memory (no console output). Returns fake for assertions (`assertLogged`, `assertLoggedError`, `assertNothingLogged`, `assertLoggedCount`). |
+| `Log.unfake()` | `void` | **Testing.** Remove fake and restore real `LogManager`. Call in `tearDown`. |
 
 ```dart
 import 'package:magic/magic.dart';
@@ -428,7 +442,7 @@ The facade class is `MagicRoute`. Resolves `MagicRouter.instance`.
 | `MagicRoute.to(String path, {Map<String, String>? query})` | `void` | Navigate to path — no BuildContext needed. |
 | `MagicRoute.toNamed(String name, {Map<String, String> params, Map<String, String> query})` | `void` | Navigate by named route. |
 | `MagicRoute.push(String path)` | `void` | Push path onto the navigation stack. |
-| `MagicRoute.back()` | `void` | Pop the current route. |
+| `MagicRoute.back({String? fallback})` | `void` | Pop the current route. Works across shell routes via history tracking. Uses `fallback` path when history is empty. |
 | `MagicRoute.replace(String path)` | `void` | Replace current route in history. |
 | `MagicRoute.config` | `GoRouter` | **Getter.** Pass to `MaterialApp.router(routerConfig:)`. |
 
@@ -550,6 +564,8 @@ Resolves `Magic.make<MagicVaultService>('vault')`. Backed by `flutter_secure_sto
 | `Vault.get(String key)` | `Future<String?>` | Read value; null if key does not exist. |
 | `Vault.delete(String key)` | `Future<void>` | Remove a specific key. |
 | `Vault.flush()` | `Future<void>` | Wipe ALL secure storage data for this app. |
+| `Vault.fake([Map<String, String> initialValues = const {}])` | `FakeVaultService` | **Testing.** Swap real `MagicVaultService` with in-memory `FakeVaultService`. Pass `initialValues` to pre-seed. Returns fake for assertions (`assertWritten`, `assertDeleted`, `assertContains`, `assertMissing`). |
+| `Vault.unfake()` | `void` | **Testing.** Remove fake and restore real `MagicVaultService`. Call in `tearDown`. |
 
 ```dart
 import 'package:magic/magic.dart';

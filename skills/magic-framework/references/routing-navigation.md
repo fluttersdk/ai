@@ -164,10 +164,13 @@ MagicRoute.toNamed('users.show', params: {'id': '42'});
 // Push onto stack (preserves history)
 MagicRoute.push('/details');
 
-// Go back
+// Go back (works across shell routes — history-based fallback automatic)
 MagicRoute.back();
 
-// Replace current route (removes from history)
+// Go back with explicit fallback when history stack is empty
+MagicRoute.back(fallback: '/home');
+
+// Replace current route (swaps last history entry, no stack growth)
 MagicRoute.replace('/home');
 ```
 
@@ -423,5 +426,6 @@ MagicRoute.layout(
 - **Middleware Next Required:** Middleware must call `next()` to allow the request to proceed. Failing to call it halts the pipeline.
 - **Path Parameters:** Parameters are injected by position into the handler function. Ensure the function signature matches the number of parameters in the route.
 - **Named Routes:** Only use named navigation if the route was explicitly named with `.name()`.
-- **Replace vs. To:** Use `replace()` carefully—it removes the current route from history, preventing back navigation to that point. Use for login redirects and splash screens.
+- **Replace vs. To:** `replace()` leaves history untouched — `back()` still returns to the route before the replaced one. Use for login redirects and splash screens where the replaced route should not appear in back navigation.
+- **back() across shells:** `MagicRoute.back()` works across shell (layout) routes. Magic tracks navigation history automatically via `to()` and `toNamed()`. Use `fallback:` for guaranteed behavior when history is empty: `MagicRoute.back(fallback: '/home')`.
 - **Intended URL Cleanup:** `pullIntendedUrl()` is a one-time read that clears the stored URL. Call it only once per login flow.

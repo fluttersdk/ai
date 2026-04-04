@@ -1,20 +1,35 @@
 # Sync Skills Registry
 
-After skill files are updated, synchronize the registry, plugin, and marketplace manifests.
+Copy latest skill files from source repos, then synchronize the registry, plugin, and marketplace manifests.
 
 ## Input
 
-$ARGUMENTS — optional: skill name(s) to sync. If omitted, auto-detect from git diff.
+$ARGUMENTS — optional: skill name(s) to sync. If omitted, sync all skills.
 
 ## Procedure
 
-### 1. Detect changed skills
+### 1. Copy skills from source repos
 
-- Run `git diff HEAD~1 --name-only` to find changed files under `skills/`
+Source locations:
+
+| Skill | Source |
+|-------|--------|
+| `wind-ui` | `/Users/anilcan/Code/fluttersdk/wind/fluttersdk_wind/skills/wind-ui/` |
+| `magic-framework` | `/Users/anilcan/Code/fluttersdk/magic/skills/magic-framework/` |
+
+For each skill (or only $ARGUMENTS if provided):
+
+1. Verify source directory exists
+2. Copy entire skill directory to `skills/<name>/` (overwrite existing)
+3. `cp -R <source>/ skills/<name>/`
+
+### 2. Detect changed skills
+
+- Run `git diff --name-only` to find changed files under `skills/`
 - Extract unique skill names from paths matching `skills/<name>/`
-- If $ARGUMENTS provided, use those skill names instead
+- If nothing changed after copy, report "no changes" and stop
 
-### 2. Validate file list — disk vs index.json
+### 3. Validate file list — disk vs index.json
 
 For each changed skill:
 
@@ -24,7 +39,7 @@ For each changed skill:
 4. Remove any files listed in `files` array but missing from disk
 5. Sort `files` array: `SKILL.md` first, then `references/` alphabetically
 
-### 3. Sync description — SKILL.md → index.json
+### 4. Sync description — SKILL.md → index.json
 
 For each changed skill:
 
@@ -32,7 +47,7 @@ For each changed skill:
 2. Read `description` from matching entry in `skills/index.json`
 3. If different → update `index.json` to match SKILL.md (SKILL.md is source of truth)
 
-### 4. Bump patch version
+### 5. Bump patch version
 
 Increment **patch** version across all manifest files:
 
@@ -46,13 +61,13 @@ All three version values MUST match after bump.
 - New skill or major structural change = minor bump — only if user explicitly says so
 - Major bump = never unless user explicitly requests
 
-### 5. Validate JSON
+### 6. Validate JSON
 
 ```bash
 node -e "JSON.parse(require('fs').readFileSync('skills/index.json','utf8')); console.log('index.json: valid')"
 ```
 
-### 6. Report
+### 7. Report
 
 Output a summary table:
 

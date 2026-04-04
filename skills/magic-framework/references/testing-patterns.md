@@ -448,6 +448,281 @@ setUp(() {
 });
 ```
 
+## Test Bootstrap
+
+Magic ships a `MagicTest` helper in `package:magic/testing.dart` that replaces boilerplate `setUp`/`tearDown` wiring.
+
+### Unit / Widget Tests — `MagicTest.init()`
+
+Call once at the top of `main()`. Registers all hooks automatically:
+
+```dart
+import 'package:flutter_test/flutter_test.dart';
+import 'package:magic/testing.dart';
+
+void main() {
+  MagicTest.init(); // setUpAll + setUp + tearDown wired in one call
+
+  test('container is clean', () {
+    // MagicApp.reset() + Magic.flush() already ran
+  });
+}
+```
+
+Hooks registered by `MagicTest.init()`:
+- `setUpAll` → `TestWidgetsFlutterBinding.ensureInitialized()`
+- `setUp` → `MagicApp.reset()` + `Magic.flush()`
+- `tearDown` → `Magic.flush()`
+
+### Integration Tests — `MagicTest.boot()`
+
+Use when providers must boot (full `Magic.init()` lifecycle):
+
+```dart
+import 'package:magic/testing.dart';
+
+void main() {
+  setUpAll(() async {
+    await MagicTest.boot(
+      configs: [
+        {'database': {'default': 'sqlite', 'connections': {'sqlite': {'driver': 'sqlite', 'database': ':memory:'}}}},
+      ],
+      envFileName: '.env.testing',
+    );
+  });
+
+  test('full lifecycle', () async {
+    // All service providers have run register() + boot()
+  });
+}
+```
+
+**When to use which:**
+- `MagicTest.init()` — unit tests, controller tests, validation tests, facade faking
+- `MagicTest.boot()` — integration tests that exercise the full provider lifecycle
+
+## Http Faking
+
+Magic provides a built-in `Http.fake()` API — no third-party mock libraries needed. It swaps the IoC-bound `NetworkDriver` with a `FakeNetworkDriver` that records requests and returns stubbed responses.
+
+### setUp / tearDown Pattern
+
+```dart
+late FakeNetworkDriver fake;
+
+setUp(() {
+  MagicApp.reset();
+  Magic.flush();
+
+  fake = Http.fake(); // All requests return 200 with empty data ({}) by default
+});
+
+tearDown(() {
+  Http.unfake(); // Restore real driver
+});
+```
+
+### URL Pattern Stubs
+
+Patterns support `*` as a wildcard. Leading `/` is stripped before matching.
+
+```dart
+final fake = Http.fake({
+  'users/*': Http.response({'id': 1, 'name': 'Alice'}, 200),
+  'auth/login': Http.response({'token': 'test-token'}, 200),
+  'posts': Http.response({'message': 'Forbidden'}, 403),
+});
+
+final response = await Http.get('/users/42');
+expect(response['name'], 'Alice');
+```
+
+### Callback Stubs
+
+Pass a `FakeRequestHandler` for dynamic per-request logic.
+
+```dart
+final fake = Http.fake((request) {
+  if (request.method == 'DELETE') {
+    return Http.response({}, 403);
+  }
+
+  return Http.response({'ok': true}, 200);
+});
+```
+
+### Adding Stubs After Construction
+
+Use `fake.stub()` to register patterns incrementally. Later stubs take priority.
+
+```dart
+final fake = Http.fake();
+
+fake.stub('users/*', Http.response({'id': 1}, 200));
+fake.stub('users/99', Http.response({'error': 'Not found'}, 404)); // Takes priority
+```
+
+### Assertion Methods
+
+```dart
+// At least one request matched predicate
+fake.assertSent((r) => r.url.contains('users'));
+
+// No request matched predicate
+fake.assertNotSent((r) => r.url.contains('payments'));
+
+// Exactly zero requests
+fake.assertNothingSent();
+
+// Exact request count
+fake.assertSentCount(3);
+```
+
+### Prevent Stray Requests
+
+```dart
+final fake = Http.fake({
+  'users': Http.response([], 200),
+})..preventStrayRequests();
+
+// Throws StrayRequestException for any URL not matched above
+```
+
+### Reset Between Tests
+
+```dart
+setUp(() {
+  MagicApp.reset();
+  Magic.flush();
+  fake = Http.fake();
+});
+
+// Or reset without restoring real driver:
+fake.reset(); // Clears recorded + stubs
+```
+
+## Facade Faking
+
+Magic provides built-in fakes for Auth, Cache, Vault, and Log — no third-party mock libraries needed. Each facade exposes `fake()` / `unfake()` methods that swap the IoC-bound service with an in-memory implementation.
+
+### setUp / tearDown Pattern
+
+```dart
+late FakeAuthManager authFake;
+late FakeCacheManager cacheFake;
+late FakeVaultService vaultFake;
+late FakeLogManager logFake;
+
+setUp(() {
+  MagicApp.reset();
+  Magic.flush();
+
+  authFake = Auth.fake();         // In-memory auth, no storage
+  cacheFake = Cache.fake();       // In-memory cache, records operations
+  vaultFake = Vault.fake();       // In-memory secure storage, no platform channels
+  logFake = Log.fake();           // Captures log entries, no console output
+});
+
+tearDown(() {
+  Auth.unfake();
+  Cache.unfake();
+  Vault.unfake();
+  Log.unfake();
+});
+```
+
+### Auth.fake()
+
+```dart
+// Pre-authenticate with a user
+final fake = Auth.fake(user: myUser);
+expect(Auth.check(), isTrue);
+
+// Or start as guest
+final fake = Auth.fake();
+expect(Auth.guest, isTrue);
+
+// Assertions
+fake.assertLoggedIn();             // User is authenticated
+fake.assertLoggedOut();            // No user authenticated
+fake.assertLoginAttempted();       // At least one login() call
+fake.assertLoginCount(2);          // Exactly 2 login() calls
+```
+
+### Cache.fake()
+
+```dart
+final fake = Cache.fake();
+
+await Cache.put('users', ['Alice', 'Bob']);
+final value = Cache.get('users');
+
+// Assertions
+fake.assertHas('users');           // Key exists in store
+fake.assertMissing('missing_key'); // Key not in store
+fake.assertPut('users');           // put() was called with this key
+
+// Recorded operations: List<CacheRecord> ({operation, key, value})
+expect(fake.recorded.first.operation, 'put');
+```
+
+### Vault.fake()
+
+```dart
+// Pre-seed with initial values
+final fake = Vault.fake({'auth_token': 'seed-token'});
+
+await Vault.put('key', 'value');
+await Vault.delete('key');
+
+// Assertions
+fake.assertWritten('key');         // put() was called with this key
+fake.assertDeleted('key');         // delete() was called with this key
+fake.assertContains('key');        // Key currently exists in store
+fake.assertMissing('key');         // Key not in store
+
+// Recorded operations: List<VaultOperation> ({operation, key})
+expect(fake.recorded.first.operation, 'put');
+```
+
+### Log.fake()
+
+```dart
+final fake = Log.fake();
+
+Log.error('Payment failed', {'order': 42});
+Log.info('User logged in');
+
+// Assertions
+fake.assertLogged('error', 'Payment failed');  // Level + message match
+fake.assertLoggedError('Payment failed');       // Shorthand for error level
+fake.assertNothingLogged();                     // No entries at all
+fake.assertNothingLogged('warning');            // No entries at 'warning' level
+fake.assertLoggedCount(2);                      // Exactly 2 entries total
+
+// Entries: List<FakeLogEntry> ({level, message, context})
+expect(fake.entries[0].level, 'error');
+```
+
+### Reset Without Unfaking
+
+Use `fake.reset()` when reusing a fake across multiple tests in a group:
+
+```dart
+final logFake = Log.fake();
+
+test('first test', () {
+  Log.error('a');
+  logFake.assertLoggedCount(1);
+  logFake.reset(); // Clear entries — fake remains installed
+});
+
+test('second test', () {
+  Log.error('b');
+  logFake.assertLoggedCount(1); // Starts from zero
+});
+```
+
 ## Middleware Testing
 
 Middleware is tested by verifying whether it calls `next()` or halts the pipeline.

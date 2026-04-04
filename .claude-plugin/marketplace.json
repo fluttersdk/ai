@@ -1,7 +1,7 @@
 {
     "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
     "name": "fluttersdk-marketplace",
-    "version": "1.1.3",
+    "version": "1.1.4",
     "description": "FlutterSDK community AI skills for Flutter development — Wind UI styling, Magic Framework architecture, and more",
     "owner": {
         "name": "Anilcan Cakir",
@@ -12,7 +12,7 @@
             "name": "fluttersdk",
             "description": "FlutterSDK AI skills — Wind UI utility-first styling and Magic Framework Laravel-inspired architecture for Flutter",
             "source": "./",
-            "version": "1.1.3",
+            "version": "1.1.4",
             "author": {
                 "name": "Anilcan Cakir",
                 "email": "anilcan.cakir@gmail.com"
