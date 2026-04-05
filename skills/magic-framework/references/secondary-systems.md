@@ -169,6 +169,19 @@ Log.channel('slack').error('Critical server issue');
 - **`console`**: Outputs to standard output with configurable log level.
 - **`stack`**: Aggregates multiple drivers (e.g., console + file simultaneously).
 
+### Custom Drivers
+
+Register custom log drivers via `LogManager.extend()` — follows the same pattern as `Auth.manager.extend(...)`:
+
+```dart
+// In a ServiceProvider boot():
+LogManager.extend('sentry', (config) => SentryLoggerDriver(
+  minLevel: config['level'] ?? 'warning',
+));
+```
+
+Custom drivers implement the `LoggerDriver` abstract class. They can be referenced in config by name and included in stack channels.
+
 ### Configuration
 
 ```dart
@@ -178,11 +191,15 @@ Log.channel('slack').error('Critical server issue');
   'channels': {
     'stack': {
       'driver': 'stack',
-      'channels': ['console'],
+      'channels': ['console', 'sentry'],
     },
     'console': {
       'driver': 'console',
       'level': 'debug',
+    },
+    'sentry': {
+      'driver': 'sentry',
+      'level': 'warning',
     },
   },
 }
@@ -785,6 +802,165 @@ await file.storeAs(diskName); // Store with disk selection
 | `recordVideo()` | ✅ | ✅ | ✅ | ⚠️ |
 
 ⚠️ Desktop camera requires custom delegate setup.
+
+## Broadcasting
+
+Laravel Echo-equivalent real-time channel system over WebSockets. Accessed via the `Echo` facade backed by `BroadcastManager`.
+
+> **Important**: `BroadcastServiceProvider` is NOT auto-registered. Add it explicitly to the `providers` list in config.
+
+### Echo Facade API
+
+| Method / Property | Returns | Description |
+|:------------------|:--------|:------------|
+| `Echo.channel(name)` | `BroadcastChannel` | Subscribe to a public channel |
+| `Echo.private(name)` | `BroadcastChannel` | Subscribe to a private channel (auth handshake required) |
+| `Echo.join(name)` | `BroadcastPresenceChannel` | Join a presence channel (auth + member tracking) |
+| `Echo.listen(channel, event, callback)` | `BroadcastChannel` | Shorthand: subscribe + listen in one call |
+| `Echo.leave(name)` | `void` | Unsubscribe from a channel |
+| `Echo.connect()` | `Future<void>` | Establish the WebSocket connection |
+| `Echo.disconnect()` | `Future<void>` | Close the connection |
+| `Echo.connection` | `BroadcastDriver` | The resolved default driver instance |
+| `Echo.socketId` | `String?` | Server-assigned socket ID, or `null` when disconnected |
+| `Echo.connectionState` | `Stream<BroadcastConnectionState>` | Stream of connection lifecycle state changes |
+| `Echo.onReconnect` | `Stream<void>` | Emits once each time the driver reconnects |
+| `Echo.addInterceptor(interceptor)` | `void` | Register a `BroadcastInterceptor` on the connection |
+| `Echo.manager` | `BroadcastManager` | The underlying manager (for `extend()` and advanced use) |
+| `Echo.fake()` | `FakeBroadcastManager` | Swap to in-memory fake for testing |
+| `Echo.unfake()` | `void` | Restore the real manager binding |
+
+### Channel Types
+
+- **Public** (`Echo.channel('name')`): No auth. Any connected client may subscribe.
+- **Private** (`Echo.private('name')`): Driver adds `private-` prefix, performs HTTP auth via `auth_endpoint`.
+- **Presence** (`Echo.join('name')`): Driver adds `presence-` prefix, auth + member list tracking. Returns `BroadcastPresenceChannel` with `members`, `onJoin`, `onLeave`.
+
+### BroadcastChannel API
+
+| Method | Returns | Description |
+|:-------|:--------|:------------|
+| `channel.listen(event, callback)` | `BroadcastChannel` | Register a listener for an event name (chainable) |
+| `channel.stopListening(event)` | `void` | Remove a listener |
+| `channel.events` | `Stream<BroadcastEvent>` | Raw stream of all events on this channel |
+| `channel.name` | `String` | Fully-qualified channel name |
+
+### BroadcastEvent Fields
+
+| Property | Type | Description |
+|:---------|:-----|:------------|
+| `event` | `String` | Event name (e.g. `'App\\Events\\OrderShipped'`) |
+| `channel` | `String` | Channel name the event arrived on |
+| `data` | `Map<String, dynamic>` | Decoded JSON payload |
+| `receivedAt` | `DateTime` | Local timestamp of receipt |
+
+### BroadcastConnectionState
+
+Values: `connecting`, `connected`, `disconnected`, `reconnecting`.
+
+### BroadcastManager
+
+| Method | Description |
+|:-------|:------------|
+| `BroadcastManager.extend(name, factory)` | Register a custom driver factory `(Map<String,dynamic>) => BroadcastDriver` |
+| `BroadcastManager.resetDrivers()` | Clear all custom driver registrations (testing) |
+| `manager.connection([name])` | Resolve named or default driver (result cached for default) |
+
+### BroadcastInterceptor Contract
+
+All methods have pass-through default implementations; override only what you need:
+
+```dart
+abstract class BroadcastInterceptor {
+  Map<String, dynamic> onSend(Map<String, dynamic> message) => message;
+  BroadcastEvent onReceive(BroadcastEvent event) => event;
+  dynamic onError(dynamic error) => error;
+}
+```
+
+Register interceptors via `Echo.addInterceptor(interceptor)` or `driver.addInterceptor(interceptor)`.
+
+### ReverbBroadcastDriver (Pusher Protocol)
+
+Handles the full Pusher protocol over WebSocket: connection handshake, ping/pong keepalive, public/private/presence subscriptions, event deduplication via ring buffer, and automatic reconnection with exponential backoff.
+
+Config keys under `broadcasting.connections.reverb`:
+
+| Key | Default | Description |
+|:----|:--------|:------------|
+| `host` | `'localhost'` | WebSocket server host |
+| `port` | `8080` | WebSocket server port |
+| `scheme` | `'ws'` | `ws` or `wss` |
+| `app_key` | `''` | Reverb/Pusher application key |
+| `auth_endpoint` | `'/broadcasting/auth'` | HTTP endpoint for private/presence auth |
+| `reconnect` | `true` | Auto-reconnect on disconnect |
+| `max_reconnect_delay` | `30000` | Max backoff delay in ms |
+| `dedup_buffer_size` | `100` | Ring buffer size for deduplication |
+
+The `channelFactory` constructor parameter overrides WebSocket creation for testing (dependency injection).
+
+### NullBroadcastDriver
+
+Silently drops all broadcast operations. Used for local development or when `broadcasting.default` is `'null'`. `BroadcastServiceProvider` skips `connect()` when the default connection is `null`.
+
+### FakeBroadcastManager (Testing)
+
+```dart
+final fake = Echo.fake();
+
+// Trigger some code that uses Echo...
+Echo.channel('orders');
+Echo.private('user.1');
+
+// Assert
+fake.assertConnected();
+fake.assertSubscribed('orders');
+fake.assertSubscribed('private-user.1');
+fake.assertNotSubscribed('presence-room.1');
+fake.assertInterceptorAdded();
+
+// Inspect driver directly
+expect(fake.driver.subscribedChannels, hasLength(2));
+
+// Reset between test cases
+fake.reset();
+```
+
+### Usage Examples
+
+```dart
+import 'package:magic/magic.dart';
+
+// Public channel
+Echo.channel('orders').listen('OrderShipped', (event) {
+  print('Order ${event.data['id']} shipped');
+});
+
+// Private channel (auth required)
+Echo.private('user.${userId}').listen('ProfileUpdated', (event) {
+  print('Profile updated: ${event.data}');
+});
+
+// Presence channel
+final room = Echo.join('room.1');
+room.onJoin.listen((member) => print('${member['name']} joined'));
+room.onLeave.listen((member) => print('${member['name']} left'));
+room.listen('MessagePosted', (event) => print(event.data['body']));
+
+// React to connection state
+Echo.connectionState.listen((state) {
+  if (state == BroadcastConnectionState.reconnecting) {
+    showReconnectingBanner();
+  }
+});
+
+// Re-subscribe after reconnect
+Echo.onReconnect.listen((_) {
+  Echo.channel('orders').listen('OrderShipped', onShipped);
+});
+
+// Custom driver
+BroadcastManager.extend('pusher', (config) => PusherBroadcastDriver(config));
+```
 
 ## Key Gotchas
 

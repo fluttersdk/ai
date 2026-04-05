@@ -188,6 +188,30 @@ await DB.transaction(() async {
 
 ---
 
+## Echo
+
+Proxies to `BroadcastManager` for real-time WebSocket communication. `BroadcastServiceProvider` must be registered explicitly.
+
+| Signature | Return Type | Notes |
+|-----------|-------------|-------|
+| `Echo.channel(String name)` | `BroadcastChannel` | Subscribe to a public channel. |
+| `Echo.private(String name)` | `BroadcastChannel` | Subscribe to a private channel (auth required). |
+| `Echo.join(String name)` | `BroadcastPresenceChannel` | Join a presence channel (auth + member tracking). |
+| `Echo.listen(String channel, String event, void Function(BroadcastEvent) callback)` | `BroadcastChannel` | Shorthand: subscribe + listen in one call. |
+| `Echo.leave(String name)` | `void` | Unsubscribe from a channel. |
+| `Echo.connect()` | `Future<void>` | Establish the WebSocket connection. |
+| `Echo.disconnect()` | `Future<void>` | Close connection and release resources. |
+| `Echo.connection` | `BroadcastDriver` | Resolved default driver instance. |
+| `Echo.socketId` | `String?` | Server-assigned socket ID; `null` when disconnected. |
+| `Echo.connectionState` | `Stream<BroadcastConnectionState>` | Stream of connection lifecycle state changes. |
+| `Echo.onReconnect` | `Stream<void>` | Emits once each successful reconnect. |
+| `Echo.addInterceptor(BroadcastInterceptor interceptor)` | `void` | Register an interceptor on the default connection. |
+| `Echo.manager` | `BroadcastManager` | Direct manager access for `extend()`. |
+| `Echo.fake()` | `FakeBroadcastManager` | Swap to in-memory fake for testing. |
+| `Echo.unfake()` | `void` | Restore real manager binding. |
+
+---
+
 ## Event
 
 Dispatches via `EventDispatcher.instance`. The `Event` facade only exposes `dispatch()` — listener registration is done directly on the dispatcher.

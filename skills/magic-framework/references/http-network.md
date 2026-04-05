@@ -315,6 +315,20 @@ await Magic.init();
 Magic.make<NetworkDriver>('network').addInterceptor(LoggingInterceptor());
 ```
 
+## Driver Plugin Hook
+
+For SDK integrations that need direct Dio access (e.g., `sentry_dio`, certificate pinning), use `configureDriver()`:
+
+```dart
+// In a service provider boot()
+final driver = Magic.make<DioNetworkDriver>('network');
+driver.configureDriver((dio) {
+  dio.addSentry(); // sentry_dio integration
+});
+```
+
+This is a `DioNetworkDriver`-specific method (not on the `NetworkDriver` contract). Cast or resolve as `DioNetworkDriver` to access it.
+
 ## ValidatesRequests Mixin
 
 Use the `ValidatesRequests` mixin in controllers to simplify validation error mapping from HTTP responses.

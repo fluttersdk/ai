@@ -51,6 +51,7 @@ dart run magic:magic install --without-database --without-events
 | `--without-localization` | Skip i18n/translator and `assets/lang/` directory |
 | `--without-logging` | Skip logging channels and `config/logging.dart` |
 | `--without-network` | Skip HTTP/Dio network layer and `config/network.dart` |
+| `--without-broadcasting` | Skip broadcasting/WebSocket setup and `config/broadcasting.dart` |
 
 **Generated structure:**
 
@@ -59,6 +60,7 @@ lib/
 ├── config/
 │   ├── app.dart              # App name, env, providers list
 │   ├── auth.dart             # Guard config, token endpoints
+│   ├── broadcasting.dart     # Broadcasting connections (Reverb, null)
 │   ├── cache.dart            # Cache driver, TTL
 │   ├── database.dart         # SQLite connection
 │   ├── logging.dart          # Log channels

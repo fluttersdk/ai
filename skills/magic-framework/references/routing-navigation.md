@@ -420,8 +420,33 @@ MagicRoute.layout(
 );
 ```
 
+## Navigator Observers
+
+Register `NavigatorObserver` instances for analytics, monitoring, or performance tracking. Observers must be registered before the router is built.
+
+```dart
+// In RouteServiceProvider.boot()
+MagicRouter.instance.addObserver(SentryNavigatorObserver(
+  enableAutoTransactions: true,
+  setRouteNameAsTransaction: true,
+));
+
+MagicRouter.instance.addObserver(FirebaseAnalyticsObserver(
+  analytics: FirebaseAnalytics.instance,
+));
+```
+
+Read-only access to registered observers:
+
+```dart
+final observers = MagicRouter.instance.observers; // List<NavigatorObserver> (unmodifiable)
+```
+
+Observers are passed to GoRouter's `observers` parameter automatically. Adding observers after `routerConfig` is accessed throws `StateError`.
+
 ## Gotchas
 
+- **Observer Registration Timing:** Observers must be added before `routerConfig` is accessed, same as routes. Register in `RouteServiceProvider.boot()`.
 - **Route Registration Timing:** Routes must be registered during `ServiceProvider.register()` or `boot()`. They cannot be added after `MagicRouter.instance.routerConfig` is accessed.
 - **Middleware Next Required:** Middleware must call `next()` to allow the request to proceed. Failing to call it halts the pipeline.
 - **Path Parameters:** Parameters are injected by position into the handler function. Ensure the function signature matches the number of parameters in the route.

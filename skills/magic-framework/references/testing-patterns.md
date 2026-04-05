@@ -612,6 +612,7 @@ late FakeAuthManager authFake;
 late FakeCacheManager cacheFake;
 late FakeVaultService vaultFake;
 late FakeLogManager logFake;
+late FakeBroadcastManager echoFake;
 
 setUp(() {
   MagicApp.reset();
@@ -621,6 +622,7 @@ setUp(() {
   cacheFake = Cache.fake();       // In-memory cache, records operations
   vaultFake = Vault.fake();       // In-memory secure storage, no platform channels
   logFake = Log.fake();           // Captures log entries, no console output
+  echoFake = Echo.fake();         // In-memory broadcasting, no WebSocket
 });
 
 tearDown(() {
@@ -628,6 +630,7 @@ tearDown(() {
   Cache.unfake();
   Vault.unfake();
   Log.unfake();
+  Echo.unfake();
 });
 ```
 
@@ -721,6 +724,33 @@ test('second test', () {
   Log.error('b');
   logFake.assertLoggedCount(1); // Starts from zero
 });
+```
+
+### Echo.fake()
+
+```dart
+final fake = Echo.fake();
+
+await Echo.connect();
+
+Echo.channel('orders');
+Echo.private('user.1');
+
+// Assertions while connected
+fake.assertConnected();
+fake.assertSubscribed('orders');
+fake.assertNotSubscribed('chat');
+fake.assertInterceptorAdded();
+
+// Low-level driver access
+expect(fake.driver.subscribedChannels, contains('orders'));
+expect(fake.driver.subscribedChannels, contains('private-user.1'));
+
+await Echo.disconnect();
+fake.assertDisconnected();
+
+// Reset recorded state
+fake.reset();
 ```
 
 ## Middleware Testing
