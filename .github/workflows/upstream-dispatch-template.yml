@@ -1,0 +1,51 @@
+# pragma: example
+# Template workflow — install in upstream skill source repos (fluttersdk/wind, magic, dusk, telescope, artisan).
+# Replace <SOURCE_NAME> with: wind | magic | dusk | telescope | artisan.
+# Replace <SKILL_PATH> with the upstream's `skills/<name>/` relative path.
+# This file's trigger is intentionally inert in fluttersdk/ai (no .ai branch exists).
+
+name: Dispatch skill update to registry
+
+on:
+  push:
+    branches: ["never-trigger-in-registry"]  # placeholder; replace with actual upstream branch
+    paths:
+      - "<SKILL_PATH>/**"
+      - "pubspec.yaml"
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Extract version
+        id: ver
+        run: |
+          if [[ -n "${GITHUB_REF_NAME}" && "${GITHUB_REF_NAME}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+ ]]; then
+            VER="${GITHUB_REF_NAME#v}"
+          else
+            VER=$(grep -E '^version:' pubspec.yaml | head -1 | awk '{print $2}')
+          fi
+          echo "version=$VER" >> "$GITHUB_OUTPUT"
+
+      - name: Fire repository_dispatch to fluttersdk/ai
+        uses: peter-evans/repository-dispatch@v4
+        with:
+          token: ${{ secrets.REGISTRY_DISPATCH_PAT }}
+          repository: fluttersdk/ai
+          event-type: skill-updated
+          client-payload: |
+            {
+              "source": "<SOURCE_NAME>",
+              "version": "${{ steps.ver.outputs.version }}",
+              "sha": "${{ github.sha }}"
+            }

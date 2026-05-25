@@ -1,0 +1,263 @@
+name: Sync Skill From Upstream
+
+# Receives repository_dispatch events from upstream skill source repos
+# (fluttersdk/wind, magic, dusk, telescope, artisan). Pulls the per-source
+# subtree, rsyncs into skills/<name>/, updates index.json + bumps the
+# version triplet, and pushes to main. Push triggers deploy-registry.yml
+# via paths:["skills/**"].
+#
+# Security model (oracle CRITICAL 1 + IMPORTANT 3 + IMPORTANT 5):
+#   - All client_payload.* values pass through step-level env: blocks;
+#     never inlined into run: scripts.
+#   - Source name validated against a fixed case allowlist BEFORE any
+#     checkout step runs.
+#   - Version and sha validated against regex BEFORE checkout.
+#   - Upstream read uses a fine-grained PAT (UPSTREAM_READ_PAT) scoped
+#     to contents:read on the 5 source repos only.
+#   - Registry push uses a GitHub App installation token scoped to
+#     this repository only (contents:write).
+
+on:
+    repository_dispatch:
+        types: [skill-updated]
+    workflow_dispatch:
+        inputs:
+            source:
+                description: "Source name: wind | magic | dusk | telescope | artisan"
+                required: true
+                type: string
+            version:
+                description: "Upstream version (semver, optionally with -prerelease)"
+                required: true
+                type: string
+            sha:
+                description: "Upstream commit sha (40 hex chars, optional)"
+                required: false
+                type: string
+                default: ""
+
+permissions:
+    contents: write
+
+concurrency:
+    group: "sync-${{ github.event.client_payload.source || inputs.source }}"
+    cancel-in-progress: false
+
+jobs:
+    sync:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Validate source
+              id: src
+              env:
+                  SRC: ${{ github.event.client_payload.source || inputs.source }}
+              run: |
+                  set -euo pipefail
+                  case "$SRC" in
+                      wind|magic|dusk|telescope|artisan)
+                          echo "source=$SRC" >> "$GITHUB_OUTPUT"
+                          ;;
+                      *)
+                          echo "::error::invalid source: $SRC"
+                          exit 1
+                          ;;
+                  esac
+
+            - name: Validate version
+              env:
+                  VER: ${{ github.event.client_payload.version || inputs.version }}
+              run: |
+                  set -euo pipefail
+                  if ! [[ "$VER" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[a-z0-9.]+)?$ ]]; then
+                      echo "::error::invalid version: $VER"
+                      exit 1
+                  fi
+
+            - name: Validate sha
+              env:
+                  SHA: ${{ github.event.client_payload.sha || inputs.sha }}
+              run: |
+                  set -euo pipefail
+                  if [[ -n "$SHA" && ! "$SHA" =~ ^[0-9a-f]{40}$ ]]; then
+                      echo "::error::invalid sha: $SHA"
+                      exit 1
+                  fi
+
+            - name: Resolve source config
+              id: cfg
+              env:
+                  SRC: ${{ github.event.client_payload.source || inputs.source }}
+              run: |
+                  set -euo pipefail
+                  case "$SRC" in
+                      wind)
+                          echo "repo=fluttersdk/wind" >> "$GITHUB_OUTPUT"
+                          echo "branch=main" >> "$GITHUB_OUTPUT"
+                          echo "subpath=fluttersdk_wind/skills/wind-ui" >> "$GITHUB_OUTPUT"
+                          echo "skill=wind-ui" >> "$GITHUB_OUTPUT"
+                          ;;
+                      magic)
+                          echo "repo=fluttersdk/magic" >> "$GITHUB_OUTPUT"
+                          echo "branch=main" >> "$GITHUB_OUTPUT"
+                          echo "subpath=skills/magic-framework" >> "$GITHUB_OUTPUT"
+                          echo "skill=magic-framework" >> "$GITHUB_OUTPUT"
+                          ;;
+                      dusk)
+                          echo "repo=fluttersdk/dusk" >> "$GITHUB_OUTPUT"
+                          echo "branch=master" >> "$GITHUB_OUTPUT"
+                          echo "subpath=skills/fluttersdk-dusk" >> "$GITHUB_OUTPUT"
+                          echo "skill=fluttersdk-dusk" >> "$GITHUB_OUTPUT"
+                          ;;
+                      telescope)
+                          echo "repo=fluttersdk/telescope" >> "$GITHUB_OUTPUT"
+                          echo "branch=master" >> "$GITHUB_OUTPUT"
+                          echo "subpath=skills/fluttersdk-telescope" >> "$GITHUB_OUTPUT"
+                          echo "skill=fluttersdk-telescope" >> "$GITHUB_OUTPUT"
+                          ;;
+                      artisan)
+                          echo "repo=fluttersdk/artisan" >> "$GITHUB_OUTPUT"
+                          echo "branch=master" >> "$GITHUB_OUTPUT"
+                          echo "subpath=skills/fluttersdk-artisan" >> "$GITHUB_OUTPUT"
+                          echo "skill=fluttersdk-artisan" >> "$GITHUB_OUTPUT"
+                          ;;
+                  esac
+
+            - name: Mint App installation token
+              id: app-token
+              uses: actions/create-github-app-token@v3
+              with:
+                  app-id: ${{ secrets.REGISTRY_BOT_APP_ID }}
+                  private-key: ${{ secrets.REGISTRY_BOT_PRIVATE_KEY }}
+                  repositories: ${{ github.event.repository.name }}
+
+            - name: Checkout registry
+              uses: actions/checkout@v4
+              with:
+                  token: ${{ steps.app-token.outputs.token }}
+                  fetch-depth: 0
+
+            - name: Checkout upstream subtree
+              uses: actions/checkout@v4
+              with:
+                  repository: ${{ steps.cfg.outputs.repo }}
+                  ref: ${{ steps.cfg.outputs.branch }}
+                  sparse-checkout: ${{ steps.cfg.outputs.subpath }}
+                  sparse-checkout-cone-mode: false
+                  path: tmp-upstream-${{ steps.cfg.outputs.skill }}
+                  token: ${{ secrets.UPSTREAM_READ_PAT }}
+                  persist-credentials: false
+
+            - name: Rsync upstream subtree into skills/<name>
+              env:
+                  SKILL: ${{ steps.cfg.outputs.skill }}
+                  SUBPATH: ${{ steps.cfg.outputs.subpath }}
+              run: |
+                  set -euo pipefail
+                  mkdir -p "skills/${SKILL}"
+                  rsync -av --delete "tmp-upstream-${SKILL}/${SUBPATH}/" "skills/${SKILL}/"
+
+            - name: Update index.json description + files
+              env:
+                  SKILL: ${{ steps.cfg.outputs.skill }}
+              run: |
+                  set -euo pipefail
+                  node --input-type=module -e '
+                  import { readFileSync, writeFileSync, readdirSync, statSync } from "node:fs";
+                  import { join } from "node:path";
+
+                  const skill = process.env.SKILL;
+                  const skillDir = join("skills", skill);
+                  const indexPath = join("skills", "index.json");
+
+                  // 1. Read SKILL.md frontmatter to recover the upstream description.
+                  const md = readFileSync(join(skillDir, "SKILL.md"), "utf8");
+                  const fm = md.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+                  if (!fm) {
+                      throw new Error(`SKILL.md for ${skill} has no YAML frontmatter`);
+                  }
+                  const descLine = fm[1].split(/\r?\n/).find((l) => l.startsWith("description:"));
+                  if (!descLine) {
+                      throw new Error(`SKILL.md for ${skill} has no description field`);
+                  }
+                  let description = descLine.replace(/^description:\s*/, "").trim();
+                  if (
+                      (description.startsWith("\"") && description.endsWith("\"")) ||
+                      (description.startsWith("'\''") && description.endsWith("'\''"))
+                  ) {
+                      description = description.slice(1, -1);
+                  }
+
+                  // 2. Recompute files[] from disk: SKILL.md first, then references/*.md alphabetically.
+                  const files = ["SKILL.md"];
+                  const refsDir = join(skillDir, "references");
+                  try {
+                      if (statSync(refsDir).isDirectory()) {
+                          const refs = readdirSync(refsDir)
+                              .filter((f) => f.endsWith(".md"))
+                              .sort();
+                          for (const f of refs) {
+                              files.push(`references/${f}`);
+                          }
+                      }
+                  } catch (e) {
+                      if (e.code !== "ENOENT") { throw e; }
+                  }
+
+                  // 3. Patch the matching entry in skills/index.json (or append if missing).
+                  const index = JSON.parse(readFileSync(indexPath, "utf8"));
+                  const entry = index.skills.find((s) => s.name === skill);
+                  if (entry) {
+                      entry.description = description;
+                      entry.files = files;
+                  } else {
+                      index.skills.push({ name: skill, description, files });
+                  }
+                  writeFileSync(indexPath, JSON.stringify(index, null, 4) + "\n");
+                  '
+
+            - name: Bump versions
+              id: bump
+              run: |
+                  set -euo pipefail
+                  CUR=$(jq -r .version .claude-plugin/plugin.json)
+                  MAJ=${CUR%%.*}
+                  REST=${CUR#*.}
+                  MIN=${REST%%.*}
+                  PATCH=${REST#*.}
+                  NEW="${MAJ}.${MIN}.$((PATCH + 1))"
+                  jq --arg v "$NEW" '.version = $v' .claude-plugin/plugin.json > .claude-plugin/plugin.json.tmp
+                  mv .claude-plugin/plugin.json.tmp .claude-plugin/plugin.json
+                  jq --arg v "$NEW" '.version = $v | .plugins[0].version = $v' .claude-plugin/marketplace.json > .claude-plugin/marketplace.json.tmp
+                  mv .claude-plugin/marketplace.json.tmp .claude-plugin/marketplace.json
+                  echo "new=$NEW" >> "$GITHUB_OUTPUT"
+
+            - name: Commit and push
+              env:
+                  SKILL: ${{ steps.cfg.outputs.skill }}
+                  VER: ${{ github.event.client_payload.version || inputs.version }}
+                  NEW: ${{ steps.bump.outputs.new }}
+                  TOKEN: ${{ steps.app-token.outputs.token }}
+                  BOT_USER_EMAIL: ${{ vars.REGISTRY_BOT_USER_EMAIL }}
+              run: |
+                  set -euo pipefail
+                  git config user.name "fluttersdk-registry[bot]"
+                  # BOT_USER_EMAIL must be set as a repo variable, format:
+                  # "<bot-installation-id>+fluttersdk-registry[bot]@users.noreply.github.com"
+                  # Falls back to a placeholder that any sane App owner will replace post-install.
+                  git config user.email "${BOT_USER_EMAIL:-fluttersdk-registry[bot]@users.noreply.github.com}"
+                  git remote set-url origin "https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+                  git add skills/ .claude-plugin/plugin.json .claude-plugin/marketplace.json
+                  if git diff --cached --quiet; then
+                      echo "no changes after sync; skipping commit"
+                      exit 0
+                  fi
+                  git commit -m "chore: sync ${SKILL} from upstream ${VER}, bump to v${NEW}"
+                  git push origin HEAD:main
+
+            - name: Cleanup upstream checkout
+              if: always()
+              env:
+                  SKILL: ${{ steps.cfg.outputs.skill }}
+              run: |
+                  set -euo pipefail
+                  rm -rf "tmp-upstream-${SKILL}"

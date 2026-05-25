@@ -1,7 +1,7 @@
 {
     "name": "@fluttersdk/mcp",
-    "version": "1.0.0",
-    "description": "FlutterSDK MCP server — Flutter and Dart tools for AI coding agents",
+    "version": "1.1.0",
+    "description": "HTTP↔stdio bridge for the FlutterSDK Docs MCP server (mcp.fluttersdk.com)",
     "author": "Anilcan Cakir <anilcan.cakir@gmail.com>",
     "license": "MIT",
     "type": "module",
@@ -9,10 +9,14 @@
         "fluttersdk-mcp": "dist/index.js"
     },
     "main": "dist/index.js",
+    "files": [
+        "dist",
+        "README.md"
+    ],
     "scripts": {
         "build": "tsc",
         "lint": "eslint src/",
-        "test": "echo \"No tests yet\" && exit 0",
+        "test": "vitest run",
         "start": "node dist/index.js"
     },
     "dependencies": {
@@ -21,10 +25,14 @@
     },
     "devDependencies": {
         "@types/node": "^22.0.0",
-        "typescript": "^5.6.0"
+        "typescript": "^5.6.0",
+        "vitest": "^2.0.0"
     },
     "engines": {
         "node": ">=18.0.0"
+    },
+    "publishConfig": {
+        "access": "public"
     },
     "repository": {
         "type": "git",
@@ -34,8 +42,9 @@
     "keywords": [
         "mcp",
         "flutter",
-        "dart",
-        "ai",
-        "fluttersdk"
+        "fluttersdk",
+        "bridge",
+        "stdio",
+        "streamable-http"
     ]
 }
