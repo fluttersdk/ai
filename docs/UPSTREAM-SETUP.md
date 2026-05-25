@@ -18,6 +18,12 @@ Add these secrets to **fluttersdk/ai** (Settings → Secrets and variables → A
 | `REGISTRY_BOT_PRIVATE_KEY` | Private key (PEM) for that GitHub App |
 | `UPSTREAM_READ_PAT` | Fine-grained PAT with `contents: read` on all 5 upstream repos |
 
+Add this **variable** (Settings → Secrets and variables → Actions → Variables tab):
+
+| Variable | What it contains |
+|---|---|
+| `REGISTRY_BOT_USER_EMAIL` | Optional. Commit author email for the auto-sync bot. Format: `<installation-id>+fluttersdk-registry[bot]@users.noreply.github.com` (installation ID from the App's installation URL). Falls back to `fluttersdk-registry[bot]@users.noreply.github.com` if unset. |
+
 The App token is used by `sync.yml` when pushing back to fluttersdk/ai. An App-token push
 re-triggers `deploy-registry.yml`; a plain `GITHUB_TOKEN` push would be silently skipped.
 

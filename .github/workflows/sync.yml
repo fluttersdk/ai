@@ -175,11 +175,29 @@ jobs:
                   if (!fm) {
                       throw new Error(`SKILL.md for ${skill} has no YAML frontmatter`);
                   }
-                  const descLine = fm[1].split(/\r?\n/).find((l) => l.startsWith("description:"));
-                  if (!descLine) {
+                  const fmLines = fm[1].split(/\r?\n/);
+                  const descIdx = fmLines.findIndex((l) => l.startsWith("description:"));
+                  if (descIdx === -1) {
                       throw new Error(`SKILL.md for ${skill} has no description field`);
                   }
+                  // Reject YAML folded (>) or block (|) scalars explicitly. The single-line
+                  // description format is the contract; multi-line variants silently
+                  // truncate the description in older parsers.
+                  const descLine = fmLines[descIdx];
                   let description = descLine.replace(/^description:\s*/, "").trim();
+                  if (description === ">" || description === "|" || description === ">-" || description === "|-") {
+                      throw new Error(`SKILL.md for ${skill} uses YAML folded/block scalar for description; only single-line strings are supported`);
+                  }
+                  // Accumulate continuation lines (any line indented more than the description: line).
+                  for (let i = descIdx + 1; i < fmLines.length; i++) {
+                      const next = fmLines[i];
+                      if (/^\w[\w-]*:/.test(next)) break;
+                      if (next.trim() === "") continue;
+                      if (!next.startsWith(" ") && !next.startsWith("\t")) {
+                          throw new Error(`SKILL.md for ${skill} description has malformed continuation line: ${next}`);
+                      }
+                      description += " " + next.trim();
+                  }
                   if (
                       (description.startsWith("\"") && description.endsWith("\"")) ||
                       (description.startsWith("'\''") && description.endsWith("'\''"))

@@ -25,7 +25,7 @@ REPO_URL="https://github.com/fluttersdk/ai"
 REGISTRY_URL="https://fluttersdk.github.io/ai/"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
-VERSION="1.0.0"
+VERSION="1.2.0"
 
 # Colors
 RED='\033[0;31m'
@@ -103,7 +103,12 @@ write_file() {
     echo "${content}" > "${dst}"
 }
 
-# Merge JSON key into existing file using node (if available) or simple append.
+# Merge JSON key into existing file using node (if available).
+# Values flow through env vars (FILE/KEY/VALUE) so the node script never
+# string-interpolates user input; safe under any callable value.
+# When VALUE is a JSON array AND the target key already holds an array, the
+# new entries are appended and deduplicated (preserves existing user entries
+# in shared config files like opencode.json `skills.urls`).
 merge_json_key() {
     local file="$1"
     local key="$2"
@@ -115,20 +120,31 @@ merge_json_key() {
     fi
 
     if command -v node &> /dev/null; then
-        node -e "
-            const fs = require('fs');
-            const path = '${file}';
+        FILE="${file}" KEY="${key}" VALUE="${value}" node -e '
+            const fs = require("fs");
+            const path = process.env.FILE;
             let config = {};
-            try { config = JSON.parse(fs.readFileSync(path, 'utf8')); } catch {}
-            const keys = '${key}'.split('.');
+            try { config = JSON.parse(fs.readFileSync(path, "utf8")); } catch {}
+            const keys = process.env.KEY.split(".");
+            const incoming = JSON.parse(process.env.VALUE);
             let obj = config;
             for (let i = 0; i < keys.length - 1; i++) {
                 obj[keys[i]] = obj[keys[i]] || {};
                 obj = obj[keys[i]];
             }
-            obj[keys[keys.length - 1]] = JSON.parse('${value}');
-            fs.writeFileSync(path, JSON.stringify(config, null, 4) + '\n');
-        "
+            const leaf = keys[keys.length - 1];
+            const existing = obj[leaf];
+            if (Array.isArray(incoming) && Array.isArray(existing)) {
+                const merged = [...existing];
+                for (const item of incoming) {
+                    if (!merged.includes(item)) merged.push(item);
+                }
+                obj[leaf] = merged;
+            } else {
+                obj[leaf] = incoming;
+            }
+            fs.writeFileSync(path, JSON.stringify(config, null, 4) + "\n");
+        '
     else
         warn "Node.js not found — cannot merge JSON. Please add manually."
     fi

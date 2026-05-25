@@ -187,6 +187,35 @@ Note: use `serverUrl`, not `httpUrl`.
 }
 ```
 
+### 9. Cline (VS Code extension)
+
+**File:** `cline_mcp_settings.json` (path varies by OS; check Cline docs for the
+current location; on macOS it lives under `~/Library/Application Support/Code/User/globalStorage/saoudrizwan.claude-dev/settings/`).
+
+```json
+{
+    "mcpServers": {
+        "fluttersdk": {
+            "url": "https://mcp.fluttersdk.com/"
+        }
+    }
+}
+```
+
+### 10. Roo Code (VS Code extension)
+
+**File:** `.roo/mcp.json` (project) or the global Roo Code MCP settings file.
+
+```json
+{
+    "mcpServers": {
+        "fluttersdk": {
+            "url": "https://mcp.fluttersdk.com/"
+        }
+    }
+}
+```
+
 ---
 
 ## npx bridge
