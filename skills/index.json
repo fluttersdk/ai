@@ -37,6 +37,38 @@
                 "references/templates.md",
                 "references/testing-patterns.md"
             ]
+        },
+        {
+            "name": "fluttersdk-dusk",
+            "description": "fluttersdk_dusk: E2E driver for Flutter apps that lets an LLM agent see (snap, observe, screenshot) and act (tap, type, drag, scroll, navigate) on a running Flutter app via 31 MCP tools (`dusk_*`) and 32 matching CLI commands (`./bin/fsa dusk:*`). Snapshots emit a YAML Semantics tree with stable `[ref=eN]` tokens; `dusk_find` and `dusk_observe` mint re-resolvable `q<N>` query handles. Every gesture passes a 6-step actionability gate with substring-parseable failure reasons (`not enabled`, `zero rect`, `off-viewport`, `not stable`, `obscured by`, `defunct`). TRIGGER when: any `dusk_*` MCP tool call, any `dusk:*` CLI command, `./bin/fsa` invocation, the user asks the agent to drive / inspect / test / debug a running Flutter app, the user mentions snap / observe / actionability / ref / eN / qN, or the conversation touches end-to-end testing of a Flutter UI. DO NOT TRIGGER when: only authoring `flutter_test` widget tests, only reading telescope ring buffers without driving the UI (use fluttersdk-telescope), or only modifying Dart source without running it.",
+            "files": [
+                "SKILL.md",
+                "references/actionability-and-refs.md",
+                "references/cli-commands.md",
+                "references/mcp-tools.md",
+                "references/workflows.md"
+            ]
+        },
+        {
+            "name": "fluttersdk-telescope",
+            "description": "fluttersdk_telescope: runtime inspector plugin for Flutter apps. Captures HTTP traffic, structured logs, uncaught exceptions, Magic Model lifecycle events, Magic Cache operations, in-app events, Gate authorization checks, debugPrint output, and DB queries into 9 in-memory ring buffers. Surfaces all 9 buffers as VM Service extensions (ext.telescope.*) and exposes 9 MCP tools (telescope_*) for LLM-agent inspection without modifying app code or attaching DevTools. Plugin of fluttersdk_artisan: contributes 6 CLI commands and 9 MCP tools via TelescopeArtisanProvider. TRIGGER when: package:fluttersdk_telescope import, TelescopePlugin.install() call, TelescopeWatcher / TelescopeHttpAdapter mention, ext.telescope.* VM extension, telescope_* MCP tool call, or user asks about inspecting HTTP, logs, exceptions, or Magic framework state in a running Flutter app. DO NOT TRIGGER when code only uses fluttersdk_artisan substrate tools without telescope.",
+            "files": [
+                "SKILL.md",
+                "references/mcp-tools.md",
+                "references/watchers.md"
+            ]
+        },
+        {
+            "name": "fluttersdk-artisan",
+            "description": "fluttersdk_artisan: composable Dart 3.4+ CLI framework + stdio MCP server for Flutter and Dart. 21 builtin commands across 6 groups (lifecycle, scaffolding, plugin management, MCP, introspection, codegen) including install, make:plugin, plugin:install, mcp:serve, tinker. Declarative install.yaml plugin manifest + procedural PluginInstaller fluent DSL with 26 sealed InstallOperation variants. 10 substrate MCP tools (artisan_*) including artisan_tinker for VM expression eval, plus plugin-contributed tools from sibling plugins (fluttersdk_dusk, fluttersdk_telescope; see each plugin's MCP tool reference for the current catalog). TRIGGER when: package:fluttersdk_artisan import, fluttersdk_artisan in pubspec, dart run fluttersdk_artisan command, bin/dispatcher.dart present, install.yaml manifest, ArtisanCommand / ArtisanServiceProvider / McpToolDescriptor / PluginInstaller mention, .mcp.json fluttersdk entry, or user asks about artisan, plugin scaffold, MCP setup, dev loop, signature DSL. DO NOT TRIGGER when code only uses Wind UI or Magic without artisan touchpoint.",
+            "files": [
+                "SKILL.md",
+                "references/commands.md",
+                "references/install-yaml-schema.md",
+                "references/installer-dsl.md",
+                "references/mcp-server.md",
+                "references/plugin-authoring.md"
+            ]
         }
     ]
 }

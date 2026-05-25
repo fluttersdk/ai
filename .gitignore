@@ -27,3 +27,6 @@ opencode-source/
 
 # Planning artifacts
 .ac/
+
+# Temporary upstream clone scratch (used by sync workflow + initial sync)
+tmp-upstream-*/
