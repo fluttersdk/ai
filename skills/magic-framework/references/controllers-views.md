@@ -51,6 +51,8 @@ mixin MagicStateMixin<T> on MagicController
 | `setError(String msg)` | `void` | Transition to error with message, clears state. |
 | `setEmpty()` | `void` | Transition to empty, clears state. |
 | `setState(T? s, {RxStatus? status, bool notify = true})` | `void` | Low-level update. Pass `notify: false` to avoid "setState during build" in `initState`. |
+| `fetchList<E>(String url, E Function(Map<String, dynamic>) fromMap, {String dataKey, Map? query, Map? headers})` | `Future<void>` | Auto-manages loading/success/error/empty states. Calls `Http.get(url)`, extracts `dataKey` from response, maps each item through `fromMap`. |
+| `fetchOne(String url, T Function(Map<String, dynamic>) fromMap, {String dataKey, Map? query, Map? headers})` | `Future<void>` | Auto-manages loading/success/error states. Calls `Http.get(url)`, extracts `dataKey` from response, maps through `fromMap`. |
 
 ### renderState
 

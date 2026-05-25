@@ -881,7 +881,7 @@ Register interceptors via `Echo.addInterceptor(interceptor)` or `driver.addInter
 
 ### ReverbBroadcastDriver (Pusher Protocol)
 
-Handles the full Pusher protocol over WebSocket: connection handshake, ping/pong keepalive, public/private/presence subscriptions, event deduplication via ring buffer, and automatic reconnection with exponential backoff.
+Handles the full Pusher protocol over WebSocket: connection handshake, ping/pong keepalive, public/private/presence subscriptions, event deduplication via ring buffer, automatic reconnection with exponential backoff + 30% random jitter, client-side activity monitoring, and configurable connection establishment timeout.
 
 Config keys under `broadcasting.connections.reverb`:
 
@@ -894,9 +894,23 @@ Config keys under `broadcasting.connections.reverb`:
 | `auth_endpoint` | `'/broadcasting/auth'` | HTTP endpoint for private/presence auth |
 | `reconnect` | `true` | Auto-reconnect on disconnect |
 | `max_reconnect_delay` | `30000` | Max backoff delay in ms |
+| `activity_timeout` | `120` | Seconds of inactivity before ping is sent |
+| `connection_timeout` | `15` | Seconds to wait for connection establishment |
 | `dedup_buffer_size` | `100` | Ring buffer size for deduplication |
 
-The `channelFactory` constructor parameter overrides WebSocket creation for testing (dependency injection).
+Constructor DI parameters for testing:
+- `channelFactory` — overrides WebSocket creation (inject mock channels)
+- `authFactory` — overrides the HTTP auth call for private/presence channels (inject mock auth responses)
+- `pongTimeout` — override the 30-second pong deadline (use short durations in tests)
+- `random` — inject a seeded `Random` for deterministic backoff jitter in tests
+
+**Connection health**: Activity monitor detects silent connection loss using the Pusher protocol `activity_timeout` (provided by server in handshake; falls back to `activity_timeout` config key, default 120s). After `activity_timeout` seconds of inactivity → sends `pusher:ping`. If no `pusher:pong` within `pongTimeout` (30s default) → closes socket, triggers reconnect. Timer resets on ANY inbound message.
+
+**Reconnection backoff**: Exponential backoff with 30% random jitter — `base = 500ms × 2^attempt` (capped at `max_reconnect_delay`), `delay = base + random(0..base×0.3)`. Jitter prevents thundering herd when many clients reconnect simultaneously.
+
+**Connection timeout**: Configurable via `connection_timeout` (default 15s). If the server doesn't complete the Pusher handshake within this window → closes socket, schedules reconnect, throws `TimeoutException`.
+
+Auth failures in `_authenticateAndSubscribe()` are logged via `Log.error()` and routed through the interceptor `onError()` chain. On reconnect, all channels are re-subscribed with `await` — `onReconnect` emits only after completion. Per-channel error handling ensures partial failures don't block other channels.
 
 ### NullBroadcastDriver
 

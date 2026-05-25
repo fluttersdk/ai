@@ -65,6 +65,7 @@ lib/
 │   ├── database.dart         # SQLite connection
 │   ├── logging.dart          # Log channels
 │   ├── network.dart          # Base URL, timeouts
+│   ├── routing.dart          # URL strategy (path/hash)
 │   └── view.dart             # Snackbar/dialog styling
 ├── app/
 │   ├── controllers/

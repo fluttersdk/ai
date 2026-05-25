@@ -2,21 +2,22 @@
     "skills": [
         {
             "name": "wind-ui",
-            "description": "Wind UI v1 utility-first styling for Flutter. ALWAYS activate for: WDiv, WText, WButton, WInput, WSelect, WCheckbox, WIcon, WImage, WSvg, WPopover, WAnchor, WFormInput, WFormSelect, WFormMultiSelect, WFormCheckbox, WDatePicker, WFormDatePicker, WSpacer, className, WindTheme, wind-ui, Flutter styling, Flutter layout, mobile UI, app design. Turkish: Flutter tasarım, uygulama arayüzü, mobil UI, Flutter stil, className kullanımı.",
+            "description": "Build Flutter UI with Wind's utility-first className system. W-prefix widgets, design culture, enforcement gates, theming, component-first workflow.",
             "files": [
                 "SKILL.md",
-                "references/widgets.md",
-                "references/layout-patterns.md",
-                "references/design-tokens.md",
-                "references/tokens.md",
                 "references/component-patterns.md",
+                "references/design-culture.md",
+                "references/design-tokens.md",
                 "references/form-patterns.md",
-                "references/theme-setup.md"
+                "references/layout-patterns.md",
+                "references/theme-setup.md",
+                "references/tokens.md",
+                "references/widgets.md"
             ]
         },
         {
             "name": "magic-framework",
-            "description": "Magic Framework -- Laravel-inspired Flutter framework with IoC Container, Facades, Eloquent ORM, Service Providers, and GoRouter wrapper. ALWAYS activate for: Magic.init, MagicApp, MagicController, MagicView, MagicStatefulView, MagicStatefulViewState, MagicResponsiveView, MagicFormData, MagicForm, MagicBuilder, MagicRoute, MagicResponse, Eloquent Model, InteractsWithPersistence, HasTimestamps, ServiceProvider, MagicMiddleware, MagicStateMixin, ValidatesRequests, RxStatus, SimpleMagicController, Auth facade, Http facade, Config facade, Cache facade, DB facade, Gate facade, Log facade, Event facade, Lang facade, Schema facade, Vault facade, Storage facade, Pick facade, Crypt facade, Launch facade, Route facade, MagicCan, MagicCannot, MagicApplication, MagicAppWidget, MagicRouterOutlet, RouteServiceProvider, Kernel, Magic.findOrPut, Magic.make, Magic.bind, Magic.singleton, Magic.put, Magic.find, Magic.delete, Magic.snackbar, Magic.success, Magic.error, Magic.toast, Magic.confirm, Magic.dialog, Magic.loading, Magic.closeLoading, Magic.reload, Magic.seed, Magic.flush, Magic.view, Carbon, trans(), env(), rules(), handleApiError, setErrorsFromResponse, MagicViewRegistry, MagicFeedback, dart run magic:magic, magic install, make:model, make:controller, make:view, make:migration, make:enum, make:event, make:listener, make:middleware, make:factory, make:seeder, make:provider, make:policy, make:request, make:lang, key:generate, magic_deeplink, DeeplinkManager, DeeplinkHandler, DeeplinkDriver, RouteDeeplinkHandler, magic_notifications, Notify, NotificationManager, DatabaseNotification, Notifiable, PushDriver, NotificationChannel, magic_social_auth, SocialAuth, SocialAuthManager, SocialDriver, SocialAuthButtons, SocialToken, magic_starter, MagicStarter, MagicStarterServiceProvider, MagicStarterViewRegistry. Use for ANY Flutter project built on the Magic framework.",
+            "description": "Magic Framework: Flutter IoC + 17 Facades (Auth, Http, Cache, DB, Echo, Log, Event, Gate, MagicRoute...), Eloquent ORM, Service Providers, GoRouter, MagicController/View, forms, testing, 4 plugins.",
             "files": [
                 "SKILL.md",
                 "references/auth-system.md",
@@ -33,6 +34,7 @@
                 "references/plugin-starter.md",
                 "references/routing-navigation.md",
                 "references/secondary-systems.md",
+                "references/templates.md",
                 "references/testing-patterns.md"
             ]
         }
