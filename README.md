@@ -38,46 +38,37 @@ One install, every tool:
 | [Cursor](https://cursor.sh) | Rules (`.mdc`) |
 | [Gemini CLI](https://github.com/google-gemini/gemini-cli) | Command templates (`.toml`) |
 | [VS Code Copilot](https://code.visualstudio.com/) | Instructions (`.md`) |
+| [Codex CLI](https://github.com/openai/openai-codex) | MCP config (`~/.codex/config.toml`) |
+| [Antigravity CLI](https://github.com/antigravity-cli/antigravity) | MCP config (`~/.gemini/config/mcp_config.json`) |
+| [Cline](https://github.com/cline/cline) | MCP config (`.mcp.json`) |
+| [Roo Code](https://github.com/RooVetGit/Roo-Code) | MCP config (`.mcp.json`) |
 
 ## Skills
 
-### Wind UI
+Five skills are available. See [docs/SKILLS.md](docs/SKILLS.md) for full descriptions.
 
-Utility-first styling for Flutter — Tailwind CSS syntax, but for widgets.
+| Skill | Version | What it covers |
+|:------|:--------|:---------------|
+| `wind-ui` | 1.0.0-alpha.6 | W-prefix widgets, `className` utility system, dark mode, responsive breakpoints |
+| `magic-framework` | 1.0.0-alpha.13 | IoC container, 17 facades, Eloquent ORM, GoRouter, forms, testing |
+| `fluttersdk-dusk` | 0.0.2 | E2E driver: 31 MCP tools to snap, tap, type, screenshot a running Flutter app |
+| `fluttersdk-telescope` | 0.0.1 | Runtime inspector: 9 ring buffers for HTTP, logs, exceptions, DB queries |
+| `fluttersdk-artisan` | 0.0.1 | CLI framework + stdio MCP server, 21 commands, plugin scaffold, `artisan_tinker` |
 
-```dart
-// Your AI generates this correctly — every time
-WDiv(
-    className: 'flex flex-col gap-6 p-6 bg-white dark:bg-gray-900 rounded-xl shadow-lg',
-    children: [
-        WText('Dashboard', className: 'text-2xl font-bold text-gray-900 dark:text-white'),
-        WButton(
-            onTap: _refresh,
-            className: 'bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg',
-            child: Text('Refresh'),
-        ),
-    ],
-)
+## MCP Server
+
+`mcp.fluttersdk.com` exposes a single `search-docs` tool via Streamable HTTP.
+Public, no auth required. Full client config snippets (Claude Code, Cursor,
+OpenCode, Codex CLI, Gemini CLI, VS Code Copilot, and more) are in
+[docs/MCP.md](docs/MCP.md).
+
+For clients that only support stdio (Claude Desktop, older Codex CLI):
+
+```bash
+npx @fluttersdk/mcp
 ```
 
-20 widgets · responsive breakpoints · dark mode · state styling · server-driven UI
-
-### Magic Framework
-
-Laravel-inspired Flutter framework with IoC Container, Facades, Eloquent ORM, and GoRouter wrapper.
-
-```dart
-// Your AI knows the full Magic API — controllers, facades, ORM, routing
-class UserController extends MagicController {
-    Future<MagicResponse> index() async {
-        final users = await User.query().where('active', true).get();
-
-        return response.ok(users);
-    }
-}
-```
-
-Eloquent ORM · Facades · Auth · Forms & Validation · HTTP · CLI scaffolding
+The npx bridge proxies stdio to the upstream HTTP server transparently.
 
 ## Quick Start
 
@@ -106,6 +97,9 @@ bash scripts/install.sh --dry-run --global
 
 # Install globally for all detected tools
 bash scripts/install.sh --global
+
+# Install globally and register the MCP server for all detected tools
+bash scripts/install.sh --global --with-mcp
 
 # Or install into your current Flutter project
 bash scripts/install.sh --project

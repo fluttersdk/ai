@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-FlutterSDK AI skill registry — distributes AI coding skills, MCP servers, and commands for Wind UI, Magic Framework, etc. across OpenCode, Claude Code, Cursor, Gemini CLI, and VS Code Copilot.
+FlutterSDK AI skill registry — distributes AI coding skills, MCP servers, and commands for Wind UI, Magic Framework, and more across OpenCode, Claude Code, Cursor, Gemini CLI, and VS Code Copilot.
 
 Hosted via GitHub Pages at `fluttersdk.github.io/ai/`
 
@@ -11,17 +11,24 @@ Hosted via GitHub Pages at `fluttersdk.github.io/ai/`
 | `npm run build` | Compile MCP server (from `mcps/fluttersdk-mcp/`) |
 | `npm run lint` | ESLint check (MCP server) |
 | `npm test` | Run MCP server tests |
+| `cd mcps/fluttersdk-mcp && npm test` | Run bridge-specific tests |
 | `node -e "JSON.parse(require('fs').readFileSync('skills/index.json','utf8'))"` | Validate registry JSON |
 | `bash scripts/install.sh --dry-run` | Preview multi-tool installation |
 
 ## Architecture
 
 - `skills/` — GitHub Pages root. Each skill = `<name>/SKILL.md` + `<name>/references/*.md`
+  - `wind-ui/` — Wind UI className system (v1.0.0-alpha.6)
+  - `magic-framework/` — Magic Framework IoC + Facades + ORM (v1.0.0-alpha.13)
+  - `fluttersdk-dusk/` — E2E Flutter app driver via MCP (v0.0.2)
+  - `fluttersdk-telescope/` — Runtime inspector, 9 ring buffers (v0.0.1)
+  - `fluttersdk-artisan/` — CLI framework + stdio MCP server (v0.0.1)
 - `skills/index.json` — OpenCode discovery manifest. Source of truth for file listing
 - `.claude-plugin/` — Plugin manifest (`plugin.json`) + marketplace catalog (`marketplace.json`)
 - `mcps/` — MCP servers (TypeScript, stdio transport, Zod schemas)
 - `commands/` — Reusable command templates per tool (`opencode/`, `claude/`, `gemini/`, `cursor/`)
-- `.github/workflows/deploy-registry.yml` — Auto-deploys `skills/` to Pages on push to main
+- `.github/workflows/deploy-registry.yml` — Auto-deploys `skills/` to Pages on push to main; also writes `.well-known/skills/index.json` for OpenCode forward-compat
+- `.github/workflows/sync.yml` — Automates skill sync checklist on push to main
 
 ## Skill Format
 
@@ -40,7 +47,7 @@ After ANY skill change, ALL of the following must stay in sync:
 3. `.claude-plugin/plugin.json` version must be bumped (patch for content updates)
 4. `.claude-plugin/marketplace.json` version must match — both top-level AND `plugins[0].version`
 
-Use `/sync-skills` command to automate this checklist.
+Run `.github/workflows/sync.yml` (or push to `main`) to automate this checklist.
 
 > Missing from `index.json` = OpenCode users won't get the file.
 > Missing version bump = Claude Code users won't get the update.
