@@ -39,7 +39,11 @@ permissions:
     contents: write
 
 concurrency:
-    group: "sync-${{ github.event.client_payload.source || inputs.source }}"
+    # Global lock — every sync touches the same version triplet (plugin.json +
+    # marketplace.json) and the same skills/index.json. Parallel syncs would race
+    # on the patch-bump read-modify-write and the second one's push would fail
+    # non-fast-forward. Serialize all source syncs through one queue.
+    group: "sync-registry"
     cancel-in-progress: false
 
 jobs:
@@ -287,6 +291,55 @@ jobs:
                   fi
                   git commit -m "chore: sync ${SKILL} from upstream ${VER}, bump to v${NEW}"
                   git push origin HEAD:main
+                  echo "committed=true" >> "$GITHUB_OUTPUT"
+              id: push
+
+            - name: Create GitHub Release
+              if: steps.push.outputs.committed == 'true'
+              env:
+                  GH_TOKEN: ${{ steps.app-token.outputs.token }}
+                  NEW: ${{ steps.bump.outputs.new }}
+                  SKILL: ${{ steps.cfg.outputs.skill }}
+                  VER: ${{ github.event.client_payload.version || inputs.version }}
+                  SHA_UP: ${{ github.event.client_payload.sha || inputs.sha }}
+                  REPO_UP: ${{ steps.cfg.outputs.repo }}
+                  BRANCH_UP: ${{ steps.cfg.outputs.branch }}
+              run: |
+                  set -euo pipefail
+                  if [[ -n "$SHA_UP" ]]; then
+                      SHA_LINE="**Upstream commit**: [\`${SHA_UP:0:7}\`](https://github.com/${REPO_UP}/commit/${SHA_UP})"
+                  else
+                      SHA_LINE="**Upstream**: manual dispatch (no commit sha)"
+                  fi
+                  cat > /tmp/release-notes.md <<EOF
+                  Auto-sync of \`${SKILL}\` from [\`${REPO_UP}\`](https://github.com/${REPO_UP}) @ \`${VER}\` (branch \`${BRANCH_UP}\`).
+
+                  ${SHA_LINE}
+                  **Registry version**: \`v${NEW}\`
+
+                  ## Install
+
+                  \`\`\`bash
+                  # All FlutterSDK skills, all detected AI tools
+                  npx skills add fluttersdk/ai
+
+                  # Or via Claude Code plugin marketplace
+                  /plugin marketplace add fluttersdk/ai
+                  /plugin install fluttersdk@fluttersdk-marketplace
+                  \`\`\`
+
+                  ## What changed
+
+                  See the commit on \`main\`: https://github.com/${GITHUB_REPOSITORY}/commit/$(git rev-parse HEAD)
+
+                  ---
+                  *This release was created automatically by the [\`fluttersdk-registry\`](https://github.com/apps/fluttersdk-registry) App when upstream \`${REPO_UP}\` published an update.*
+                  EOF
+                  gh release create "v${NEW}" \
+                      --repo "$GITHUB_REPOSITORY" \
+                      --title "v${NEW}: ${SKILL} @ ${VER}" \
+                      --notes-file /tmp/release-notes.md \
+                      --target main
 
             - name: Cleanup upstream checkout
               if: always()
