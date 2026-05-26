@@ -92,14 +92,14 @@ jobs:
                       wind)
                           echo "repo=fluttersdk/wind" >> "$GITHUB_OUTPUT"
                           echo "repo_name=wind" >> "$GITHUB_OUTPUT"
-                          echo "branch=main" >> "$GITHUB_OUTPUT"
+                          echo "branch=master" >> "$GITHUB_OUTPUT"
                           echo "subpath=fluttersdk_wind/skills/wind-ui" >> "$GITHUB_OUTPUT"
                           echo "skill=wind-ui" >> "$GITHUB_OUTPUT"
                           ;;
                       magic)
                           echo "repo=fluttersdk/magic" >> "$GITHUB_OUTPUT"
                           echo "repo_name=magic" >> "$GITHUB_OUTPUT"
-                          echo "branch=main" >> "$GITHUB_OUTPUT"
+                          echo "branch=master" >> "$GITHUB_OUTPUT"
                           echo "subpath=skills/magic-framework" >> "$GITHUB_OUTPUT"
                           echo "skill=magic-framework" >> "$GITHUB_OUTPUT"
                           ;;
