@@ -1,0 +1,67 @@
+name: CI
+
+# Validates pull requests touching the MCP bridge or any workflow file.
+# Push events on main are already covered by publish-mcp.yml + deploy-registry.yml;
+# this workflow is the PR-time gate so Dependabot updates get build + test feedback
+# before merge.
+
+on:
+    pull_request:
+        branches: [main]
+        paths:
+            - "mcps/fluttersdk-mcp/**"
+            - ".github/workflows/**"
+            - ".github/dependabot.yml"
+    workflow_dispatch:
+
+permissions:
+    contents: read
+
+concurrency:
+    group: "ci-${{ github.ref }}"
+    cancel-in-progress: true
+
+jobs:
+    mcp-bridge:
+        name: MCP bridge (build + test)
+        runs-on: ubuntu-latest
+        defaults:
+            run:
+                working-directory: mcps/fluttersdk-mcp
+        steps:
+            - uses: actions/checkout@v4
+
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: "20"
+                  cache: npm
+                  cache-dependency-path: mcps/fluttersdk-mcp/package-lock.json
+
+            - name: Install dependencies
+              run: npm ci
+
+            - name: Build (tsc strict)
+              run: npm run build
+
+            - name: Test (vitest)
+              run: npm test
+
+            - name: Package shape (npm pack --dry-run)
+              run: npm pack --dry-run
+
+    workflows-lint:
+        name: Workflows lint
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: actionlint
+              uses: docker://rhysd/actionlint:1.7.7
+              with:
+                  args: -color
+
+            - name: dependabot.yml shape
+              if: hashFiles('.github/dependabot.yml') != ''
+              run: |
+                  python3 -c "import yaml; yaml.safe_load(open('.github/dependabot.yml'))"
+                  echo "dependabot.yml parses as valid YAML"
