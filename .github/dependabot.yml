@@ -1,0 +1,99 @@
+# Dependabot config for fluttersdk/ai
+#
+# Two ecosystems in scope:
+#   1. npm — the @fluttersdk/mcp HTTP-to-stdio bridge at mcps/fluttersdk-mcp/
+#   2. github-actions — every workflow under .github/workflows/
+#
+# Grouping is aggressive: minor + patch updates roll up into a single weekly
+# PR per logical bucket so the queue stays manageable. Major updates open
+# their own PR so breaking changes get a human read.
+#
+# Commit-message prefixes mirror the repo's existing conventional-commit
+# style (chore(deps), chore(ci)).
+
+version: 2
+
+updates:
+    # ─────────────────────────────────────────────────────────────────────
+    # MCP bridge package
+    # ─────────────────────────────────────────────────────────────────────
+    - package-ecosystem: npm
+      directory: /mcps/fluttersdk-mcp
+      schedule:
+          interval: weekly
+          day: monday
+          time: "06:00"
+          timezone: Europe/Istanbul
+      open-pull-requests-limit: 5
+      labels:
+          - dependencies
+          - mcp-bridge
+      assignees:
+          - anilcancakir
+      commit-message:
+          prefix: chore(deps)
+          prefix-development: chore(deps-dev)
+          include: scope
+      versioning-strategy: increase
+      groups:
+          # MCP protocol SDK — group minor+patch so protocol updates land together.
+          # Major bumps open their own PR; SDK majors usually carry protocol-level
+          # changes that need bridge logic review.
+          mcp-sdk:
+              patterns:
+                  - "@modelcontextprotocol/*"
+              update-types:
+                  - minor
+                  - patch
+          # TypeScript toolchain (typescript + @types/*) — non-runtime, low risk.
+          typescript-stack:
+              patterns:
+                  - typescript
+                  - "@types/*"
+              update-types:
+                  - minor
+                  - patch
+          # Test runner.
+          vitest:
+              patterns:
+                  - vitest
+                  - "@vitest/*"
+              update-types:
+                  - minor
+                  - patch
+      ignore:
+          # zod major bumps usually rewrite schema semantics. Force manual review.
+          - dependency-name: zod
+            update-types:
+                - version-update:semver-major
+
+    # ─────────────────────────────────────────────────────────────────────
+    # GitHub Actions used across .github/workflows/
+    # ─────────────────────────────────────────────────────────────────────
+    - package-ecosystem: github-actions
+      directory: /
+      schedule:
+          interval: weekly
+          day: monday
+          time: "06:00"
+          timezone: Europe/Istanbul
+      open-pull-requests-limit: 5
+      labels:
+          - dependencies
+          - github-actions
+      assignees:
+          - anilcancakir
+      commit-message:
+          prefix: chore(ci)
+          include: scope
+      groups:
+          # First-party actions used everywhere (checkout, setup-node, pages, etc).
+          actions-official:
+              patterns:
+                  - actions/*
+          # App-token + repository-dispatch — keep moving together because they
+          # ship in the same auto-sync workflow.
+          sync-auth-stack:
+              patterns:
+                  - tibdex/github-app-token
+                  - peter-evans/*
