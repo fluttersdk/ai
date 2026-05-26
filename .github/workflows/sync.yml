@@ -12,10 +12,9 @@ name: Sync Skill From Upstream
 #   - Source name validated against a fixed case allowlist BEFORE any
 #     checkout step runs.
 #   - Version and sha validated against regex BEFORE checkout.
-#   - Upstream read uses a fine-grained PAT (UPSTREAM_READ_PAT) scoped
-#     to contents:read on the 5 source repos only.
-#   - Registry push uses a GitHub App installation token scoped to
-#     this repository only (contents:write).
+#   - Upstream read and registry push both use the fluttersdk-registry
+#     GitHub App. Two separate tokens are minted per run, each scoped
+#     to its specific repo at mint time (least-privilege). No PATs.
 
 on:
     repository_dispatch:
@@ -92,43 +91,56 @@ jobs:
                   case "$SRC" in
                       wind)
                           echo "repo=fluttersdk/wind" >> "$GITHUB_OUTPUT"
+                          echo "repo_name=wind" >> "$GITHUB_OUTPUT"
                           echo "branch=main" >> "$GITHUB_OUTPUT"
                           echo "subpath=fluttersdk_wind/skills/wind-ui" >> "$GITHUB_OUTPUT"
                           echo "skill=wind-ui" >> "$GITHUB_OUTPUT"
                           ;;
                       magic)
                           echo "repo=fluttersdk/magic" >> "$GITHUB_OUTPUT"
+                          echo "repo_name=magic" >> "$GITHUB_OUTPUT"
                           echo "branch=main" >> "$GITHUB_OUTPUT"
                           echo "subpath=skills/magic-framework" >> "$GITHUB_OUTPUT"
                           echo "skill=magic-framework" >> "$GITHUB_OUTPUT"
                           ;;
                       dusk)
                           echo "repo=fluttersdk/dusk" >> "$GITHUB_OUTPUT"
+                          echo "repo_name=dusk" >> "$GITHUB_OUTPUT"
                           echo "branch=master" >> "$GITHUB_OUTPUT"
                           echo "subpath=skills/fluttersdk-dusk" >> "$GITHUB_OUTPUT"
                           echo "skill=fluttersdk-dusk" >> "$GITHUB_OUTPUT"
                           ;;
                       telescope)
                           echo "repo=fluttersdk/telescope" >> "$GITHUB_OUTPUT"
+                          echo "repo_name=telescope" >> "$GITHUB_OUTPUT"
                           echo "branch=master" >> "$GITHUB_OUTPUT"
                           echo "subpath=skills/fluttersdk-telescope" >> "$GITHUB_OUTPUT"
                           echo "skill=fluttersdk-telescope" >> "$GITHUB_OUTPUT"
                           ;;
                       artisan)
                           echo "repo=fluttersdk/artisan" >> "$GITHUB_OUTPUT"
+                          echo "repo_name=artisan" >> "$GITHUB_OUTPUT"
                           echo "branch=master" >> "$GITHUB_OUTPUT"
                           echo "subpath=skills/fluttersdk-artisan" >> "$GITHUB_OUTPUT"
                           echo "skill=fluttersdk-artisan" >> "$GITHUB_OUTPUT"
                           ;;
                   esac
 
-            - name: Mint App installation token
+            - name: Mint App token (registry write)
               id: app-token
               uses: actions/create-github-app-token@v3
               with:
                   app-id: ${{ secrets.REGISTRY_BOT_APP_ID }}
                   private-key: ${{ secrets.REGISTRY_BOT_PRIVATE_KEY }}
                   repositories: ${{ github.event.repository.name }}
+
+            - name: Mint App token (upstream read, least-privilege)
+              id: upstream-token
+              uses: actions/create-github-app-token@v3
+              with:
+                  app-id: ${{ secrets.REGISTRY_BOT_APP_ID }}
+                  private-key: ${{ secrets.REGISTRY_BOT_PRIVATE_KEY }}
+                  repositories: ${{ steps.cfg.outputs.repo_name }}
 
             - name: Checkout registry
               uses: actions/checkout@v4
@@ -144,7 +156,7 @@ jobs:
                   sparse-checkout: ${{ steps.cfg.outputs.subpath }}
                   sparse-checkout-cone-mode: false
                   path: tmp-upstream-${{ steps.cfg.outputs.skill }}
-                  token: ${{ secrets.UPSTREAM_READ_PAT }}
+                  token: ${{ steps.upstream-token.outputs.token }}
                   persist-credentials: false
 
             - name: Rsync upstream subtree into skills/<name>
