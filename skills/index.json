@@ -17,7 +17,7 @@
         },
         {
             "name": "magic-framework",
-            "description": "Magic Framework: Flutter IoC + 17 Facades (Auth, Http, Cache, DB, Echo, Log, Event, Gate, MagicRoute...), Eloquent ORM, Service Providers, GoRouter, MagicController/View, forms, testing, 4 plugins.",
+            "description": "Magic Framework: Flutter IoC + 18 Facades (Auth, Http, Cache, DB, Echo, Log, Event, Gate, Session, MagicRoute...), Eloquent ORM, FormRequest, Gate abilities, resource routing, async validation, Service Providers, testing, 4 plugins.",
             "files": [
                 "SKILL.md",
                 "references/auth-system.md",

@@ -253,6 +253,8 @@ Uses a `GateManager` singleton. `AbilityCallback = Function`, `BeforeCallback = 
 | `Gate.allows(String ability, [dynamic arguments])` | `bool` | True if current user has the ability. |
 | `Gate.denies(String ability, [dynamic arguments])` | `bool` | Inverse of `allows()`. |
 | `Gate.check(String ability, [dynamic arguments])` | `bool` | Alias for `allows()`. |
+| `Gate.allowsAny(List<String> abilities, [dynamic arguments])` | `bool` | True if **any** listed ability passes. Short-circuits on first pass. |
+| `Gate.allowsAll(List<String> abilities, [dynamic arguments])` | `bool` | True only if **all** listed abilities pass. Short-circuits on first failure. |
 | `Gate.has(String ability)` | `bool` | Check if an ability has been defined. |
 | `Gate.abilities` | `List<String>` | **Getter.** All defined ability names. |
 | `Gate.flush()` | `void` | Remove all abilities (primarily for testing). |
@@ -391,6 +393,60 @@ if (await Launch.canLaunch('tel:+1234567890')) {
 
 ---
 
+## Session
+
+Laravel-style flash store. Data written via `flash()` / `flashErrors()` lives in a **next** bucket and is promoted to **current** when the app calls `Session.tick()`. The router does NOT tick automatically — wire a routerDelegate listener gated on `MagicRouter.instance.currentLocation` changes during bootstrap (see example below). Each value survives exactly one hop.
+
+| Signature | Return Type | Notes |
+|-----------|-------------|-------|
+| `Session.flash(Map<String, dynamic> input)` | `void` | Flash input values for the next request (merged). |
+| `Session.flashErrors(Map<String, List<String>> errors)` | `void` | Flash validation errors for the next request (merged). |
+| `Session.old(String field, [String? fallback])` | `String?` | Read flashed input as string. Returns `fallback` only if the key was **never** flashed; explicit null flash returns `null`. |
+| `Session.oldRaw(String field)` | `dynamic` | Read the raw, non-stringified flashed value. |
+| `Session.error(String field)` | `String?` | First flashed error for field, or `null`. |
+| `Session.errors(String field)` | `List<String>` | All flashed errors for field. |
+| `Session.hasError(String field)` | `bool` | True if the field has at least one flashed error. |
+| `Session.hasFlash` | `bool` | **Getter.** Any flash data readable this frame. |
+| `Session.tick()` | `void` | Promote `_next` → `_current`. Not called automatically — wire it once at bootstrap via a routerDelegate listener gated on actual location changes; call manually in tests. |
+| `Session.reset()` | `void` | Clear both buckets (testing). |
+| `Session.store` | `SessionStore` | Underlying store (for direct inspection). |
+| `Session.setStore(SessionStore store)` | `void` | Swap the backing store (testing). |
+
+Top-level helpers (mirror Laravel's Blade API):
+
+```dart
+String? old(String field, [String? fallback]);
+String? error(String field);
+```
+
+```dart
+import 'package:magic/magic.dart';
+
+// Bootstrap (call once — Magic does not tick Session automatically):
+var lastLocation = MagicRouter.instance.currentLocation;
+MagicRouter.instance.router.routerDelegate.addListener(() {
+  final current = MagicRouter.instance.currentLocation;
+  if (current != lastLocation) {
+    Session.tick();
+    lastLocation = current;
+  }
+});
+
+// Controller flashes on validation failure:
+Session.flash({'email': form.get('email')});
+Session.flashErrors({'email': ['The email is already taken.']});
+MagicRoute.back();
+
+// Next view repopulates:
+TextField(controller: TextEditingController(text: old('email')));
+Text(error('email') ?? '');
+if (Session.hasError('email')) showErrorIcon();
+```
+
+`MagicFormData.validate()` auto-flashes `form.data` on failure (but not per-field errors — call `Session.flashErrors(...)` manually when you need `error('field')` to resolve after navigating back).
+
+---
+
 ## Log
 
 Resolves `Magic.make<LogManager>('log')`. Supports all RFC 5424 levels.
@@ -463,6 +519,7 @@ The facade class is `MagicRoute`. Resolves `MagicRouter.instance`.
 | `MagicRoute.page(String path, Function handler)` | `RouteDefinition` | Register a page route; returns definition for fluent chaining. |
 | `MagicRoute.group({String? prefix, List middleware, String? as, Widget Function(Widget)? layout, String? layoutId, required void Function() routes})` | `void` | Group routes with shared prefix/middleware. |
 | `MagicRoute.layout({String? id, required Widget Function(Widget child) builder, required List<RouteDefinition> routes})` | `void` | Persistent shell layout for nested routes. |
+| `MagicRoute.resource(String name, ResourceController controller, {List<String>? only, List<String>? except})` | `List<RouteDefinition>` | Auto-wire canonical GET routes (index/create/show/edit) to a `ResourceController` mixin. Each definition gets a `{slug}.{method}` name + title. Throws `ArgumentError` for unknown method names in `only`/`except`. |
 | `MagicRoute.to(String path, {Map<String, String>? query})` | `void` | Navigate to path — no BuildContext needed. |
 | `MagicRoute.toNamed(String name, {Map<String, String> params, Map<String, String> query})` | `void` | Navigate by named route. |
 | `MagicRoute.push(String path)` | `void` | Push path onto the navigation stack. |

@@ -292,6 +292,111 @@ Translation files use `:attribute` placeholders:
 }
 ```
 
+## Session (Flash Store)
+
+Laravel-style flash data for form repopulation and transient messages. Two internal buckets:
+
+- `_next` — receives `flash()` / `flashErrors()` writes during the current frame.
+- `_current` — read by `old()`, `error()`, `hasError()`, `hasFlash`.
+
+`Session.tick()` promotes `_next` → `_current`. The framework does **not** tick automatically — wire a routerDelegate listener gated on real `MagicRouter.instance.currentLocation` changes during bootstrap (GoRouter fires `routerDelegate` notifications for non-navigation rebuilds too, which would prematurely burn the flash). Each value then survives exactly one navigation hop.
+
+```dart
+// Call once during app bootstrap (e.g. in a ServiceProvider.boot()):
+var lastLocation = MagicRouter.instance.currentLocation;
+MagicRouter.instance.router.routerDelegate.addListener(() {
+  final current = MagicRouter.instance.currentLocation;
+  if (current != lastLocation) {
+    Session.tick();
+    lastLocation = current;
+  }
+});
+```
+
+### API
+
+| Method | Returns | Purpose |
+|--------|---------|---------|
+| `Session.flash(Map<String, dynamic> input)` | `void` | Flash inputs for next hop (merged, not replaced) |
+| `Session.flashErrors(Map<String, List<String>> errors)` | `void` | Flash per-field validation errors (merged) |
+| `Session.old(String field, [String? fallback])` | `String?` | Current-bucket input as string. Fallback returns only if the key was never flashed; explicit null flash returns `null` |
+| `Session.oldRaw(String field)` | `dynamic` | Current-bucket raw, non-stringified value |
+| `Session.error(String field)` | `String?` | First current-bucket error for field |
+| `Session.errors(String field)` | `List<String>` | All current-bucket errors for field |
+| `Session.hasError(String field)` | `bool` | True if field has at least one current-bucket error |
+| `Session.hasFlash` | `bool` | **Getter.** Any readable flash data this frame |
+| `Session.tick()` | `void` | Promote next → current. Not auto-wired — attach at bootstrap (snippet above) |
+| `Session.reset()` | `void` | Clear both buckets (testing) |
+| `Session.setStore(SessionStore store)` | `void` | Swap backing store (testing) |
+
+Top-level helpers (mirror Laravel's Blade API):
+
+```dart
+String? old(String field, [String? fallback]);
+String? error(String field);
+```
+
+### Auto-flash on validation failure
+
+`MagicFormData.validate()` calls `Session.flash(form.data)` automatically when client-side validation fails. Per-field validation errors are **not** auto-flashed — call `Session.flashErrors(...)` manually (e.g. from a server response) if you need `error('field')` to resolve after navigation. Typical flow:
+
+```dart
+// Submit view:
+void _submit() {
+  if (!form.validate()) return;  // on failure: data + errors are flashed
+  form.process(() => controller.save(form.data));
+}
+
+// Next view (re-entered via MagicRoute.back or similar) repopulates:
+class UserFormView extends MagicStatefulView<UserController> { ... }
+class _UserFormViewState extends MagicStatefulViewState<UserController, UserFormView> {
+  late final form = MagicFormData({
+    'email': old('email') ?? '',
+    'name': old('name') ?? '',
+  }, controller: controller);
+
+  @override Widget build(BuildContext context) => Column(children: [
+    TextField(
+      controller: form['email'],
+      decoration: InputDecoration(errorText: error('email')),
+    ),
+  ]);
+}
+```
+
+### Manual flash from a controller
+
+```dart
+Future<void> store(Map<String, dynamic> data) async {
+  final response = await Http.post('/users', data: data);
+  if (!response.successful) {
+    Session.flash(data);
+    Session.flashErrors(response.errors);
+    MagicRoute.back();
+    return;
+  }
+  // ...
+}
+```
+
+### Testing
+
+```dart
+setUp(() {
+  MagicApp.reset();
+  Magic.flush();
+  Session.reset();              // clear both buckets
+});
+
+test('flash survives one tick', () {
+  Session.flash({'email': 'foo@bar.com'});
+  Session.tick();
+  expect(Session.old('email'), 'foo@bar.com');
+  Session.tick();                // second tick — current bucket now empty
+  expect(Session.old('email'), isNull);
+});
+```
+
 ## Storage Manager
 
 File system abstraction for local disk operations. Supports multiple disks (local, public) and handles platform differences (mobile vs. web). Accessed via the `Storage` facade.

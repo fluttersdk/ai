@@ -39,7 +39,7 @@ The optional `controller` param enables two side-effects:
 | `form.get('field')` | `String` | Get trimmed text from a text controller |
 | `form.set('field', 'text')` | `void` | Set text value in a text controller |
 | `form.data` | `Map<String, dynamic>` | Export all values (text fields are auto-trimmed) |
-| `form.validate()` | `bool` | Run client-side validation (clears server errors first) |
+| `form.validate()` | `bool` | Run client-side validation (clears server errors first). **Auto-flashes `form.data` to `Session` on failure** so downstream views can repopulate via `old('field')`. Per-field validation errors are not auto-flashed — call `Session.flashErrors(...)` manually if you need `error('field')` after navigation |
 | `form.validated()` | `Map<String, dynamic>` | Returns `data` if valid, otherwise empty `{}` |
 | `form.process<T>(action)` | `Future<T>` | Execute async action with automatic processing state management |
 | `form.isProcessing` | `bool` | Whether `process()` is currently executing |
@@ -193,6 +193,7 @@ try {
 | `passes()` | `bool` | Inverse of `fails()` |
 | `errors()` | `Map<String, String>` | Map of field name to first error message |
 | `validate()` | `Map<String, dynamic>` | Returns only validated fields on success; throws `ValidationException` on failure |
+| `validateAsync()` | `Future<Map<String, dynamic>>` | Runs sync rules first, then `AsyncRule.passesAsync()` for fields that passed; throws `ValidationException` on failure |
 
 
 ## ValidatesRequests Mixin
@@ -240,6 +241,8 @@ if (response.isValidationError) {
 | `Confirmed` | `Confirmed()` | Value matches `{field}_confirmation` key in data |
 | `Same` | `Same(String other, {String Function()? valueGetter})` | Value matches `other` field; use `valueGetter` for live Flutter controller values |
 | `Accepted` | `Accepted()` | Value is `true`, `1`, `'1'`, `'yes'`, `'on'`, or `'true'` (case-insensitive) |
+| `In<T>` | `In<T>(List<T> values)` | Value appears in the primitive whitelist; type mismatch fails explicitly |
+| `InList<T extends Enum>` | `InList(List<T> values, {bool caseInsensitive, String Function(T)? wire})` | Value matches an enum by instance or by `.name` / `wire` mapping |
 
 **Same with valueGetter (recommended for Flutter forms):**
 
@@ -432,4 +435,123 @@ class _RegisterViewState
 - `rules()` is bound to `MagicStatefulViewState`. Use `FormValidator.rules()` in standard `State` classes.
 - `Confirmed` looks for `{field}_confirmation` in form data. `Same` requires an explicit field name and supports `valueGetter` for live values.
 - `Accepted` accepts `true`, `1`, `'1'`, `'yes'`, `'on'`, `'true'` — use it for terms checkboxes, not `Required`.
+- `In<T>` / `InList<T extends Enum>` short-circuit on `null` (pair with `Required()` for presence). `InList` accepts the enum itself or a string compared against `.name`; pass `wire:` to map enums onto snake_case or bespoke wire codes, `caseInsensitive: true` for loose matching. Both emit `validation.in` with a comma-joined `:values`.
 - Always call `form.dispose()` in `onClose()` to prevent memory leaks.
+
+
+## FormRequest
+
+Laravel-style request object that collapses **authorize → prepare → validate** into a single reusable class. Import from `package:magic/magic.dart`.
+
+```dart
+abstract class FormRequest {
+  const FormRequest();
+
+  Map<String, List<Rule>> rules();                              // required
+  bool authorize() => true;                                     // override to deny
+  Map<String, dynamic> prepared(Map<String, dynamic> data) => data; // override to normalize
+
+  /// Runs authorize → prepared → validation.
+  /// Throws AuthorizationException if authorize() == false.
+  /// Throws ValidationException (with field-keyed errors) on rule failure.
+  /// Returns the validated + prepared data (keys present in rules only).
+  Map<String, dynamic> validate(Map<String, dynamic> data);
+}
+```
+
+### Example
+
+```dart
+class StoreUserRequest extends FormRequest {
+  @override bool authorize() => Gate.allows('create-user');
+
+  @override Map<String, dynamic> prepared(Map<String, dynamic> data) => {
+    ...data,
+    'email': (data['email'] as String?)?.trim().toLowerCase(),
+  };
+
+  @override Map<String, List<Rule>> rules() => {
+    'name': [Required()],
+    'email': [Required(), Email()],
+    'password': [Required(), Min(8), Confirmed()],
+  };
+}
+
+// In a controller action:
+try {
+  final validated = StoreUserRequest().validate(form.data);
+  final user = User()..fill(validated, strict: true);
+  await user.save();
+} on AuthorizationException catch (e) {
+  Magic.error(trans('errors.forbidden'), e.message);
+} on ValidationException catch (e) {
+  // e.errors -> Map<String, String> of field -> first error
+  controller.setValidationErrors(e.errors);
+}
+```
+
+Pair with `Model.fill(validated, strict: true)` to catch schema drift at the boundary — any unexpected key in `validated` becomes `MassAssignmentException` instead of silently corrupting state.
+
+### Exceptions
+
+| Exception | Fields | Thrown by |
+|-----------|--------|-----------|
+| `AuthorizationException` | `message` (default `'Unauthorized.'`) | `FormRequest.validate()` when `authorize()` returns `false`; `MagicController.authorize()` when `Gate.denies()` |
+| `ValidationException` | `errors` (`Map<String, String>`) | `FormRequest.validate()`, `Validator.validate()`, `Validator.validateAsync()` |
+
+### CLI
+
+Generate a FormRequest with: `dart run magic:magic make:request StoreUser`.
+
+
+## AsyncRule & Unique
+
+Sync rules run inside `Validator.fails()` / `passes()`. Async rules implement `AsyncRule` and run only when the caller uses `Validator.validateAsync()`.
+
+```dart
+abstract class AsyncRule extends Rule {
+  Future<bool> passesAsync(String attribute, dynamic value, Map<String, dynamic> data);
+  @override bool passes(String a, dynamic v, Map<String, dynamic> d) => true; // sync no-op
+}
+```
+
+### Unique(endpoint, field:)
+
+Built-in async rule for uniqueness checks against a backend endpoint.
+
+```dart
+Unique(
+  String endpoint, {
+  required String field,
+  Duration debounce = const Duration(milliseconds: 400),
+});
+
+Unique.via(UniqueResolver resolver);  // swap HTTP for custom/in-memory resolver (testing)
+
+typedef UniqueResolver = Future<bool> Function(String endpoint, String field, dynamic value);
+```
+
+Behavior:
+- **Debounced** per-instance (default 400ms) — rapid typing coalesces into one network call. Pass `Duration.zero` to disable.
+- **Stale-in-flight discard** — if a new request starts while one is pending, the stale result is ignored.
+- **Network-error tolerant** — errors log and pass (`true`) so the server stays authoritative on submit. The `Log.error()` call records context.
+- **Null/empty short-circuit** — null and whitespace-only strings pass; that's `Required`'s job.
+
+### Usage
+
+```dart
+final rules = {
+  'email': [Required(), Email(), Unique('/users', field: 'email')],
+};
+
+final validated = await Validator.make(data, rules).validateAsync();
+// Throws ValidationException on failure.
+// Sync rules run first; async rules run only for fields that passed sync.
+```
+
+Swap the resolver for tests or non-HTTP backends:
+
+```dart
+final rule = Unique('/users', field: 'email')
+  .via((endpoint, field, value) async => !_taken.contains(value));
+```

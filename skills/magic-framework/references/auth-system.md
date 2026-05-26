@@ -358,6 +358,16 @@ if (Gate.check('view-dashboard')) {
   showDashboard();
 }
 
+// Pass if ANY of the abilities passes (short-circuits on first pass)
+if (Gate.allowsAny(['edit-post', 'delete-post'], post)) {
+  showActionMenu();
+}
+
+// Pass only if ALL abilities pass (short-circuits on first failure)
+if (Gate.allowsAll(['view-admin', 'edit-users'])) {
+  showUserAdminPanel();
+}
+
 // Check if ability exists
 if (Gate.has('update-post')) {
   // ...
@@ -365,6 +375,32 @@ if (Gate.has('update-post')) {
 
 // Get all defined abilities
 final abilities = Gate.abilities;
+```
+
+### MagicController.authorize()
+
+Laravel-style controller helper that delegates to `Gate.allows()` and throws `AuthorizationException` on denial. Use inside controller actions instead of hand-rolled gate checks.
+
+```dart
+// on MagicController:
+void authorize(String ability, [Object? arguments]);
+
+class PostController extends MagicController {
+  Future<void> destroy(Post post) async {
+    authorize('delete-post', post);  // throws AuthorizationException('This action is unauthorized: delete-post') if Gate denies
+    await post.delete();
+  }
+}
+```
+
+Catch globally (in middleware or a top-level handler) or locally:
+
+```dart
+try {
+  await controller.destroy(post);
+} on AuthorizationException catch (e) {
+  Magic.error(trans('errors.forbidden'), e.message);
+}
 ```
 
 ### Super Admin Bypass

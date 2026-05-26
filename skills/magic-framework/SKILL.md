@@ -1,11 +1,11 @@
 ---
 name: magic-framework
-description: "Magic Framework: Flutter IoC + 17 Facades (Auth, Http, Cache, DB, Echo, Log, Event, Gate, MagicRoute...), Eloquent ORM, Service Providers, GoRouter, MagicController/View, forms, testing, 4 plugins."
+description: "Magic Framework: Flutter IoC + 18 Facades (Auth, Http, Cache, DB, Echo, Log, Event, Gate, Session, MagicRoute...), Eloquent ORM, FormRequest, Gate abilities, resource routing, async validation, Service Providers, testing, 4 plugins."
 version: 1.0.0-alpha.13
-when_to_use: "TRIGGER when: code imports `package:magic/magic.dart` or `package:magic/testing.dart`, or user mentions Magic.init, MagicApp, MagicController, MagicView, MagicStatefulView, MagicStatefulViewState, MagicResponsiveView, MagicFormData, MagicForm, MagicBuilder, MagicRoute, MagicResponse, Model with HasTimestamps, InteractsWithPersistence, ServiceProvider, MagicMiddleware, MagicStateMixin, ValidatesRequests, RxStatus, Auth/Http/Config/Cache/DB/Gate/Log/Event/Lang/Schema/Vault/Storage/Pick/Crypt/Launch/Echo facade, MagicApplication, MagicTitle, TitleManager, MagicTest, fetchList, fetchOne, Http.fake, Auth.fake, Echo.fake, Magic.findOrPut, Magic.make, Magic.put, Magic.find, Magic.singleton, Magic.snackbar, Magic.toast, Magic.dialog, Magic.confirm, Carbon, trans(), env(), rules(), handleApiError, MagicStarter, magic_deeplink, magic_notifications, magic_social_auth, dart run magic:magic, make:model, make:controller, make:view. DO NOT TRIGGER when: code only uses Wind UI without Magic framework, or plain Flutter without package:magic import."
+when_to_use: "TRIGGER when: code imports `package:magic/magic.dart` or `package:magic/testing.dart`, or user mentions Magic.init, MagicApp, MagicController, MagicView, MagicStatefulView, MagicStatefulViewState, MagicResponsiveView, MagicFormData, MagicForm, MagicBuilder, MagicRoute, MagicResponse, Model with HasTimestamps, InteractsWithPersistence, CastsAttributes, EnumCast, ListCast, MassAssignmentException, fill(strict:), FormRequest, AuthorizationException, ValidationException, AsyncRule, Unique rule, ResourceController, MagicRoute.resource, Gate.allowsAny, Gate.allowsAll, controller.authorize, Session facade, Session.flash, Session.old, old(), error() helper, ServiceProvider, MagicMiddleware, MagicStateMixin, ValidatesRequests, RxStatus, Auth/Http/Config/Cache/DB/Gate/Log/Event/Lang/Schema/Vault/Storage/Pick/Crypt/Launch/Echo/Session facade, MagicApplication, MagicTitle, TitleManager, MagicTest, fetchList, fetchOne, Http.fake, Auth.fake, Echo.fake, Magic.findOrPut, Magic.make, Magic.put, Magic.find, Magic.singleton, Magic.snackbar, Magic.toast, Magic.dialog, Magic.confirm, Carbon, trans(), env(), rules(), handleApiError, MagicStarter, magic_deeplink, magic_notifications, magic_social_auth, dart run magic:magic, make:model, make:controller, make:view, make:request. DO NOT TRIGGER when: code only uses Wind UI without Magic framework, or plain Flutter without package:magic import."
 ---
 
-<!-- Magic v1.0.0-alpha.13 | magic_starter v0.0.1-alpha.14 | Skill updated: 2026-04-16 -->
+<!-- Magic v1.0.0-alpha.13 + [Unreleased] | magic_starter v0.0.1-alpha.14 | Skill updated: 2026-04-18 -->
 
 # Magic Framework
 
@@ -14,7 +14,7 @@ Laravel-inspired Flutter framework. IoC Container + Facades + Eloquent ORM + GoR
 ## 1. Core Laws
 
 1. **await Magic.init()**: Must be awaited in `main()` before ANY facade call. Never `.then()`.
-2. **Facade-first**: Use `Auth`, `Http`, `Config`, `Cache`, `DB`, `Log`, `Event`, `Lang`, `MagicRoute`, `Gate`, `Schema`, `Vault`, `Storage`, `Pick`, `Crypt`, `Launch` -- never resolve manually unless extending.
+2. **Facade-first**: Use `Auth`, `Http`, `Config`, `Cache`, `DB`, `Log`, `Event`, `Echo`, `Lang`, `MagicRoute`, `Gate`, `Session`, `Schema`, `Vault`, `Storage`, `Pick`, `Crypt`, `Launch` -- never resolve manually unless extending.
 3. **Singleton controllers**: `static X get instance => Magic.findOrPut(X.new);` -- the canonical pattern.
 4. **IoC over new**: Bind services in providers, resolve via `Magic.make<T>('key')`. Never scatter `new Service()` across code.
 5. **Service Provider discipline**: `register()` = sync bindings only, routes go here. `boot()` = async, may resolve other services, set `Auth.manager.setUserFactory()` here.
@@ -68,7 +68,7 @@ Use `configFactories` (not `configs`) when any value depends on `Env.get()`. The
 | `Magic.flush()` | Clear all controllers (testing) |
 | `MagicApp.reset()` | Full container reset (testing) |
 
-### Facade Summary (17 Facades)
+### Facade Summary (18 Facades)
 
 | Facade | Purpose | Key Methods |
 |--------|---------|-------------|
@@ -81,8 +81,9 @@ Use `configFactories` (not `configs`) when any value depends on `Env.get()`. The
 | `Log` | Logging | `info()`, `error()`, `warning()`, `debug()` |
 | `Event` | Events | `dispatch(event)` |
 | `Echo` | Broadcasting | `channel()`, `private()`, `join()`, `listen()`, `leave()`, `connect()`, `disconnect()`, `socketId`, `connectionState`, `onReconnect`, `fake()` |
-| `MagicRoute` | Routing | `page()`, `group()`, `layout()`, `to()`, `back({fallback?})`, `replace()`, `push()`, `toNamed()`, `setTitle()`, `currentTitle` |
-| `Gate` | Authorization | `allows()`, `denies()`, `define()`, `policy()` |
+| `MagicRoute` | Routing | `page()`, `group()`, `layout()`, `resource(name, ctrl, {only, except})`, `to()`, `back({fallback?})`, `replace()`, `push()`, `toNamed()`, `setTitle()`, `currentTitle` |
+| `Gate` | Authorization | `allows()`, `denies()`, `allowsAny(list)`, `allowsAll(list)`, `define()`, `before()`, `policy()` |
+| `Session` | Flash data | `flash(data)`, `flashErrors(errors)`, `old(field, [fallback])`, `error(field)`, `errors(field)`, `hasError(field)`, `hasFlash`, `tick()` |
 | `Lang` | Localization | `get()`, `locale()` |
 | `Vault` | Secure storage | `get()`, `put()`, `delete()`, `flush()` |
 | `Storage` | File storage | `disk()`, `put()`, `get()`, `delete()`, `exists()` |
@@ -145,7 +146,12 @@ class User extends Model with HasTimestamps, InteractsWithPersistence {
     @override String get table => 'users';
     @override String get resource => 'users';
     @override List<String> get fillable => ['name', 'email'];
-    @override Map<String, String> get casts => {'created_at': 'datetime', 'settings': 'json'};
+    @override Map<String, dynamic> get casts => {
+        'created_at': 'datetime',
+        'settings': 'json',
+        'status': EnumCast(UserStatus.values),          // class-based cast
+        'tags': ListCast(EnumCast(UserTag.values)),      // element-wise list cast
+    };
     @override Map<String, Model Function()> get relations => {'company': Company.new};
 
     int? get id => get<int>('id');
@@ -162,7 +168,7 @@ class User extends Model with HasTimestamps, InteractsWithPersistence {
 }
 ```
 
-Casts: `datetime` (Carbon), `json` (Map), `bool`, `int`, `double`. Hybrid persistence: `save()` = API first, sync to SQLite. `find()` = local first, API fallback.
+Built-in casts: `datetime` (Carbon), `json` (Map or List), `bool`, `int`, `double`. Class-based casts implement `CastsAttributes<T>` (built-in: `EnumCast(values, {strict})`, `ListCast(inner)`). `fill(data, strict: true)` throws `MassAssignmentException` on any non-fillable key instead of silently dropping it — pair with validated request payloads. Hybrid persistence: `save()` = API first, sync to SQLite. `find()` = local first, API fallback.
 
 ### Controller Skeleton
 
@@ -181,6 +187,7 @@ class UserController extends MagicController
     }
 
     Future<void> store(Map<String, dynamic> data) async {
+        authorize('create-user');  // throws AuthorizationException if Gate denies
         setLoading(); clearErrors();
         final response = await Http.post('/users', data: data);
         if (response.successful) { Magic.toast(trans('users.created')); MagicRoute.to('/users'); return; }
@@ -253,6 +260,105 @@ form.process(() => submit())   // auto-manages processingListenable
 form.dispose()                 // always in onClose()
 ```
 
+`form.validate()` auto-flashes the current `form.data` to `Session` on failure so downstream views can repopulate via `old('field')` without manual wiring.
+
+### FormRequest (Laravel-style request object)
+
+Collapses authorize → prepare → validate into a single class. Use for complex payloads instead of inline `MagicFormData` validation.
+
+```dart
+class StoreUserRequest extends FormRequest {
+  @override bool authorize() => Gate.allows('create-user');
+
+  @override Map<String, dynamic> prepared(Map<String, dynamic> data) => {
+    ...data,
+    'email': (data['email'] as String?)?.trim().toLowerCase(),
+  };
+
+  @override Map<String, List<Rule>> rules() => {
+    'name': [Required()],
+    'email': [Required(), Email(), Unique('/users', field: 'email')],
+    'password': [Required(), Min(8), Confirmed()],
+  };
+}
+
+// Usage inside a controller:
+final validated = StoreUserRequest().validate(form.data);
+// throws AuthorizationException (authorize=false) or ValidationException (rules fail)
+final user = User()..fill(validated, strict: true);
+await user.save();
+```
+
+### Resource Routing
+
+`MagicRoute.resource(name, controller, {only, except})` auto-wires up to four canonical GET routes to a controller that mixes in `ResourceController`. Each route gets an auto-assigned `{slug}.{method}` name and title.
+
+```dart
+class UserRoutes with ResourceController {
+  @override Set<String> get resourceMethods => {'index', 'create', 'show', 'edit'};
+  @override Widget index() => const UserListView();
+  @override Widget create() => const UserCreateView();
+  @override Widget show(String id) => UserShowView(id: id);
+  @override Widget edit(String id) => UserEditView(id: id);
+}
+
+// In RouteServiceProvider.register():
+MagicRoute.resource('users', UserRoutes());                 // all four
+MagicRoute.resource('posts', PostRoutes(), only: ['index', 'show']);
+MagicRoute.resource('teams', TeamRoutes(), except: ['edit']);
+```
+
+Routes: `GET /{name}` → index, `/{name}/create` → create, `/{name}/:id` → show, `/{name}/:id/edit` → edit. Unknown method names in `only`/`except` throw `ArgumentError`.
+
+### Async Validation (Unique)
+
+`AsyncRule` contract + `Unique(endpoint, field:)` rule. Debounces rapid calls (default 400ms), passes on network errors so submit never blocks, and stale in-flight requests are discarded.
+
+```dart
+Validator.make(data, {
+  'email': [Required(), Email(), Unique('/users', field: 'email')],
+}).validateAsync();  // Future<Map<String, dynamic>> — throws ValidationException
+
+// Custom resolver (test or non-HTTP backend):
+Unique('/users', field: 'email').via((endpoint, field, value) async => !_taken.contains(value));
+```
+
+`Validator.validateAsync()` runs sync rules first, then async for fields that passed. Swap the resolver via `.via()` for testing or alternate backends.
+
+### Session Flash / old() / error()
+
+Laravel-style one-hop flash bucket. `MagicFormData.validate()` auto-flashes `form.data` on failure (input only — per-field errors are NOT auto-flashed); views read prior input via `old()`, and `error()` / `Session.hasError()` work only when errors were flashed separately (manually or from a server response).
+
+```dart
+// On validation failure (automatic): form.validate() flashes form.data.
+// Next navigation reads flashed input:
+TextField(controller: TextEditingController(text: old('email')));
+
+// error() only resolves when errors were flashed explicitly:
+Session.flashErrors({'email': ['Already taken']});
+Text(error('email') ?? '');
+
+// Manual flash from controller:
+Session.flash({'email': 'foo@bar.com'});
+Session.flashErrors({'email': ['Already taken']});
+MagicRoute.back();  // next frame sees flashed data + errors
+```
+
+`Session.tick()` promotes `_next` → `_current`. The framework does NOT tick automatically — wire it once at bootstrap:
+
+```dart
+var lastLocation = MagicRouter.instance.currentLocation;
+MagicRouter.instance.router.routerDelegate.addListener(() {
+  final current = MagicRouter.instance.currentLocation;
+  if (current != lastLocation) {
+    Session.tick();
+    lastLocation = current;
+  }
+});
+```
+
+`Session.old()` returns `null` if key was flashed with `null`; returns the `fallback` only when the key was never flashed.
+
 ## 5. Testing
 
 ### Test Bootstrap
@@ -324,6 +430,12 @@ class ProjectController extends MagicController with MagicStateMixin<List<Projec
 | Missing `.title()` on routes | `MagicRoute.page('/x', () => X()).title('Page')` | Browser tab shows generic title |
 | `configs: {'routing': {'url_strategy': 'path'}}` | Use `configFactories` | Env not loaded when `configs` evaluates |
 | `FilePicker.platform.pickFiles()` | `FilePicker.pickFiles()` | v11 migrated to static API |
+| `user.fill(unvalidated)` | `user.fill(validated, strict: true)` | Use strict after FormRequest/Validator — catches schema drift |
+| Hand-rolled `if (!Gate.allows(...)) throw ...` | `authorize('ability')` inside controller | Delegates to Gate + throws `AuthorizationException` |
+| Four separate `Route.page()` for CRUD | `MagicRoute.resource(name, ctrl)` | Auto-wires canonical routes + titles |
+| `sync` rule calling API in `passes()` | Implement `AsyncRule.passesAsync()` | Sync rules must not block, async runs after sync passes |
+| `Session.old(field) ?? fallback` | `Session.old(field, fallback)` | Explicit null flash returns null; fallback only on absent key |
+| Manual `Session.flash(form.data)` on validation fail | `form.validate()` auto-flashes `form.data`; call `Session.flashErrors(...)` yourself if you need `error('field')` after nav | Framework only auto-flashes inputs, not errors |
 
 ## 7. Pre-Completion Checklist
 
@@ -400,14 +512,14 @@ Official plugins extending Magic Framework. Each has its own package, service pr
 | File | Content | Load When |
 |------|---------|-----------|
 | `references/bootstrap-lifecycle.md` | Magic.init 7-step sequence, IoC API, ServiceProvider register/boot, Env/Config, Kernel, MagicApplication | Setting up app bootstrap, creating providers, or configuring environment |
-| `references/facades-api.md` | All 17 facades with method signatures and return types | Looking up any facade method signature or return type |
-| `references/eloquent-orm.md` | Model definition, attributes, casts, relations, `InteractsWithPersistence`, QueryBuilder, migrations, Blueprint | Working with models, database queries, or migrations |
+| `references/facades-api.md` | All 18 facades with method signatures and return types | Looking up any facade method signature or return type |
+| `references/eloquent-orm.md` | Model definition, attributes, built-in + class-based casts (`CastsAttributes`, `EnumCast`, `ListCast`), `fill(strict:)` / `MassAssignmentException`, relations, `InteractsWithPersistence`, QueryBuilder, migrations, Blueprint | Working with models, casts, mass assignment, database queries, or migrations |
 | `references/controllers-views.md` | MagicController, MagicStateMixin, RxStatus, MagicView, MagicStatefulView, MagicStatefulViewState, MagicResponsiveView, MagicBuilder, MagicCan/MagicCannot | Building controllers or views, reactive state, authorization widgets |
-| `references/forms-validation.md` | MagicFormData, MagicForm, rules(), FormValidator, ValidatesRequests, built-in rules (Required, Email, Min, Max, Confirmed, Same, Accepted), process(), processingListenable | Building forms, adding validation, handling server-side errors |
-| `references/routing-navigation.md` | MagicRoute.page(), group(), layout(), navigation (to/back/replace/push/toNamed), middleware, transitions, MagicRouterOutlet, path/query parameters, navigator observers, URL strategy, page titles (TitleManager, MagicTitle, setTitle/currentTitle) | Defining routes, navigation, middleware, observers, URL strategy, or page title management |
+| `references/forms-validation.md` | MagicFormData (auto-flash on validate fail), MagicForm, rules(), FormValidator, ValidatesRequests, built-in rules (Required, Email, Min, Max, Confirmed, Same, Accepted), AsyncRule + Unique, FormRequest (authorize/prepared/rules/validate), ValidationException, AuthorizationException, process(), processingListenable | Building forms, sync or async validation, FormRequest objects, handling server-side errors |
+| `references/routing-navigation.md` | MagicRoute.page(), group(), layout(), resource() + ResourceController, navigation (to/back/replace/push/toNamed), middleware, transitions, MagicRouterOutlet, path/query parameters, navigator observers, URL strategy, page titles (TitleManager, MagicTitle, setTitle/currentTitle) | Defining routes (including resource shorthand), navigation, middleware, observers, URL strategy, or page title management |
 | `references/http-network.md` | Http facade (get/post/put/delete/upload + RESTful resource methods), MagicResponse API, interceptors, network config | Making HTTP requests, handling responses, or configuring network layer |
-| `references/auth-system.md` | Auth facade, AuthManager, guards (Bearer, BasicAuth, ApiKey), token refresh, setUserFactory, restore, policies, Gate, MagicCan | Implementing authentication, authorization, or token management |
-| `references/secondary-systems.md` | Cache, Events (EventDispatcher, register listeners), Logging, Localization (trans()), Storage, Encryption, Vault, Carbon date helper, Launch, Policies, Broadcasting (Echo facade, BroadcastManager, channels, interceptors) | Using caching, events, logging, i18n, file storage, encryption, URL launching, or real-time broadcasting |
+| `references/auth-system.md` | Auth facade, AuthManager, guards (Bearer, BasicAuth, ApiKey), token refresh, setUserFactory, restore, policies, Gate (allows/denies/allowsAny/allowsAll/define/before), MagicController.authorize(), MagicCan | Implementing authentication, authorization, gate abilities, controller authorize(), or token management |
+| `references/secondary-systems.md` | Cache, Events (EventDispatcher, register listeners), Logging, Localization (trans()), Session (flash, old, error, hasError, tick), Storage, Encryption, Vault, Carbon date helper, Launch, Policies, Broadcasting (Echo facade, BroadcastManager, channels, interceptors) | Using caching, events, logging, i18n, flash sessions, file storage, encryption, URL launching, or real-time broadcasting |
 | `references/testing-patterns.md` | MagicTest.init/boot, facade faking (Http.fake, Auth.fake, Cache.fake, Vault.fake, Log.fake), fetchList/fetchOne, controller/model/middleware testing | Writing tests for any Magic framework code |
 | `references/cli-commands.md` | Full CLI reference: install, all make:* generators with flags, key:generate | Scaffolding code, initializing projects, or generating files with the CLI |
 | `references/plugin-deeplink.md` | DeeplinkManager, handlers, drivers, config, RouteDeeplinkHandler, OneSignalDeeplinkHandler | Working with deep links, universal links, or app links |

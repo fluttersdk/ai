@@ -68,7 +68,7 @@ class Monitor extends Model with HasTimestamps, InteractsWithPersistence {
 | `useRemote` | `bool` | `true` | Enable API calls |
 | `fillable` | `List<String>` | `[]` | Mass-assignable fields |
 | `guarded` | `List<String>` | `['*']` | Guarded fields (default blocks all) |
-| `casts` | `Map<String, String>` | `{}` | Type casting map |
+| `casts` | `Map<String, dynamic>` | `{}` | Type casting map (string tokens or `CastsAttributes<T>` instances) |
 | `hidden` | `List<String>` | `[]` | Hidden from serialization |
 | `visible` | `List<String>` | `[]` | Whitelist for serialization |
 | `relations` | `Map<String, Model Function()>` | `{}` | Relation factories |
@@ -80,7 +80,7 @@ class Monitor extends Model with HasTimestamps, InteractsWithPersistence {
 | `get<T>` | `T? get<T>(String key, {T? defaultValue})` | Typed read with cast support (preferred) |
 | `set` | `void set(String key, dynamic value)` | Write attribute |
 | `has` | `bool has(String key)` | Check non-null existence |
-| `fill` | `void fill(Map<String, dynamic> attributes)` | Mass assign (respects fillable/guarded) |
+| `fill` | `void fill(Map<String, dynamic> attributes, {bool strict = false})` | Mass assign (respects fillable/guarded); when `strict: true`, throws `MassAssignmentException` on non-fillable keys instead of silently dropping them |
 | `getAttribute` | `dynamic getAttribute(String key)` | Raw read with casting (used internally) |
 | `setAttribute` | `void setAttribute(String key, dynamic value)` | Raw write with type conversion |
 | `setRawAttributes` | `void setRawAttributes(Map<String, dynamic> attributes, {bool sync = false})` | Bulk hydrate, bypass fillable |
@@ -97,13 +97,56 @@ class Monitor extends Model with HasTimestamps, InteractsWithPersistence {
 
 ## Casting
 
+### Built-in string-token casts
+
 | Cast | Dart Type | Conversion |
 | :--- | :--- | :--- |
 | `datetime` | `Carbon` | ISO 8601 string ↔ Carbon; Carbon stored as ISO 8601 string |
-| `json` | `Map<String, dynamic>` | JSON string ↔ Map; Map stored as JSON string |
+| `json` | `Map<String, dynamic>` or `List` | JSON string ↔ Map/List; Map/List stored as JSON string |
 | `bool` | `bool` | int 0/1 or string `"true"`/`"false"` |
 | `int` | `int` | Safe parse via `int.tryParse` |
 | `double` | `double` | Safe parse via `double.tryParse` |
+
+### Class-based casts (`CastsAttributes<T>`)
+
+Implement `CastsAttributes<T>` for reusable, typed, custom casts. Two built-in implementations ship in `package:magic/magic.dart`:
+
+```dart
+abstract class CastsAttributes<T> {
+  const CastsAttributes();
+  T? get(Model model, String key, Object? raw);       // storage -> domain
+  Object? set(Model model, String key, Object? value); // domain -> storage
+}
+```
+
+```dart
+// EnumCast — map a name-based string column to an enum.
+enum MonitorStatus { up, down, paused }
+
+@override Map<String, dynamic> get casts => {
+  'status': EnumCast(MonitorStatus.values),                   // unknown values return null
+  'strict_status': EnumCast(MonitorStatus.values, strict: true), // throws ArgumentError on unknown value
+};
+
+// ListCast — apply an inner cast element-by-element. Stored as JSON string.
+@override Map<String, dynamic> get casts => {
+  'tags': ListCast(EnumCast(MonitorTag.values)),
+};
+```
+
+`ListCast.get()` accepts either a `List`, a JSON string, or a single value (coerced into `[value]`). `ListCast.set()` emits JSON when given a `List`; otherwise passes raw storage forms through unchanged.
+
+Mix string-token and class-based entries in the same `casts` map — resolution happens per key.
+
+## Mass Assignment & MassAssignmentException
+
+```dart
+final user = User();
+user.fill({'name': 'Ada', 'role': 'admin'});                // 'role' silently dropped (not fillable)
+user.fill({'name': 'Ada', 'role': 'admin'}, strict: true);  // throws MassAssignmentException('role', User)
+```
+
+`MassAssignmentException` is an `Exception` with `.attribute` (the offending key) and optional `.modelType`. Pair `strict: true` with a validated payload (e.g., from `FormRequest.validate()` or `Validator.validate()`) so schema drift fails loudly at the boundary instead of corrupting state.
 
 ## Relations
 

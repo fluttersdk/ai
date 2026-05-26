@@ -89,6 +89,64 @@ MagicRoute.group(
 | `layoutId` | `String?` | Layout identifier for merging groups with same layout |
 | `routes` | `void Function()` | Callback to register child routes |
 
+## Resource Routes (ResourceController)
+
+`MagicRoute.resource(name, controller, {only, except})` auto-wires up to four canonical GET routes to a controller that mixes in `ResourceController`. Each generated `RouteDefinition` gets an auto-assigned `{slug}.{method}` name and title (slug is the normalized `name`, so a nested path like `/admin/users` produces `admin/users.index`).
+
+```dart
+static List<RouteDefinition> MagicRoute.resource(
+  String name,
+  ResourceController controller, {
+  List<String>? only,      // whitelist of methods
+  List<String>? except,    // blacklist of methods
+});
+```
+
+### Generated routes
+
+| Path | HTTP-style method | ResourceController hook |
+|------|-------------------|-------------------------|
+| `GET /{name}` | `index` | `Widget index()` |
+| `GET /{name}/create` | `create` | `Widget create()` |
+| `GET /{name}/:id` | `show` | `Widget show(String id)` |
+| `GET /{name}/:id/edit` | `edit` | `Widget edit(String id)` |
+
+### ResourceController mixin
+
+```dart
+mixin ResourceController {
+  /// Override to expose only a subset. Default: {'index', 'create', 'show', 'edit'}.
+  Set<String> get resourceMethods => const {'index', 'create', 'show', 'edit'};
+
+  Widget index() => throw UnimplementedError();
+  Widget create() => throw UnimplementedError();
+  Widget show(String id) => throw UnimplementedError();
+  Widget edit(String id) => throw UnimplementedError();
+}
+```
+
+### Usage
+
+```dart
+class UserRoutes with ResourceController {
+  @override Set<String> get resourceMethods => {'index', 'create', 'show', 'edit'};
+  @override Widget index() => const UserListView();
+  @override Widget create() => const UserCreateView();
+  @override Widget show(String id) => UserShowView(id: id);
+  @override Widget edit(String id) => UserEditView(id: id);
+}
+
+// In RouteServiceProvider.register():
+MagicRoute.resource('users', UserRoutes());                         // all four methods
+MagicRoute.resource('posts', PostRoutes(), only: ['index', 'show']); // read-only
+MagicRoute.resource('teams', TeamRoutes(), except: ['edit']);       // all except edit
+```
+
+Resolution rules:
+- `name` is normalized — collapses repeated slashes, strips leading/trailing slashes.
+- `only` / `except` narrow the set further, but only **within** `resourceMethods` (so a controller that lists `['index', 'show']` cannot expose `edit` even via `only`).
+- Unknown method names in `only` or `except` throw `ArgumentError` at registration time, not at navigation.
+
 ## Persistent Layouts (Shell Routes)
 
 Use layouts to maintain persistent UI (tabs, navigation rails, sidebars) while child routes change.
