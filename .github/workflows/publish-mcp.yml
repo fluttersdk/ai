@@ -1,0 +1,83 @@
+name: Publish @fluttersdk/mcp to npm
+
+# Auto-publishes the npx bridge package when its version bumps.
+# Listens for changes to mcps/fluttersdk-mcp/package.json on main.
+# Skips silently when the local version matches the latest published
+# version (idempotent: re-running on the same SHA is a no-op).
+
+on:
+    push:
+        branches: [main]
+        paths:
+            - "mcps/fluttersdk-mcp/package.json"
+            - "mcps/fluttersdk-mcp/src/**"
+            - "mcps/fluttersdk-mcp/tsconfig.json"
+            - "mcps/fluttersdk-mcp/README.md"
+    workflow_dispatch:
+
+permissions:
+    contents: read
+    id-token: write   # required for npm provenance (sigstore signing)
+
+concurrency:
+    group: "publish-mcp"
+    cancel-in-progress: false
+
+jobs:
+    publish:
+        runs-on: ubuntu-latest
+        defaults:
+            run:
+                working-directory: mcps/fluttersdk-mcp
+        steps:
+            - uses: actions/checkout@v4
+
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: "20"
+                  registry-url: "https://registry.npmjs.org"
+
+            - name: Compare local vs published version
+              id: check
+              run: |
+                  set -euo pipefail
+                  PKG_VER=$(jq -r .version package.json)
+                  PKG_NAME=$(jq -r .name package.json)
+                  echo "package: ${PKG_NAME}@${PKG_VER}"
+                  # npm view exits non-zero when package doesn't exist; treat as 0.0.0
+                  NPM_VER=$(npm view "${PKG_NAME}" version 2>/dev/null || echo "0.0.0")
+                  echo "latest on npm: ${NPM_VER}"
+                  if [[ "$PKG_VER" == "$NPM_VER" ]]; then
+                      echo "publish=false" >> "$GITHUB_OUTPUT"
+                      echo "::notice::version already published; skipping"
+                  else
+                      echo "publish=true" >> "$GITHUB_OUTPUT"
+                      echo "version=$PKG_VER" >> "$GITHUB_OUTPUT"
+                  fi
+
+            - name: Install dependencies
+              if: steps.check.outputs.publish == 'true'
+              run: npm ci
+
+            - name: Build
+              if: steps.check.outputs.publish == 'true'
+              run: npm run build
+
+            - name: Test
+              if: steps.check.outputs.publish == 'true'
+              run: npm test
+
+            - name: Publish to npm with provenance
+              if: steps.check.outputs.publish == 'true'
+              env:
+                  NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+              run: npm publish --provenance --access public
+
+            - name: Summary
+              if: steps.check.outputs.publish == 'true'
+              run: |
+                  echo "## Published" >> "$GITHUB_STEP_SUMMARY"
+                  echo "" >> "$GITHUB_STEP_SUMMARY"
+                  echo "\`@fluttersdk/mcp@${{ steps.check.outputs.version }}\` is now live on npm." >> "$GITHUB_STEP_SUMMARY"
+                  echo "" >> "$GITHUB_STEP_SUMMARY"
+                  echo "Verify: https://www.npmjs.com/package/@fluttersdk/mcp" >> "$GITHUB_STEP_SUMMARY"
