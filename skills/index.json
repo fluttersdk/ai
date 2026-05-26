@@ -60,14 +60,13 @@
         },
         {
             "name": "fluttersdk-artisan",
-            "description": "fluttersdk_artisan: composable Dart 3.4+ CLI framework + stdio MCP server for Flutter and Dart. 21 builtin commands across 6 groups (lifecycle, scaffolding, plugin management, MCP, introspection, codegen) including install, make:plugin, plugin:install, mcp:serve, tinker. Declarative install.yaml plugin manifest + procedural PluginInstaller fluent DSL with 26 sealed InstallOperation variants. 10 substrate MCP tools (artisan_*) including artisan_tinker for VM expression eval, plus plugin-contributed tools from sibling plugins (fluttersdk_dusk, fluttersdk_telescope; see each plugin's MCP tool reference for the current catalog). TRIGGER when: package:fluttersdk_artisan import, fluttersdk_artisan in pubspec, dart run fluttersdk_artisan command, bin/dispatcher.dart present, install.yaml manifest, ArtisanCommand / ArtisanServiceProvider / McpToolDescriptor / PluginInstaller mention, .mcp.json fluttersdk entry, or user asks about artisan, plugin scaffold, MCP setup, dev loop, signature DSL. DO NOT TRIGGER when code only uses Wind UI or Magic without artisan touchpoint.",
+            "description": "fluttersdk_artisan: Dart CLI framework + stdio MCP server that lets an LLM agent boot, inspect, hot-reload, and evaluate a running Flutter app via 10 substrate MCP tools (`artisan_*`) and 21 builtin CLI commands (`./bin/fsa`). `~/.artisan/state.json` carries the running app's pid + VM Service URI + FIFO pipe; lazy-reconnect picks it up after `artisan_start`. Plugin tools (`dusk_*`, `telescope_*`) surface ONLY via `./bin/fsa mcp:serve` (dispatcher path), not `dart run fluttersdk_artisan:mcp` (substrate-only). TRIGGER when: any `artisan_*` MCP call, `./bin/fsa` or `dart run artisan` invocation, `.artisan/state.json` / `bin/dispatcher.dart` / `_plugins.g.dart` mention, or the user asks to start / stop / restart / reload / hot-restart / inspect / tinker a Flutter app. DO NOT TRIGGER on plugin authoring (install.yaml / PluginInstaller DSL) or pure `dart test` without driving the app.",
             "files": [
                 "SKILL.md",
-                "references/commands.md",
-                "references/install-yaml-schema.md",
-                "references/installer-dsl.md",
-                "references/mcp-server.md",
-                "references/plugin-authoring.md"
+                "references/cli-commands.md",
+                "references/mcp-tools.md",
+                "references/state-and-recovery.md",
+                "references/tinker-eval.md"
             ]
         }
     ]
