@@ -75,9 +75,13 @@ jobs:
 
             - name: Summary
               if: steps.check.outputs.publish == 'true'
+              env:
+                  VERSION: ${{ steps.check.outputs.version }}
               run: |
-                  echo "## Published" >> "$GITHUB_STEP_SUMMARY"
-                  echo "" >> "$GITHUB_STEP_SUMMARY"
-                  echo "\`@fluttersdk/mcp@${{ steps.check.outputs.version }}\` is now live on npm." >> "$GITHUB_STEP_SUMMARY"
-                  echo "" >> "$GITHUB_STEP_SUMMARY"
-                  echo "Verify: https://www.npmjs.com/package/@fluttersdk/mcp" >> "$GITHUB_STEP_SUMMARY"
+                  {
+                      echo "## Published"
+                      echo ""
+                      echo "\`@fluttersdk/mcp@${VERSION}\` is now live on npm."
+                      echo ""
+                      echo "Verify: https://www.npmjs.com/package/@fluttersdk/mcp"
+                  } >> "$GITHUB_STEP_SUMMARY"
