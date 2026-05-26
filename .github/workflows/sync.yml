@@ -128,19 +128,23 @@ jobs:
 
             - name: Mint App token (registry write)
               id: app-token
-              uses: actions/create-github-app-token@v3.1.1
+              uses: tibdex/github-app-token@v2.1.0
               with:
-                  app-id: ${{ secrets.REGISTRY_BOT_APP_ID }}
-                  private-key: ${{ secrets.REGISTRY_BOT_PRIVATE_KEY }}
-                  repositories: ${{ github.event.repository.name }}
+                  app_id: ${{ secrets.REGISTRY_BOT_APP_ID }}
+                  private_key: ${{ secrets.REGISTRY_BOT_PRIVATE_KEY }}
+                  installation_retrieval_mode: repository
+                  installation_retrieval_payload: ${{ github.repository }}
+                  repositories: '["${{ github.event.repository.name }}"]'
 
             - name: Mint App token (upstream read, least-privilege)
               id: upstream-token
-              uses: actions/create-github-app-token@v3.1.1
+              uses: tibdex/github-app-token@v2.1.0
               with:
-                  app-id: ${{ secrets.REGISTRY_BOT_APP_ID }}
-                  private-key: ${{ secrets.REGISTRY_BOT_PRIVATE_KEY }}
-                  repositories: ${{ steps.cfg.outputs.repo_name }}
+                  app_id: ${{ secrets.REGISTRY_BOT_APP_ID }}
+                  private_key: ${{ secrets.REGISTRY_BOT_PRIVATE_KEY }}
+                  installation_retrieval_mode: repository
+                  installation_retrieval_payload: ${{ steps.cfg.outputs.repo }}
+                  repositories: '["${{ steps.cfg.outputs.repo_name }}"]'
 
             - name: Checkout registry
               uses: actions/checkout@v4
