@@ -1,50 +1,50 @@
 {
-    "name": "@fluttersdk/mcp",
-    "version": "1.1.0",
-    "description": "HTTP↔stdio bridge for the FlutterSDK Docs MCP server (mcp.fluttersdk.com)",
-    "author": "Anilcan Cakir <anilcan.cakir@gmail.com>",
-    "license": "MIT",
-    "type": "module",
-    "bin": {
-        "fluttersdk-mcp": "dist/index.js"
-    },
-    "main": "dist/index.js",
-    "files": [
-        "dist",
-        "README.md"
-    ],
-    "scripts": {
-        "build": "tsc",
-        "lint": "eslint src/",
-        "test": "vitest run",
-        "start": "node dist/index.js"
-    },
-    "dependencies": {
-        "@modelcontextprotocol/sdk": "^1.0.0",
-        "zod": "^3.23.0"
-    },
-    "devDependencies": {
-        "@types/node": "^22.0.0",
-        "typescript": "^5.6.0",
-        "vitest": "^2.0.0"
-    },
-    "engines": {
-        "node": ">=18.0.0"
-    },
-    "publishConfig": {
-        "access": "public"
-    },
-    "repository": {
-        "type": "git",
-        "url": "https://github.com/fluttersdk/ai",
-        "directory": "mcps/fluttersdk-mcp"
-    },
-    "keywords": [
-        "mcp",
-        "flutter",
-        "fluttersdk",
-        "bridge",
-        "stdio",
-        "streamable-http"
-    ]
+  "name": "@fluttersdk/mcp",
+  "version": "1.1.1",
+  "description": "HTTP↔stdio bridge for the FlutterSDK Docs MCP server (mcp.fluttersdk.com)",
+  "author": "Anilcan Cakir <anilcan.cakir@gmail.com>",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "fluttersdk-mcp": "dist/index.js"
+  },
+  "main": "dist/index.js",
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "lint": "eslint src/",
+    "test": "vitest run",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/fluttersdk/ai",
+    "directory": "mcps/fluttersdk-mcp"
+  },
+  "keywords": [
+    "mcp",
+    "flutter",
+    "fluttersdk",
+    "bridge",
+    "stdio",
+    "streamable-http"
+  ]
 }
