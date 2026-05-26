@@ -151,13 +151,13 @@ jobs:
                   repositories: '["${{ steps.cfg.outputs.repo_name }}"]'
 
             - name: Checkout registry
-              uses: actions/checkout@v4
+              uses: actions/checkout@v6
               with:
                   token: ${{ steps.app-token.outputs.token }}
                   fetch-depth: 0
 
             - name: Checkout upstream subtree
-              uses: actions/checkout@v4
+              uses: actions/checkout@v6
               with:
                   repository: ${{ steps.cfg.outputs.repo }}
                   ref: ${{ steps.cfg.outputs.branch }}
