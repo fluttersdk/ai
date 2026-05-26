@@ -31,8 +31,11 @@ updates:
       assignees:
           - anilcancakir
       commit-message:
-          prefix: chore(deps)
-          prefix-development: chore(deps-dev)
+          # Dependabot appends a "(deps)" / "(deps-dev)" scope when include: scope
+          # is set, so prefix must NOT also contain parens — otherwise the commit
+          # subject becomes "chore(deps)(deps): bump X".
+          prefix: chore
+          prefix-development: chore
           include: scope
       versioning-strategy: increase
       groups:
@@ -84,7 +87,9 @@ updates:
       assignees:
           - anilcancakir
       commit-message:
-          prefix: chore(ci)
+          # See note above: include: scope already appends "(deps)" — keep prefix
+          # parens-free.
+          prefix: ci
           include: scope
       groups:
           # First-party actions used everywhere (checkout, setup-node, pages, etc).
