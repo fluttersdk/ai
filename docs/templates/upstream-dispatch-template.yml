@@ -1,8 +1,11 @@
 # pragma: example
 # Template workflow — install in upstream skill source repos (fluttersdk/wind, magic, dusk, telescope, artisan).
+# This file lives under docs/templates/ (NOT .github/workflows/) so GitHub does not
+# execute it in fluttersdk/ai. Copy it into the upstream repo's .github/workflows/
+# directory and fill in the placeholders below.
+#
 # Replace <SOURCE_NAME> with: wind | magic | dusk | telescope | artisan.
 # Replace <SKILL_PATH> with the upstream's `skills/<name>/` relative path.
-# This file's trigger is intentionally inert in fluttersdk/ai (no .ai branch exists).
 #
 # Auth: uses the fluttersdk-registry GitHub App (1-hour mint-on-demand tokens) instead
 # of a personal PAT. Requires REGISTRY_BOT_APP_ID + REGISTRY_BOT_PRIVATE_KEY secrets

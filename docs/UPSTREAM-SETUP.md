@@ -44,9 +44,13 @@ each upstream just needs the App credentials so its workflow can mint a registry
 
 **b. Copy the template workflow** from fluttersdk/ai into the upstream repo:
 ```bash
-cp .github/workflows/upstream-dispatch-template.yml \
+cp docs/templates/upstream-dispatch-template.yml \
    <upstream-repo>/.github/workflows/dispatch-to-registry.yml
 ```
+
+The template lives under `docs/templates/` (not `.github/workflows/`) so GitHub does not
+execute it inside fluttersdk/ai. Once copied into an upstream repo's `.github/workflows/`
+directory, it becomes a live workflow there.
 
 **c. Replace placeholders** in the copied file:
 
@@ -78,5 +82,6 @@ git push
 - The same GitHub App is used everywhere (registry push + registry-scoped dispatch from each
   upstream). One App, one private key, no PAT rotation. Tokens mint at job start and expire
   in 1 hour or when the job ends, whichever comes first.
-- This template file does not fire in fluttersdk/ai because the branch
-  `never-trigger-in-registry` does not exist in this repo.
+- The template lives at `docs/templates/upstream-dispatch-template.yml`, outside the
+  `.github/workflows/` directory, so GitHub does not load it as a workflow in fluttersdk/ai.
+  It only becomes active when copied into an upstream repo's `.github/workflows/` directory.
