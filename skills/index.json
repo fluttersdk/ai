@@ -2,15 +2,16 @@
     "skills": [
         {
             "name": "wind-ui",
-            "description": "Build Flutter UI with Wind's utility-first className system. W-prefix widgets, design culture, enforcement gates, theming, component-first workflow.",
+            "description": "fluttersdk_wind 1.0: utility-first Flutter styling with Tailwind-syntax className strings. 20 W-prefix widgets (WDiv, WText, WButton, WInput, WSelect, WCheckbox, WDatePicker, WPopover, WAnchor, WIcon, WImage, WSvg, WSpacer, WBreakpoint, WDynamic + 5 WForm* wrappers) consume className through a 17-parser pipeline that emits a cached immutable WindStyle. Prefixes stack freely (dark: / hover: / focus: / md: / lg: / ios: / android: / web: / mobile: / selected: / loading: / disabled: / error: / checked: / custom). Last class wins; unknown tokens fail silently. Every color token (bg-, text-, border-, ring-, shadow-, fill-) needs a dark: pair in the same className. TRIGGER when: writing or editing any UI in a Flutter app that depends on `fluttersdk_wind`; any className string; any W-prefix widget; any WindTheme / WindThemeData reference; the user mentions Tailwind for Flutter, utility-first, className, or wind-ui. DO NOT TRIGGER when: backend / API / state-management work that does not touch a widget tree; Flutter projects that do not have fluttersdk_wind in pubspec.yaml; Material-only widgets (Scaffold, AppBar, Dialog) without Wind content inside them.",
             "files": [
                 "SKILL.md",
-                "references/component-patterns.md",
-                "references/design-culture.md",
-                "references/design-tokens.md",
-                "references/form-patterns.md",
-                "references/layout-patterns.md",
-                "references/theme-setup.md",
+                "references/community.md",
+                "references/debug.md",
+                "references/dynamic.md",
+                "references/forms.md",
+                "references/layouts.md",
+                "references/tailwind-divergence.md",
+                "references/theme.md",
                 "references/tokens.md",
                 "references/widgets.md"
             ]

@@ -1,645 +1,796 @@
-# Wind UI Widget Reference
+# Wind 1.0 — Widget reference
 
-Wind UI provides a comprehensive set of utility-first widgets. These widgets apply Tailwind-like string classes into native Flutter layouts, using "Intelligent Composition" to create the optimal widget tree.
+Full constructor surface, every named parameter, every default. Reach for this file when picking a widget, wiring callbacks, or recovering from a "what does this prop do?" stall.
 
-## Table of Contents
-- [WDiv](#wdiv) - Core Layout Container
-- [WDiv Composition Logic](#wdiv-composition-logic)
-- [WText](#wtext) - Typography
-- [WButton](#wbutton) - Interactive Button
-- [WInput](#winput) - Text Input
-- [WSelect](#wselect) - Single & Multi-Select Dropdown
-- [WCheckbox](#wcheckbox) - Checkbox
-- [WIcon](#wicon) - Icon Wrapper
-- [WImage](#wimage) - Network & Asset Images
-- [WSvg](#wsvg) - SVG Images
-- [WPopover](#wpopover) - Popovers & Tooltips
-- [WAnchor](#wanchor) - Interaction State Wrapper
-- [Form Field Wrappers](#form-field-wrappers)
-  - [WFormInput](#wforminput)
-  - [WFormSelect](#wformselect)
-  - [WFormMultiSelect](#wformmultiselect)
-  - [WFormCheckbox](#wformcheckbox)
+All widgets import from the single barrel:
 
----
-
-## WDiv
-
-**Purpose:** The fundamental building block of Wind. Dynamically constructs the most efficient widget tree based on the provided utility classes.
-
-**Constructor:**
-| Param | Type | Default | Description |
-|-------|------|---------|-------------|
-| className | String? | null | Utility class string |
-| child | Widget? | null | Single child (exclusive with children) |
-| children | List<Widget>? | null | Multiple children (exclusive with child) |
-| style | WindStyle? | null | Base explicit style |
-| states | Set<String>? | null | Custom state triggers e.g., {'loading', 'active'} |
-| scrollPrimary | bool | false | Link to PrimaryScrollController (iOS tap-to-top) |
-
-**Flutter Constraint Notes:**
-- **w-full vs flex-1:** In a horizontal flex layout (Row), `w-full` causes a RenderFlex overflow. Use `flex-1` instead to fill remaining space.
-- **overflow-y-auto:** Translates to `SingleChildScrollView`. It MUST have a bounded height parent. If placed directly inside a Column, wrap it in an `Expanded` (or `flex-1`).
-- **scrollPrimary:** Set `scrollPrimary: true` to enable tap-to-scroll-top on iOS and desktop scrollbar integration when using `overflow-y-auto`.
-- **flex-wrap is NO-OP:** `Row` and `Column` CANNOT wrap in Flutter. Use `className: 'wrap'` instead.
-
-**Examples:**
 ```dart
-// Basic layout
-WDiv(
-  className: "flex flex-col gap-4 p-4 bg-white rounded-lg",
-  children: [
-    WText("Item 1"),
-    WText("Item 2"),
-  ],
-)
-
-// Scrollable area
-WDiv(
-  className: "flex-1 overflow-y-auto",
-  scrollPrimary: true, // For iOS
-  child: WText("Long content here..."),
-)
+import 'package:fluttersdk_wind/fluttersdk_wind.dart';
 ```
 
-### WDiv Intelligent Composition
+No sub-barrels (`lib/dusk_integration.dart` and similar were removed in 1.0 alpha-10).
 
-WDiv intelligently selects the core Flutter widget based on the `className`:
+## Contents
 
-| className contains | Core Flutter widget | Key behavior |
-|-------------------|---------------------|--------------|
-| `flex flex-col` | `Column` | |
-| `flex` or `flex flex-row` | `Row` | |
-| `wrap` or `grid` | `Wrap` | `grid` acts like wrap with equal widths |
-| `overflow-y-auto` | `SingleChildScrollView` | Vertical. MUST have bounded height parent. |
-| `overflow-x-auto` | `SingleChildScrollView` | Horizontal. |
-| `hidden` | `SizedBox.shrink()` | Short-circuits build entirely. |
-| none of above | `Column` or `Container` | `Column` for `children`, `Container` for `child`. |
-
-* **Auto-WAnchor:** WDiv automatically wraps itself in a `WAnchor` if `className` contains `hover:`, `focus:`, or `active:`.
-* **Auto-Flexible:** In a `Row`, if space distribution (`justify-between`, `space-around`, `space-evenly`) OR `overflow-hidden` is present, WDiv automatically wraps non-flex children in `Flexible` to prevent overflows (mimicking CSS `flex-shrink: 1`).
-* **child vs children:** These are mutually exclusive. Providing both throws an assertion error.
+1. [Conventions shared across W-widgets](#1-conventions-shared-across-w-widgets)
+2. [Layout: WDiv, WSpacer, WBreakpoint](#2-layout-wdiv-wspacer-wbreakpoint)
+3. [Display: WText, WIcon, WImage, WSvg](#3-display-wtext-wicon-wimage-wsvg)
+4. [Interactive: WAnchor, WButton](#4-interactive-wanchor-wbutton)
+5. [Form (raw): WInput, WCheckbox, WSelect, WDatePicker](#5-form-raw-winput-wcheckbox-wselect-wdatepicker)
+6. [Form (FormField): WFormInput, WFormSelect, WFormMultiSelect, WFormCheckbox, WFormDatePicker](#6-form-formfield-wforminput-wformselect-wformmultiselect-wformcheckbox-wformdatepicker)
+7. [Overlay: WPopover](#7-overlay-wpopover)
+8. [Structural: WDynamic](#8-structural-wdynamic)
+9. [Supporting types: SelectOption, DateRange, InputType, DatePickerMode, PopoverAlignment, WindAnimationType](#9-supporting-types)
 
 ---
 
-## WText
+## 1. Conventions shared across W-widgets
 
-**Purpose:** Core typography component. Separates typography styles from layout styles.
+- **`className: String?`** — the styling surface. Every W-widget that renders anything visual accepts it. Triple-quoted multi-line when 3+ concerns.
+- **`states: Set<String>?`** — consumer-passed state strings (e.g. `{'selected'}`). Merges with the widget's automatic states (`hover`, `focus`, `loading`, `disabled`, `checked`, `error`).
+- **`child` XOR `children`** — for widgets that accept both, the assertion fires at construction. Pass exactly one.
+- **Outlined icon convention** — when using `Icons.*`, prefer the `_outlined` variant. `Icons.settings_outlined`, not `Icons.settings`.
+- **Inline color escape hatches**:
+  - `WDiv(backgroundColor: Color)` overrides any `bg-*` / `dark:bg-*`.
+  - `WText(foregroundColor: Color)` overrides any `text-*` / `dark:text-*`.
+  - These bypass the parser cache; use them for runtime-dynamic colors (a hex from the API).
 
-**Constructor:**
-| Param | Type | Default | Description |
-|-------|------|---------|-------------|
-| data | String | required | The text string to display |
-| className | String? | null | Utility class string |
-| style | WindStyle? | null | Explicit base style |
-| textStyle | TextStyle? | null | Flutter native TextStyle override |
-| selectable | bool | false | If true, renders `SelectableText` |
-| states | Set<String>? | null | Custom state triggers |
+---
 
-**Flutter Constraint Notes:**
-- **truncate:** Translates to `TextOverflow.ellipsis` with `maxLines: 1`. Inside a Row, a `WText` with `truncate` MUST be wrapped in an `Expanded` (e.g., `WDiv(className: 'flex-1')`) or have a fixed width. Otherwise, it takes infinite width and overflows.
+## 2. Layout: WDiv, WSpacer, WBreakpoint
 
-**Examples:**
+### `WDiv`
+
+Universal container. Replaces `Container`, `Row`, `Column`, `Wrap`, `Stack`, `SizedBox` for most cases.
+
 ```dart
-WText(
-  'Hello World',
-  className: 'text-xl font-bold text-blue-500 text-center uppercase p-4',
-)
+const WDiv({
+  Key? key,
+  String? className,
+  Widget? child,
+  List<Widget>? children,           // child XOR children
+  WindStyle? style,                 // pre-parsed override (rare)
+  Set<String>? states,
+  bool scrollPrimary = false,        // PASS true alongside `overflow-y-auto` for iOS tap-to-top
+  Color? backgroundColor,           // runtime escape hatch; bypasses className
+})
+```
 
-// Truncated in a row
-WDiv(
-  className: 'flex items-center gap-2',
-  children: [
-    WIcon(Icons.person),
-    WDiv(
-      className: 'flex-1', // Required for truncate
-      child: WText('Very long name...', className: 'truncate'),
-    ),
-  ],
+Behavior:
+- Auto-wraps in `WAnchor` when className contains the literal substrings `hover:`, `focus:`, or `active:`. (Note: `active:` prefix is not yet wired; the substring check is for forward-compatibility.)
+- Honors layout tokens (flex, grid, wrap, block), sizing, spacing (padding/margin/gap), positioning, borders, shadows, opacity, transitions, animations.
+- Composition pipeline (innermost → outermost): aspect ratio → opacity → animation → Container (decoration + constraints + padding) → scroll/clip → outer sizing → fractional sizing → margin → alignment → flex/expanded.
+- `scrollPrimary: true` only applies when className contains `overflow-y-auto`, `overflow-y-scroll`, `overflow-x-auto`, `overflow-x-scroll`, or `overflow-scroll`.
+- `flex-*` classes skip the Expanded wrap when `WindFlexOverflowScope.skipExpanded` is true (the main axis is scrollable). This is invisible to consumers and prevents unbounded-constraint assertions.
+
+### `WSpacer`
+
+Lightweight container that reads only `w-N` / `h-N`. Everything else is ignored.
+
+```dart
+const WSpacer({
+  Key? key,
+  String? className,
+})
+```
+
+Use for explicit gaps inside non-flex contexts. Inside `flex` / `wrap` / `grid`, prefer `gap-N` on the parent.
+
+### `WBreakpoint`
+
+Per-breakpoint `WidgetBuilder` map. Escape hatch when className prefixes are not enough.
+
+```dart
+const WBreakpoint({
+  Key? key,
+  required WidgetBuilder base,           // required fallback
+  WidgetBuilder? sm,
+  WidgetBuilder? md,
+  WidgetBuilder? lg,
+  WidgetBuilder? xl,
+  WidgetBuilder? xxl,                    // theme key '2xl'
+  Map<String, WidgetBuilder>? custom,    // custom theme breakpoints
+})
+```
+
+Resolves in descending breakpoint order; picks the highest defined builder whose breakpoint ≤ active breakpoint. Falls back to `base`. Custom breakpoints (theme-defined) coexist naturally with built-ins.
+
+```dart
+WBreakpoint(
+  base: (_) => const MobileLayout(),
+  md: (_) => const TabletLayout(),
+  lg: (_) => const DesktopLayout(),
 )
 ```
 
 ---
 
-## WButton
+## 3. Display: WText, WIcon, WImage, WSvg
 
-**Purpose:** Interactive button with built-in loading states and state management.
+### `WText`
 
-**Constructor:**
-| Param | Type | Default | Description |
-|-------|------|---------|-------------|
-| child | Widget | required | Content when not loading |
-| onTap | VoidCallback? | null | Tap handler |
-| onLongPress | VoidCallback? | null | Long press handler |
-| onDoubleTap | VoidCallback? | null | Double tap handler |
-| isLoading | bool | false | Shows spinner, disables interaction, activates `loading:` |
-| disabled | bool | false | Disables interaction, activates `disabled:` |
-| className | String? | null | Utility class string |
-| loadingText | String? | null | Optional text beside spinner |
-| loadingWidget | Widget? | null | Custom spinner override |
-| loadingSize | double | 20 | Size of default spinner |
-| loadingColor | Color? | null | Color of spinner. Falls back to text color, then auto-computes contrast via W3C luminance when no color is resolvable. |
-| states | Set<String>? | null | Custom state triggers |
+Typography only. No `child` / `children`.
 
-**Flutter Constraint Notes:**
-- `WButton` uses `Container` under the hood. To make it expand to fill its parent horizontally, use `w-full` in its `className`.
-
-**When to use WButton vs WAnchor:**
-- Use **WButton** for standard UI actions, forms, and dialogs where you need built-in loading states and standard button sizing.
-- Use **WAnchor** when you need to make arbitrary widgets interactive (like entire cards, list items, or custom layouts) or when you only need to trigger hover/focus styling without button semantics.
-
-**Examples:**
 ```dart
-WButton(
-  onTap: _submit,
-  isLoading: _isSubmitting,
-  loadingText: 'Saving...',
-  className: '''
-    bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 
-    text-white px-4 py-2 rounded-lg 
-    loading:opacity-75 transition-all
-  ''',
-  child: WText('Save Changes'),
-)
-```
-
----
-
-## WInput
-
-**Purpose:** A utility-first text input component for raw value binding.
-
-**Constructor:**
-| Param | Type | Default | Description |
-|-------|------|---------|-------------|
-| value | String? | null | Controlled value |
-| onChanged | ValueChanged<String>?| null | Value change callback |
-| type | InputType | .text | `.text`, `.password`, `.email`, `.number`, `.multiline` |
-| className | String? | null | Styling for input wrapper and text |
-| placeholderClassName | String?| null | Styling for placeholder |
-| placeholder | String? | null | Placeholder text |
-| enabled | bool | true | If false, activates `disabled:` |
-| readOnly | bool | false | Makes input read-only |
-| autofocus | bool | false | Focus on mount |
-| textInputAction | TextInputAction?| null | Keyboard action button |
-| onSubmitted | ValueChanged<String>?| null | Action button tap handler |
-| maxLines | int? | null | Maximum lines (`null` = unlimited) |
-| minLines | int | 1 | Minimum lines |
-| controller | TextEditingController?| null | Explicit controller (overrides value) |
-| prefix / suffix | Widget? | null | Prefix/Suffix icons |
-
-**When to use WInput vs WFormInput:**
-- Use **WInput** for standalone inputs, simple state binding, or search bars outside of a `Form`.
-- Use **WFormInput** when inside a Flutter `Form` widget, when you need validation logic, or when you want automatic error message display and `error:` styling.
-
-**Examples:**
-```dart
-WInput(
-  value: _searchQuery,
-  onChanged: (val) => setState(() => _searchQuery = val),
-  placeholder: 'Search...',
-  className: 'w-full p-3 rounded-lg border border-gray-300 focus:ring-2 focus:border-blue-500',
-  prefix: WIcon(Icons.search, className: 'text-gray-400'),
-)
-```
-
----
-
-## WSelect
-
-**Purpose:** Utility-first dropdown for single or multi-selection with search and async support.
-
-**Constructor:**
-| Param | Type | Default | Description |
-|-------|------|---------|-------------|
-| value | T? | null | Single: Selected value |
-| onChange | ValueChanged<T>?| null | Single: Selection callback |
-| isMulti | bool | false | Enables multi-select mode |
-| values | List<T>? | null | Multi: Selected values |
-| onMultiChange | ValueChanged<List<T>>?| null | Multi: Selection callback |
-| options | List<SelectOption<T>>| required | Available options |
-| searchable | bool | false | Shows search input |
-| onSearch | Future<List<SelectOption<T>>> Function(String)?| null | Async search callback |
-| onCreateOption | Future<SelectOption<T>> Function(String)?| null | Callback to create new option |
-| onLoadMore | Future<List<SelectOption<T>>> Function()?| null | Pagination callback |
-| hasMore | bool | false | Enables pagination |
-| className | String? | null | Trigger styling |
-| menuClassName | String? | null | Dropdown menu styling |
-
-**Special Behaviors:**
-- **Single vs Multi:** Use `value` + `onChange` for single select. Set `isMulti: true` and use `values` + `onMultiChange` for multi-select.
-- **onCreateOption:** Used for tagging/creating new items. You MUST handle the state in the parent widget to call `setState` and add the newly created option to your `options` list.
-- **Search:** Set `searchable: true` for local filtering. Provide `onSearch` for async remote filtering.
-
-**Flutter Constraint Notes:**
-- The menu width defaults to the trigger width. Use `menuWidth` or `w-*` in `menuClassName` to override.
-- The `maxMenuHeight` defaults to 300. Use `constraints: BoxConstraints(...)` via `menuClassName` or the explicit prop to adjust.
-
-**Examples:**
-```dart
-// Multi-select with tagging
-WSelect<String>(
-  isMulti: true,
-  searchable: true,
-  values: _selectedTags,
-  options: _availableTags,
-  onMultiChange: (v) => setState(() => _selectedTags = v),
-  onCreateOption: (query) async {
-    final newOption = SelectOption(value: query, label: query);
-    setState(() => _availableTags.add(newOption)); // REQUIRED
-    return newOption;
+const WText(
+  String data,                       // required positional
+  {
+    Key? key,
+    String? className,
+    WindStyle? style,
+    TextStyle? textStyle,             // merges with parsed style; className wins
+    bool selectable = false,
+    Set<String>? states,
+    Color? foregroundColor,           // runtime escape hatch
   },
-  className: 'w-full p-2 border rounded-lg',
 )
+```
+
+Behavior:
+- Renders `Text(data)` or `SelectableText(data)` based on `selectable`.
+- Honors typography tokens, color, alignment, transforms, decoration, padding, margin, flex-sizing.
+- No animation or opacity at the text level; wrap in `WDiv` for those.
+- Text transformation (`uppercase` / `lowercase` / `capitalize`) applied at core level before rendering.
+
+### `WIcon`
+
+Material icon. Use `_outlined` variants by convention.
+
+```dart
+const WIcon(
+  IconData icon,                    // required positional
+  {
+    Key? key,
+    String? className,
+    Set<String>? states,
+    String? semanticLabel,
+    TextDirection? textDirection,
+  },
+)
+```
+
+Resolution:
+- Size: `styles.width ?? styles.height ?? styles.fontSize ?? inheritedSize`. Inherits from `DefaultTextStyle`.
+- Color: `styles.color ?? inheritedColor` (also from `DefaultTextStyle`).
+- Animation: wraps in `WindAnimationWrapper` when className contains `animate-*`.
+- Opacity: `AnimatedOpacity` when both `opacity-*` and `duration-*` are present; otherwise plain `Opacity`.
+
+### `WImage`
+
+Network, asset, or `ImageProvider` source.
+
+```dart
+const WImage({
+  Key? key,
+  String? src,                                       // URL or 'asset://path'
+  ImageProvider? image,                              // takes precedence over `src`
+  String? alt,
+  String? className,
+  Set<String>? states,
+  Widget? placeholder,
+  ImageErrorWidgetBuilder? errorBuilder,             // (context, error, stack) => Widget
+  ImageLoadingBuilder? loadingBuilder,
+})
+```
+
+Assertion: `src != null || image != null`.
+
+Source dispatch:
+- `image: ImageProvider` wins (precedence over `src`).
+- `src: 'asset://path/to/asset.png'` → `Image.asset('path/to/asset.png')` (prefix stripped).
+- `src: 'https://...'` → `Image.network(src)`.
+
+Tokens consumed:
+- `object-cover` (default) / `object-contain` / `object-fill` / `object-none` / `object-scale-down` → `BoxFit`
+- `aspect-*` → `AspectRatio` wrapping
+- `rounded-*` → `ClipRRect`
+- `border-*` / `shadow-*` → `Container` decoration
+- `w-*` / `h-*` → outer `SizedBox`
+- `opacity-*` → `Opacity`
+
+### `WSvg`
+
+Two constructors: asset path OR raw SVG string.
+
+```dart
+const WSvg({
+  Key? key,
+  required String src,                // asset path
+  String? className,
+  Set<String>? states,
+  String? semanticsLabel,
+})
+
+const WSvg.string({
+  Key? key,
+  required String svg,                // raw SVG markup
+  String? className,
+  Set<String>? states,
+  String? semanticsLabel,
+})
+```
+
+Color resolution priority:
+1. `stroke-*` token (outlined-icon use case)
+2. `fill-*` token
+3. `text-*` token (fallback)
+4. Inherited from `DefaultTextStyle`
+
+Apply via `ColorFilter.mode(color, BlendMode.srcIn)`. The `preserve-colors` token disables the filter entirely for multi-color SVGs (QR codes, logos).
+
+---
+
+## 4. Interactive: WAnchor, WButton
+
+### `WAnchor`
+
+Low-level state propagator. Tracks hover and focus; provides `WindAnchorStateProvider` to descendants. Emits `Semantics(button: true)` for accessibility / E2E.
+
+```dart
+const WAnchor({
+  Key? key,
+  required Widget child,
+  VoidCallback? onTap,
+  VoidCallback? onLongPress,
+  VoidCallback? onDoubleTap,
+  bool isDisabled = false,
+  Set<String>? states,
+  MouseCursor? mouseCursor,           // defaults to SystemMouseCursors.click when gestures exist
+})
+```
+
+Structure (outermost → innermost):
+`MergeSemantics` → `Semantics(button: true, enabled: !isDisabled)` → `MouseRegion(onEnter/onExit)` → `WindAnchorStateProvider` (broadcasts hover/focus/disabled state) → `Focus(canRequestFocus: !isDisabled)` → optional `GestureDetector` (only if any callback is non-null) → `child`.
+
+State tracking:
+- Hover: `MouseRegion.onEnter` / `onExit` set `_isHovering`; calls `setState` only on change.
+- Focus: `FocusNode` listener reads `hasFocus` and calls `setState` on change.
+- Press tracking does NOT exist. `active:` prefix is reserved but not wired; `WAnchor` does not detect press duration via `onTapDown` / `onTapUp` today.
+
+### `WButton`
+
+Pressable surface with built-in loading state. Always wraps in `WAnchor`.
+
+```dart
+const WButton({
+  Key? key,
+  required Widget child,
+  VoidCallback? onTap,
+  VoidCallback? onLongPress,
+  VoidCallback? onDoubleTap,
+  bool isLoading = false,            // injects `loading:` state, blocks taps
+  bool disabled = false,             // injects `disabled:` state, blocks taps
+  String? className,
+  String? loadingText,               // shown next to spinner
+  Widget? loadingWidget,             // overrides default CircularProgressIndicator
+  double loadingSize = 16,
+  Color? loadingColor,               // explicit override; otherwise contrast-detected
+  Set<String>? states,
+})
+```
+
+Loading state mechanics:
+- `isLoading: true` replaces the child with a default 16×16 `CircularProgressIndicator` (2 px stroke) plus optional `loadingText` in a flex row.
+- All taps are absorbed via `AbsorbPointer` when loading.
+- Spinner color resolution chain: explicit `loadingColor` → `styles.color` (from `text-*`) → contrast color (W3C relative-luminance against background) → white fallback.
+
+Disabled state:
+- `disabled: true` blocks all taps and sets the cursor to `SystemMouseCursors.forbidden`.
+- The `disabled:` state prefix activates className branches.
+
+State injection summary:
+- `loading` — from `isLoading: true`
+- `disabled` — from `disabled: true` or `isLoading: true`
+- `hover` / `focus` — from `WAnchor` automatically
+
+---
+
+## 5. Form (raw): WInput, WCheckbox, WSelect, WDatePicker
+
+Use raw variants when:
+- The field is standalone (no `Form` ancestor).
+- State is managed externally (Riverpod, Bloc, ChangeNotifier).
+- Validation is bespoke (handled in the controller, not via `FormState.validate()`).
+
+For multi-field forms with declarative validators, use the `WForm*` family (§6).
+
+### `WInput`
+
+Controlled `TextField`.
+
+```dart
+const WInput({
+  Key? key,
+  String? value,                     // controlled value
+  ValueChanged<String>? onChanged,
+  ValueChanged<String>? onSubmitted,
+  VoidCallback? onEditingComplete,
+  VoidCallback? onTap,
+  TapRegionCallback? onTapOutside,
+  InputType type = InputType.text,   // text|password|email|number|multiline
+  String? placeholder,
+  String? placeholderClassName,
+  String? className,
+  Set<String>? states,
+  bool enabled = true,
+  bool autofocus = false,
+  bool obscureText = false,          // explicit override; defaults from `type: InputType.password`
+  TextEditingController? controller, // optional; widget creates internal one if null
+  FocusNode? focusNode,              // optional; widget creates internal one if null
+  TextInputAction? textInputAction,
+  TextInputType? keyboardType,       // explicit override; defaults from `type`
+  TextCapitalization textCapitalization = TextCapitalization.none,
+  int? maxLines,
+  int? minLines,
+  int? maxLength,
+  bool readOnly = false,
+  Widget? prefix,                    // 12 px left padding, 8 px right
+  Widget? suffix,                    // 8 px left padding, 12 px right
+  List<TextInputFormatter>? inputFormatters,
+  String? semanticLabel,
+  // ...
+})
+```
+
+Keyboard config from `type`:
+- `text` → `TextInputType.text`
+- `password` → `TextInputType.visiblePassword`, `obscureText: true`
+- `email` → `TextInputType.emailAddress`
+- `number` → `TextInputType.number`
+- `multiline` → `TextInputType.multiline`, allows newlines via Enter
+
+State injection: `focus` (auto when focused) + `disabled` (auto when `!enabled`) + custom states from `states`.
+
+Controller / focusNode ownership:
+- External `controller` / `focusNode` not owned (consumer disposes).
+- Internal created only when external is null. Disposed on `dispose()`.
+- `didUpdateWidget` syncs `value` prop → internal controller text (cursor preserved).
+
+### `WCheckbox`
+
+```dart
+const WCheckbox({
+  Key? key,
+  required bool value,
+  ValueChanged<bool>? onChanged,
+  String? className,
+  String? iconClassName,
+  bool disabled = false,
+  IconData? checkIcon,               // default Icons.check (MaterialIcons 0xe156)
+  Set<String>? states,
+})
+```
+
+State injection: `checked` (when `value: true`) + `disabled` + custom states.
+
+Default className (appended to user className):
+```
+w-5 h-5 rounded border border-gray-300 items-center justify-center
+checked:bg-blue-500 error:border-red-500 checked:bg-primary checked:border-transparent
+```
+
+Uses `checked:bg-primary` which requires a `primary` color family in `WindThemeData.colors`.
+
+### `WSelect<T>`
+
+Dropdown with single OR multi-select, search, async search, tagging, pagination.
+
+```dart
+const WSelect({
+  Key? key,
+  // Single-select mode:
+  T? value,
+  ValueChanged<T>? onChange,
+  // Multi-select mode:
+  bool isMulti = false,
+  List<T>? values,
+  ValueChanged<List<T>>? onMultiChange,
+  // Required:
+  required List<SelectOption<T>> options,
+  // Search:
+  bool searchable = false,
+  Future<List<SelectOption<T>>> Function(String query)? onSearch,
+  String searchPlaceholder = 'Search...',
+  // Tagging / create new:
+  Future<SelectOption<T>> Function(String query)? onCreateOption,
+  CreateOptionBuilder? createOptionBuilder,
+  // Pagination:
+  Future<List<SelectOption<T>>> Function()? onLoadMore,
+  bool hasMore = false,
+  // Styling:
+  String? className,                 // trigger container
+  String? menuClassName,             // dropdown overlay
+  Set<String>? states,
+  double maxMenuHeight = 300,
+  double? menuWidth,                 // defaults to trigger width
+  bool disabled = false,
+  String? placeholder,
+  // Builders:
+  SelectTriggerBuilder<T>? triggerBuilder,
+  MultiSelectTriggerBuilder<T>? multiTriggerBuilder,
+  SelectItemBuilder<T>? itemBuilder,
+  SelectedChipBuilder<T>? selectedChipBuilder,
+  EmptyStateBuilder? emptyBuilder,
+  LoadingBuilder? loadingBuilder,
+})
+```
+
+Behavior:
+- `OverlayPortal` + `CompositedTransformFollower` for positioning.
+- Auto-flips upward when space below trigger < `maxMenuHeight` and triggerY > spaceBelow.
+- Multi-select keeps menu open after each selection; default chips use `bg-blue-100 rounded px-2 py-0.5`.
+- Search: async `onSearch` runs filtering remotely; without it, local `contains`-based filter.
+- Pagination: scroll listener triggers `onLoadMore` at 50 px from bottom when `hasMore: true`.
+
+### `WDatePicker`
+
+Calendar popover with single OR range mode.
+
+```dart
+const WDatePicker({
+  Key? key,
+  DatePickerMode mode = DatePickerMode.single,
+  // Single mode:
+  DateTime? value,
+  ValueChanged<DateTime>? onChanged,
+  // Range mode:
+  DateRange? range,
+  ValueChanged<DateRange>? onRangeChanged,
+  // Constraints:
+  DateTime? minDate,
+  DateTime? maxDate,
+  // Styling:
+  String? className,
+  String? placeholder,
+  Set<String>? states,
+  DateDisplayFormat? displayFormat,  // custom formatter callback
+})
+```
+
+Behavior:
+- Wraps a `WPopover` (auto-flip handled by popover).
+- Single mode closes after selection. Range mode requires two clicks; auto-swaps if end < start.
+- Calendar grid: 42 cells (6 weeks starting Monday); current month + adjacent days; state styling for selected / today / inactive / hover preview.
+- `displayFormat: (DateTime) => String` overrides the default "Jan 15, 2025" pattern.
+
+---
+
+## 6. Form (FormField): WFormInput, WFormSelect, WFormMultiSelect, WFormCheckbox, WFormDatePicker
+
+Each extends `FormField<T>` and integrates with Flutter's `Form` + `GlobalKey<FormState>`. Validators receive the nullable typed value. The `error:` state injects automatically when `FormFieldState.hasError`.
+
+### `WFormInput extends FormField<String>`
+
+```dart
+const WFormInput({
+  Key? key,
+  // FormField:
+  String? initialValue,
+  FormFieldValidator<String>? validator,
+  FormFieldSetter<String>? onSaved,
+  AutovalidateMode? autovalidateMode,
+  String? restorationId,
+  bool enabled = true,
+  String? forceErrorText,            // bypass validator; set non-null for server errors
+  // Layout:
+  String? label,
+  String? labelClassName,            // default 'text-sm font-medium text-gray-700 mb-1'
+  String? hint,
+  String? hintClassName,             // default 'text-gray-500 text-xs mt-1'
+  bool showError = true,
+  String? errorClassName,            // default 'text-red-500 text-xs mt-1'
+  // WInput passthrough:
+  TextEditingController? controller,
+  FocusNode? focusNode,
+  InputType type = InputType.text,
+  String? placeholder,
+  String? className,
+  Set<String>? states,
+  ValueChanged<String>? onChanged,
+  ValueChanged<String>? onSubmitted,
+  TextInputAction? textInputAction,
+  Widget? prefix,
+  Widget? suffix,
+  int? maxLength,
+  // ...
+})
+```
+
+State synchronization:
+- TextEditingController text → `FormFieldState.value` via internal listener.
+- External `value` prop changes sync the other direction (`didUpdateWidget`).
+- `state.hasError` → `'error'` added to `effectiveStates` → `error:border-red-500` activates.
+
+Validator signature: `String? Function(String?)` inherited from `FormField<String>`.
+
+### `WFormSelect<T> extends FormField<T>`
+
+Single-select with validation. Same props as `WSelect` plus FormField additions.
+
+```dart
+const WFormSelect({
+  Key? key,
+  T? value,
+  ValueChanged<T>? onChange,
+  required List<SelectOption<T>> options,
+  // FormField:
+  FormFieldValidator<T>? validator,
+  FormFieldSetter<T>? onSaved,
+  AutovalidateMode? autovalidateMode,
+  bool enabled = true,
+  String? forceErrorText,
+  // Layout label / hint / error: same as WFormInput
+  String? label,
+  String? labelClassName,
+  String? hint,
+  String? hintClassName,
+  bool showError = true,
+  String? errorClassName,
+  // WSelect passthrough: searchable, onSearch, onCreateOption, onLoadMore, hasMore,
+  // disabled, menuWidth, maxMenuHeight, className, menuClassName, states, placeholder,
+  // triggerBuilder, itemBuilder, emptyBuilder, loadingBuilder
+  // ...
+})
+```
+
+### `WFormMultiSelect<T> extends FormField<List<T>>`
+
+Multi-select with validation. Validator inspects the full `List<T>?`.
+
+```dart
+const WFormMultiSelect({
+  Key? key,
+  List<T>? values,                   // initial selected list
+  ValueChanged<List<T>>? onMultiChange,
+  required List<SelectOption<T>> options,
+  // FormField (operates on List<T>):
+  FormFieldValidator<List<T>>? validator,
+  FormFieldSetter<List<T>>? onSaved,
+  AutovalidateMode? autovalidateMode,
+  bool enabled = true,
+  String? forceErrorText,
+  // Layout: same as WFormSelect
+  // WSelect passthrough: searchable, onSearch, onCreateOption, onLoadMore, hasMore,
+  // multiTriggerBuilder, selectedChipBuilder, itemBuilder, emptyBuilder, loadingBuilder
+  // ...
+})
+```
+
+### `WFormCheckbox extends FormField<bool>`
+
+Custom `createState()` returns `_WFormCheckboxState` (not default) to sync external `value` prop via `didUpdateWidget`.
+
+```dart
+const WFormCheckbox({
+  Key? key,
+  bool value = false,
+  ValueChanged<bool>? onChanged,
+  // FormField:
+  FormFieldValidator<bool>? validator,
+  FormFieldSetter<bool>? onSaved,
+  AutovalidateMode? autovalidateMode,
+  bool enabled = true,
+  String? forceErrorText,
+  // Layout:
+  Widget? label,                     // custom label widget
+  String? labelText,                 // OR plain text label
+  String? labelClassName,            // default 'text-sm text-gray-700'
+  String? hint,
+  String? hintClassName,
+  bool showError = true,
+  String? errorClassName,
+  // WCheckbox passthrough:
+  String? className,
+  String? iconClassName,
+  bool disabled = false,
+  IconData? checkIcon,
+  Set<String>? states,
+})
+```
+
+Layout: checkbox + label side-by-side (8 px gap) in a row; error/hint rendered below with `pl-8 pt-1`.
+
+### `WFormDatePicker extends FormField<DateTime>`
+
+Range mode gotcha: stores only `range.start` in `FormFieldState<DateTime>`. Validators can only inspect the start date. For range completeness validation, reach for the internal state separately.
+
+```dart
+const WFormDatePicker({
+  Key? key,
+  DateTime? initialValue,
+  DateRange? initialRange,
+  DatePickerMode mode = DatePickerMode.single,
+  ValueChanged<DateTime>? onChanged,
+  ValueChanged<DateRange>? onRangeChanged,
+  // FormField:
+  FormFieldValidator<DateTime>? validator,
+  FormFieldSetter<DateTime>? onSaved,
+  AutovalidateMode? autovalidateMode,
+  bool enabled = true,
+  String? forceErrorText,
+  // Constraints:
+  DateTime? minDate,
+  DateTime? maxDate,
+  // Layout (defaults documented):
+  String? label,
+  String? labelClassName,            // default 'text-sm font-medium text-gray-700 dark:text-gray-300 mb-1'
+  String? hint,
+  String? hintClassName,             // default 'text-gray-500 text-xs mt-1'
+  bool showError = true,
+  String? errorClassName,            // default 'text-red-500 text-xs mt-1'
+  // Styling:
+  String? className,
+  String? placeholder,
+  Set<String>? states,
+  DateDisplayFormat? displayFormat,
+})
 ```
 
 ---
 
-## WCheckbox
+## 7. Overlay: WPopover
 
-**Purpose:** A fully styled custom checkbox that bypasses native widget limitations.
+OverlayPortal-based popover with controller + auto-flip + close-on-tap-outside.
 
-**Constructor:**
-| Param | Type | Default | Description |
-|-------|------|---------|-------------|
-| value | bool | required | Checked state |
-| onChanged | ValueChanged<bool>?| null | State change callback |
-| className | String? | null | Checkbox styling (`w-* h-*` required) |
-| iconClassName | String? | null | Styling for the check icon |
-| disabled | bool | false | Disables interaction |
-| checkIcon | IconData? | null | Custom check icon |
-
-**Examples:**
 ```dart
-WCheckbox(
-  value: _agreed,
-  onChanged: (v) => setState(() => _agreed = v),
-  className: '''
-    w-5 h-5 rounded border border-gray-300 
-    checked:bg-blue-500 checked:border-transparent 
-    disabled:opacity-50 transition-colors
-  ''',
-)
+const WPopover({
+  Key? key,
+  required PopoverTriggerBuilder triggerBuilder,
+  required PopoverContentBuilder contentBuilder,
+  PopoverController? controller,         // external open/close control
+  bool enableTriggerOnTap = true,        // tap on trigger toggles popover
+  PopoverAlignment alignment = PopoverAlignment.bottomLeft,
+  String? className,                     // overlay container styling
+  Offset offset = const Offset(0, 4),    // trigger-to-popover gap
+  double maxHeight = 400,
+  bool disabled = false,
+  bool closeOnContentTap = false,
+  VoidCallback? onOpen,
+  VoidCallback? onClose,
+  bool autoFlip = true,                  // flip alignment when overflow would occur
+})
 ```
 
----
+Builder signatures:
+- `triggerBuilder: Widget Function(BuildContext, bool isOpen, bool isHovering)`
+- `contentBuilder: Widget Function(BuildContext, VoidCallback close)`
 
-## WIcon
-
-**Purpose:** Wraps Flutter's `Icon` widget with utility class support. Inherits color and size from parent `WDiv`.
-
-**Constructor:**
-| Param | Type | Default | Description |
-|-------|------|---------|-------------|
-| icon | IconData | required | The icon to display |
-| className | String? | null | Sizing and coloring (`text-xl`, `text-red-500`) |
-| states | Set<String>? | null | Custom state triggers |
-
-**Examples:**
+`PopoverController`:
 ```dart
-WIcon(
-  Icons.settings,
-  className: 'text-2xl text-gray-500 hover:text-gray-900 transition-colors',
-)
-```
-
----
-
-## WImage
-
-**Purpose:** Network and asset images with utility class styling (sizing, object-fit, borders).
-
-**Constructor:**
-| Param | Type | Default | Description |
-|-------|------|---------|-------------|
-| src | String? | null | Network URL or `asset://...` |
-| image | ImageProvider?| null | Explicit ImageProvider |
-| alt | String? | null | Accessibility label |
-| className | String? | null | Styling (`object-cover`, `aspect-video`) |
-| placeholder | Widget? | null | Loading widget |
-| errorBuilder | ImageErrorBuilder?| null | Custom error widget builder |
-
-**Examples:**
-```dart
-WImage(
-  src: 'asset://assets/images/profile.png',
-  className: 'w-16 h-16 rounded-full object-cover border-2 border-white shadow-md',
-)
-```
-
----
-
-## WSvg
-
-**Purpose:** Renders SVG assets or strings with utility class support for filling and stroking.
-
-**Constructor:**
-| Param | Type | Default | Description |
-|-------|------|---------|-------------|
-| src | String? | null | Asset path |
-| svgString | String? | null | Raw SVG string (use `WSvg.string(...)`) |
-| className | String? | null | Styling (`fill-red-500`, `stroke-blue-500`) |
-
-**Preserve Original Colors:**
-Use `preserve-colors` in className to skip all ColorFilter processing. The SVG renders with its original embedded colors. Ideal for QR codes, multi-color logos, and branded illustrations.
-
-```dart
-WSvg(
-  src: 'assets/logo-colored.svg',
-  className: 'w-32 h-32 preserve-colors',
-)
-```
-
-**Examples:**
-```dart
-WSvg(
-  src: 'assets/icons/logo.svg',
-  className: 'w-8 h-8 fill-blue-600',
-)
-```
-
----
-
-## WDynamic
-
-**Purpose:** Renders a Flutter widget tree from JSON/Map at runtime with action handling and form state management.
-
-**Constructor:**
-| Param | Type | Default | Description |
-|-------|------|---------|-------------|
-| json | Map<String, dynamic> | required | JSON widget tree definition |
-| actions | Map<String, Function> | {} | Action handlers keyed by name |
-| controller | WDynamicController? | null | External state access |
-| denyWidgets | Set<String>? | null | Widget types to block |
-| builders | Map<String, WWidgetBuilder>? | null | Custom widget builders |
-| customIcons | Map<String, IconData>? | null | Custom icon name → IconData mappings |
-| maxDepth | int | 50 | Max recursion depth |
-| onError | Widget Function(String, Object)? | null | Error fallback builder |
-| onUnknownWidget | Widget Function(String, Map)? | null | Unknown widget fallback |
-
-**JSON Schema:**
-```dart
-{
-  'type': 'WDiv',           // Widget type (Wind, Flutter, or custom)
-  'props': {'className': 'flex gap-4'},  // Widget properties
-  'children': [...]          // Nested widgets
+class PopoverController extends ChangeNotifier {
+  bool get isOpen;
+  void show();
+  void hide();
+  void toggle();
 }
 ```
 
-**Action Handling:**
-```dart
-WDynamic(
-  json: myJson,
-  actions: {
-    'submit': (Map<String, dynamic> args, WDynamicState state) {
-      final email = state.get('email');
-      print('Submitting: $email');
-    },
-  },
-)
-```
-
-**Supported Widgets:**
-- Wind: WDiv, WText, WButton, WInput, WCheckbox, WSelect, WDatePicker, WIcon, WImage, WSvg, WPopover, WAnchor, WSpacer
-- Flutter: Column, Row, Center, SizedBox, Expanded, Container, Wrap, Stack, Positioned, Padding, Align, Opacity, AspectRatio, FittedBox, ClipRRect, Spacer
+`computeEffectiveAlignment` (static) is exposed as a standalone utility for pre-calculating the flipped alignment before showing an overlay.
 
 ---
 
-## WPopover
+## 8. Structural: WDynamic
 
-**Purpose:** Flexible popover component for dropdowns, tooltips, and overlay menus.
+Server-driven UI. JSON tree → Wind widget tree.
 
-**Constructor:**
-| Param | Type | Default | Description |
-|-------|------|---------|-------------|
-| triggerBuilder| PopoverTriggerBuilder| required | `(BuildContext context, bool isOpen, bool isHovering) => Widget` |
-| contentBuilder| PopoverContentBuilder| required | `(BuildContext context, VoidCallback close) => Widget` |
-| alignment | PopoverAlignment| .bottomLeft | Position relative to trigger |
-| className | String? | null | Overlay container styling |
-| autoFlip | bool | true | Prevent off-screen rendering |
-| offset | Offset | Offset(0, 4) | Gap between trigger and overlay |
-
-**Examples:**
 ```dart
-WPopover(
-  alignment: PopoverAlignment.bottomRight,
-  className: 'w-48 bg-white border border-gray-100 rounded-lg shadow-xl',
-  triggerBuilder: (context, isOpen, isHovering) => WButton(
-    child: WText('Options'),
-  ),
-  contentBuilder: (context, close) => WDiv(
-    className: 'flex flex-col p-2',
-    children: [
-      WButton(onTap: close, className: 'p-2 text-left hover:bg-gray-50', child: WText('Edit')),
-      WButton(onTap: close, className: 'p-2 text-left text-red-500 hover:bg-red-50', child: WText('Delete')),
-    ],
-  ),
-)
+const WDynamic({
+  Key? key,
+  required Map<String, dynamic> json,
+  Map<String, Function> actions = const {},          // action handlers
+  WDynamicController? controller,                    // external state container
+  Set<String>? denyWidgets,                          // block specific widget types
+  Map<String, WWidgetBuilder>? builders,             // custom widget types
+  Map<String, IconData>? customIcons,                // override / extend icon map
+  int maxDepth = 50,                                 // recursion limit
+  void Function(String type, Map<String, dynamic> props)? onUnknownWidget,
+})
 ```
+
+JSON node schema:
+```json
+{
+  "type": "WDiv",
+  "props": {"className": "...", "id": "...", "onTap": {...}},
+  "children": [{"type": "WText", "props": {"text": "..."}}]
+}
+```
+
+Allowed widget types (13 Wind + 16 Flutter core, by default):
+- Wind: `WDiv`, `WText`, `WButton`, `WImage`, `WIcon`, `WAnchor`, `WInput`, `WCheckbox`, `WSvg`, `WSelect`, `WPopover`, `WDatePicker`, `WSpacer`
+- Flutter core: `Column`, `Row`, `Center`, `SizedBox`, `Expanded`, `Container`, `Wrap`, `Stack`, `Positioned`, `Padding`, `Align`, `Opacity`, `AspectRatio`, `FittedBox`, `ClipRRect`, `Spacer`
+
+Action format:
+```json
+{"action": "actionName", "args": {"key": "value"}}
+```
+
+Handler signatures (auto-detected):
+- `Function(Map<String, dynamic> args)`
+- `Function(Map<String, dynamic> args, WDynamicState state)`
+
+`parseValueAction<T>` (used by inputs) auto-injects the changed value as `_value` in args and optionally updates state by `id` before dispatch.
+
+Full JSON contract + state binding + security model: `${CLAUDE_SKILL_DIR}/references/dynamic.md`.
 
 ---
 
-## WAnchor
+## 9. Supporting types
 
-**Purpose:** The foundational state wrapper. Detects hover, focus, and gestures, propagating state down to all descendant widgets via `WindAnchorStateProvider`.
-
-**Constructor:**
-| Param | Type | Default | Description |
-|-------|------|---------|-------------|
-| child | Widget | required | The interactive area |
-| onTap | VoidCallback? | null | Tap handler |
-| onLongPress | VoidCallback? | null | Long press handler |
-| onDoubleTap | VoidCallback? | null | Double tap handler |
-| isDisabled | bool | false | Disables interaction and hover states |
-| states | Set<String>? | null | Custom state triggers |
-
-**When to use:** Use `WAnchor` when you want to make a custom layout interactive and react to `hover:` or `focus:` classes, but you don't need `WButton`'s loading states or button semantics. WDiv will automatically wrap itself in a WAnchor if you use interactive states in its className.
-
-**Examples:**
-```dart
-WAnchor(
-  onTap: () => _openDetails(),
-  child: WDiv(
-    className: 'p-4 bg-white rounded-xl shadow hover:shadow-md hover:bg-gray-50 transition-all cursor-pointer',
-    child: WText('Interactive Card'),
-  ),
-)
-```
-
----
-
-## Form Field Wrappers
-
-These widgets extend Flutter's `FormField` and are designed to be used inside a `Form` widget. They automatically handle validation, error states (`error:` prefixed classes), and labels. The key difference from their base counterparts is they sync state with the `FormFieldState` and display validation errors.
-
-### WFormInput
-Wraps `WInput`.
-
-| Param | Type | Default | Description |
-|-------|------|---------|-------------|
-| controller | TextEditingController?| null | External controller |
-| validator | FormFieldValidator<String>?| null | Validation logic |
-| label | String? | null | Text label above input |
-| hint | String? | null | Hint text below input |
-| showError | bool | true | Show error text below input |
+### `SelectOption<T>`
 
 ```dart
-WFormInput(
-  controller: _emailController,
-  type: InputType.email,
-  label: 'Email',
-  className: 'p-3 border rounded-lg error:border-red-500',
-  validator: (val) => val?.isEmpty ?? true ? 'Required' : null,
-)
+class SelectOption<T> {
+  final T value;
+  final String label;
+  final bool disabled;        // default false
+  final Widget? icon;
+  const SelectOption({required this.value, required this.label, this.disabled = false, this.icon});
+}
 ```
 
-### WFormSelect
-Wraps `WSelect` (single-select mode).
+Equality based on value + label + disabled (NOT icon).
 
-| Param | Type | Default | Description |
-|-------|------|---------|-------------|
-| value | T? | null | Initial value |
-| options | List<SelectOption<T>>| required | Available options |
-| validator | FormFieldValidator<T>?| null | Validation logic |
-
-### WFormMultiSelect
-Wraps `WSelect` (multi-select mode with `isMulti: true`).
-
-| Param | Type | Default | Description |
-|-------|------|---------|-------------|
-| values | List<T>? | null | Initial values |
-| options | List<SelectOption<T>>| required | Available options |
-| validator | FormFieldValidator<List<T>>?| null | Validation logic |
-
-### WFormCheckbox
-Wraps `WCheckbox`.
-
-| Param | Type | Default | Description |
-|-------|------|---------|-------------|
-| value | bool | false | Initial value |
-| labelText | String? | null | Label text displayed next to checkbox |
-| validator | FormFieldValidator<bool>?| null | Validation logic |
+### `DateRange`
 
 ```dart
-WFormCheckbox(
-  value: _agreeTerms,
-  onChanged: (v) => setState(() => _agreeTerms = v),
-  labelText: 'I agree to Terms of Service',
-  className: 'w-5 h-5 rounded border checked:bg-blue-500 error:border-red-500',
-  validator: (value) => value != true ? 'You must agree to terms' : null,
-)
+class DateRange {
+  final DateTime start;
+  final DateTime end;
+  DateRange({required this.start, required this.end});
+  bool get isComplete => /* end > start */;
+  DateRange copyWith({DateTime? start, DateTime? end});
+}
 ```
 
----
-
-## WDatePicker
-
-**Purpose:** Utility-first date picker with single and range selection modes. Uses `WPopover` for overlay.
-
-**Constructor:**
-| Param | Type | Default | Description |
-|-------|------|---------|-------------|
-| mode | DatePickerMode | .single | `.single` or `.range` |
-| value | DateTime? | null | Selected date (single mode) |
-| range | DateRange? | null | Selected range (range mode) |
-| onChanged | ValueChanged<DateTime>? | null | Single date selection callback |
-| onRangeChanged | ValueChanged<DateRange>? | null | Range selection callback |
-| minDate | DateTime? | null | Earliest selectable date |
-| maxDate | DateTime? | null | Latest selectable date |
-| className | String? | null | Trigger container styling |
-| placeholder | String | 'Select date' | Placeholder text |
-| disabled | bool | false | Disables interaction |
-| states | Set<String> | {} | Custom state triggers |
-| displayFormat | DateDisplayFormat? | null | Custom `(DateTime) => String` formatter |
-
-**DateRange:** `DateRange(start: DateTime, end: DateTime?)`. `isComplete` is true when both dates set.
-
-**Examples:**
-```dart
-// Single date
-WDatePicker(
-  value: _selectedDate,
-  onChanged: (date) => setState(() => _selectedDate = date),
-  className: 'w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800',
-  placeholder: 'Pick a date',
-)
-
-// Date range
-WDatePicker(
-  mode: DatePickerMode.range,
-  range: _dateRange,
-  onRangeChanged: (range) => setState(() => _dateRange = range),
-  className: 'w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg',
-  minDate: DateTime.now(),
-  maxDate: DateTime.now().add(const Duration(days: 365)),
-)
-```
-
-### WFormDatePicker
-Wraps `WDatePicker` with `FormField<DateTime>` for form validation.
-
-| Param | Type | Default | Description |
-|-------|------|---------|-------------|
-| initialValue | DateTime? | null | Initial selected date |
-| initialRange | DateRange? | null | Initial range (range mode) |
-| mode | DatePickerMode | .single | Selection mode |
-| label | String? | null | Label text above picker |
-| validator | FormFieldValidator<DateTime>? | null | Validation logic |
-| className | String? | null | Trigger styling |
+### `InputType` enum
 
 ```dart
-WFormDatePicker(
-  label: 'Start Date',
-  initialValue: DateTime.now(),
-  className: 'w-full p-3 border border-gray-300 rounded-lg error:border-red-500',
-  validator: (value) => value == null ? 'Date is required' : null,
-  onChanged: (date) => print('Selected: $date'),
-)
+enum InputType { text, password, email, number, multiline }
 ```
 
----
+### `DatePickerMode` enum
 
-## WSpacer
-
-**Purpose:** Lightweight spacing widget. Renders as a single `SizedBox`, no decoration, no composition overhead. Use instead of `WDiv` when you only need spacing.
-
-**Constructor:**
-| Param | Type | Default | Description |
-|-------|------|---------|-------------|
-| className | String? | null | Only `h-{n}` and `w-{n}` tokens are used; all other classes are ignored |
-
-**Why WSpacer over WDiv:**
-- **Lighter:** No decoration, shadows, or layout composition
-- **Semantic:** Clearly communicates spacing intent
-- **Efficient:** Renders as single SizedBox (no builder overhead)
-- **`const`-able:** `const WSpacer(className: 'h-4')` is valid
-
-**Examples:**
 ```dart
-// Vertical spacing in a Column (replaces SizedBox(height: 16))
-WDiv(
-  className: 'flex flex-col',
-  children: [
-    WFormInput(controller: _formData['name'], label: 'Name'),
-    const WSpacer(className: 'h-4'), // 16px gap
-    WFormInput(controller: _formData['email'], label: 'Email'),
-  ],
-)
-
-// Horizontal spacing in a Row (replaces SizedBox(width: 8))
-WDiv(
-  className: 'flex flex-row items-center',
-  children: [
-    WIcon(Icons.info_outlined),
-    const WSpacer(className: 'w-2'), // 8px gap
-    WText('Info message'),
-  ],
-)
-
-// Responsive spacing
-WSpacer(className: 'h-4 md:h-6 lg:h-8')
+enum DatePickerMode { single, range }
 ```
 
-**When to use WSpacer vs gap-{n}:**
-- Use `gap-{n}` on parent `WDiv` for **uniform** spacing between all children
-- Use `WSpacer` for **variable** spacing (e.g., different gaps between different sections)
+### `PopoverAlignment` enum
+
+```dart
+enum PopoverAlignment {
+  bottomLeft, bottomCenter, bottomRight,
+  topLeft, topCenter, topRight,
+}
+```
+
+### `WindAnimationType` enum
+
+```dart
+enum WindAnimationType { none, spin, ping, pulse, bounce }
+```
+
+All loop infinitely. Wired via the `animate-*` className tokens.
+
+### `WindThemeController`
+
+Exposed via `context.windTheme` (extension on `BuildContext`).
+
+```dart
+class WindThemeController extends ChangeNotifier {
+  Brightness get brightness;
+  Map<String, MaterialColor> get colors;
+  Map<String, int> get screens;
+  WindThemeData get data;
+
+  void toggleTheme();                              // flips brightness; disables syncWithSystem
+  void setTheme(WindThemeData newData);
+  void updateTheme({Brightness? brightness, Map<String, MaterialColor>? colors, /* ... */});
+  void resetToSystem();                            // re-enables OS-brightness sync
+  ThemeData toThemeData();                         // for MaterialApp.theme
+}
+```
+
+`context.windIsDark` is a shortcut for `context.windTheme.brightness == Brightness.dark`.
+
+Full theme customization (custom colors, custom breakpoints, font families, `baseSpacingUnit`): `${CLAUDE_SKILL_DIR}/references/theme.md`.
