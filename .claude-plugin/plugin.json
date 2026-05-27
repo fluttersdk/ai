@@ -1,11 +1,25 @@
 {
-  "name": "fluttersdk",
-  "description": "FlutterSDK AI skills — Wind UI, Magic Framework, and more",
-  "version": "1.2.7",
-  "author": {
-    "name": "Anilcan Cakir",
-    "email": "anilcan.cakir@gmail.com"
-  },
-  "repository": "https://github.com/fluttersdk/ai",
-  "license": "MIT"
+    "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+    "name": "fluttersdk",
+    "version": "1.3.0",
+    "description": "FlutterSDK AI skills, commands, and MCP for Flutter — Wind UI, Magic Framework, Dusk, Telescope, Artisan",
+    "homepage": "https://fluttersdk.github.io/ai/",
+    "repository": "https://github.com/fluttersdk/ai",
+    "license": "MIT",
+    "author": {
+        "name": "Anilcan Cakir",
+        "email": "anilcan.cakir@gmail.com"
+    },
+    "keywords": [
+        "flutter",
+        "dart",
+        "wind-ui",
+        "magic-framework",
+        "mcp",
+        "skills",
+        "fluttersdk",
+        "ui",
+        "framework",
+        "sdk"
+    ]
 }
