@@ -9,9 +9,14 @@ on:
     pull_request:
         branches: [main]
         paths:
-            - "mcps/fluttersdk-mcp/**"
-            - ".github/workflows/**"
+            - ".claude-plugin/**"
             - ".github/dependabot.yml"
+            - ".github/workflows/**"
+            - ".mcp.json"
+            - "commands/**"
+            - "mcps/fluttersdk-mcp/**"
+            - "scripts/install.sh"
+            - "tool-templates/**"
     workflow_dispatch:
 
 permissions:
@@ -65,3 +70,64 @@ jobs:
               run: |
                   python3 -c "import yaml; yaml.safe_load(open('.github/dependabot.yml'))"
                   echo "dependabot.yml parses as valid YAML"
+
+    plugin-validate:
+        name: Plugin manifest + version sync
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v6
+
+            - name: Install check-jsonschema
+              run: pipx install check-jsonschema==0.37.2
+
+            - name: Validate plugin.json schema
+              run: |
+                  check-jsonschema \
+                      --schemafile https://json.schemastore.org/claude-code-plugin-manifest.json \
+                      --no-cache \
+                      .claude-plugin/plugin.json
+
+            - name: Validate marketplace.json schema
+              run: |
+                  check-jsonschema \
+                      --schemafile https://json.schemastore.org/claude-code-marketplace.json \
+                      --no-cache \
+                      .claude-plugin/marketplace.json
+
+            - name: Validate .mcp.json structure
+              run: |
+                  python3 -c "
+                  import json, sys
+                  d = json.load(open('.mcp.json'))
+                  servers = d.get('mcpServers', {})
+                  if not servers:
+                      print('ERROR: .mcp.json mcpServers is empty or missing', file=sys.stderr)
+                      sys.exit(1)
+                  print(f'.mcp.json OK: {len(servers)} server(s): {list(servers.keys())}')
+                  "
+
+            - name: Assert 3-way version sync
+              run: |
+                  PLUGIN_VER=$(jq -r '.version' .claude-plugin/plugin.json)
+                  MARKET_VER=$(jq -r '.version' .claude-plugin/marketplace.json)
+                  MARKET_P0_VER=$(jq -r '.plugins[0].version' .claude-plugin/marketplace.json)
+                  if [ "$PLUGIN_VER" != "$MARKET_VER" ] || [ "$MARKET_VER" != "$MARKET_P0_VER" ]; then
+                      echo "ERROR: version mismatch: plugin.json=$PLUGIN_VER, marketplace.version=$MARKET_VER, marketplace.plugins[0].version=$MARKET_P0_VER"
+                      exit 1
+                  fi
+                  echo "Version sync OK: all three are $PLUGIN_VER"
+
+            - name: Verify command frontmatter
+              run: |
+                  for f in commands/flutter-review.md commands/flutter-test.md; do
+                      if [ ! -f "$f" ]; then
+                          echo "ERROR: $f does not exist"
+                          exit 1
+                      fi
+                      first=$(head -1 "$f")
+                      if [ "$first" != "---" ]; then
+                          echo "ERROR: $f does not start with YAML frontmatter (---)"
+                          exit 1
+                      fi
+                      echo "$f: frontmatter OK"
+                  done
