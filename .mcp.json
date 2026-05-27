@@ -1,0 +1,8 @@
+{
+    "mcpServers": {
+        "fluttersdk": {
+            "type": "http",
+            "url": "https://mcp.fluttersdk.com/"
+        }
+    }
+}
