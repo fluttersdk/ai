@@ -1,3 +1,15 @@
+---
+description: "Generate Vitest/Flutter tests for Dart code following TDD patterns from the magic-framework skill"
+argument-hint: "<file-glob-or-paths>"
+allowed-tools:
+    - Read
+    - Write
+    - Edit
+    - Grep
+    - Glob
+    - Bash
+---
+
 # Flutter Test Generator
 
 Write comprehensive tests for the specified Flutter/Dart code following TDD principles.

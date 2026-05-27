@@ -1,3 +1,13 @@
+---
+description: "Review Flutter/Dart code against FlutterSDK conventions (Wind UI W-prefix, Magic Facades, type safety, immutability, DartDoc, 120-char width)"
+argument-hint: "<file-glob-or-paths>"
+allowed-tools:
+    - Read
+    - Grep
+    - Glob
+    - Bash
+---
+
 # Flutter Code Review
 
 Review the following Flutter/Dart code for adherence to FlutterSDK conventions.
