@@ -240,9 +240,11 @@ install_global_opencode() {
 install_global_claude() {
     step "Configuring Claude Code (global)..."
 
-    info "Claude Code plugins are installed per-project or via marketplace."
-    info "Run: claude plugin install --from ${REPO_URL}"
-    info "  or: /plugin marketplace add fluttersdk/ai"
+    info "Claude Code plugins install via marketplace."
+    info "From a Claude Code session, run:"
+    info "  /plugin marketplace add https://raw.githubusercontent.com/fluttersdk/ai/main/.claude-plugin/marketplace.json"
+    info "  /plugin install fluttersdk@fluttersdk-marketplace"
+    info "The plugin auto-registers skills, commands, and the fluttersdk MCP (HTTP to mcp.fluttersdk.com)."
     success "Claude Code: Instructions printed"
 }
 
@@ -252,7 +254,7 @@ install_global_cursor() {
     local config_dir="${HOME}/.cursor/rules"
 
     ensure_dir "${config_dir}"
-    copy_file "${REPO_ROOT}/commands/cursor/fluttersdk.mdc" "${config_dir}/fluttersdk.mdc"
+    copy_file "${REPO_ROOT}/tool-templates/cursor/fluttersdk.mdc" "${config_dir}/fluttersdk.mdc"
 
     success "Cursor: Installed fluttersdk.mdc rule"
 }
@@ -263,8 +265,8 @@ install_global_gemini() {
     local config_dir="${HOME}/.gemini/commands"
 
     ensure_dir "${config_dir}"
-    copy_file "${REPO_ROOT}/commands/gemini/flutter-review.toml" "${config_dir}/flutter-review.toml"
-    copy_file "${REPO_ROOT}/commands/gemini/flutter-test.toml" "${config_dir}/flutter-test.toml"
+    copy_file "${REPO_ROOT}/tool-templates/gemini/flutter-review.toml" "${config_dir}/flutter-review.toml"
+    copy_file "${REPO_ROOT}/tool-templates/gemini/flutter-test.toml" "${config_dir}/flutter-test.toml"
 
     success "Gemini CLI: Installed command templates"
 }
@@ -535,8 +537,8 @@ install_project_claude() {
     local commands_dir=".claude/commands"
 
     ensure_dir "${commands_dir}"
-    copy_file "${REPO_ROOT}/commands/claude/flutter-review.md" "${commands_dir}/flutter-review.md"
-    copy_file "${REPO_ROOT}/commands/claude/flutter-test.md" "${commands_dir}/flutter-test.md"
+    copy_file "${REPO_ROOT}/commands/flutter-review.md" "${commands_dir}/flutter-review.md"
+    copy_file "${REPO_ROOT}/commands/flutter-test.md" "${commands_dir}/flutter-test.md"
 
     success "Claude Code: Installed command templates"
 }
@@ -547,7 +549,7 @@ install_project_cursor() {
     local rules_dir=".cursor/rules"
 
     ensure_dir "${rules_dir}"
-    copy_file "${REPO_ROOT}/commands/cursor/fluttersdk.mdc" "${rules_dir}/fluttersdk.mdc"
+    copy_file "${REPO_ROOT}/tool-templates/cursor/fluttersdk.mdc" "${rules_dir}/fluttersdk.mdc"
 
     success "Cursor: Installed fluttersdk.mdc rule"
 }
@@ -558,8 +560,8 @@ install_project_gemini() {
     local commands_dir=".gemini/commands"
 
     ensure_dir "${commands_dir}"
-    copy_file "${REPO_ROOT}/commands/gemini/flutter-review.toml" "${commands_dir}/flutter-review.toml"
-    copy_file "${REPO_ROOT}/commands/gemini/flutter-test.toml" "${commands_dir}/flutter-test.toml"
+    copy_file "${REPO_ROOT}/tool-templates/gemini/flutter-review.toml" "${commands_dir}/flutter-review.toml"
+    copy_file "${REPO_ROOT}/tool-templates/gemini/flutter-test.toml" "${commands_dir}/flutter-test.toml"
 
     success "Gemini CLI: Installed command templates"
 }
