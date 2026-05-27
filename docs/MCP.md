@@ -44,6 +44,8 @@ Search Flutter and Dart package documentation across the FlutterSDK ecosystem.
 
 ### 1. Claude Code (native HTTP)
 
+> **Plugin install auto-registers this.** If you installed `fluttersdk-ai` via `/plugin marketplace add ...`, the plugin ships its own `.mcp.json` at the plugin root and Claude Code auto-loads it. The manual config below is the fallback for users who add the MCP server outside the plugin (e.g., adding only the MCP without the skills/commands).
+
 Claude Code supports Streamable HTTP natively. Add the server to your
 `.mcp.json` at the project root:
 

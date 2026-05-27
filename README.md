@@ -128,15 +128,14 @@ Skills are fetched automatically and cached locally.
 <summary><strong>Claude Code</strong></summary>
 
 ```bash
-# From local clone
-claude plugin install --plugin-dir ./path/to/fluttersdk-ai
-
-# Or via marketplace
-/plugin marketplace add fluttersdk/ai
+/plugin marketplace add https://raw.githubusercontent.com/fluttersdk/ai/main/.claude-plugin/marketplace.json
 /plugin install fluttersdk@fluttersdk-marketplace
 ```
 
-Skills are namespaced as `/fluttersdk:wind-ui` and `/fluttersdk:magic-framework`.
+The plugin auto-registers:
+- 5 skills (`/fluttersdk:wind-ui`, `/fluttersdk:magic-framework`, `/fluttersdk:fluttersdk-dusk`, `/fluttersdk:fluttersdk-telescope`, `/fluttersdk:fluttersdk-artisan`)
+- `/fluttersdk:flutter-review` and `/fluttersdk:flutter-test` slash commands
+- `fluttersdk` MCP server (HTTP transport to `mcp.fluttersdk.com`; no manual `.mcp.json` edit required)
 
 </details>
 
@@ -145,7 +144,7 @@ Skills are namespaced as `/fluttersdk:wind-ui` and `/fluttersdk:magic-framework`
 
 ```bash
 mkdir -p .cursor/rules
-cp commands/cursor/fluttersdk.mdc .cursor/rules/
+cp tool-templates/cursor/fluttersdk.mdc .cursor/rules/
 ```
 
 Activates automatically for all `.dart` files.
@@ -157,7 +156,7 @@ Activates automatically for all `.dart` files.
 
 ```bash
 mkdir -p ~/.gemini/commands
-cp commands/gemini/*.toml ~/.gemini/commands/
+cp tool-templates/gemini/*.toml ~/.gemini/commands/
 ```
 
 Use with `/flutter-review` and `/flutter-test` commands.

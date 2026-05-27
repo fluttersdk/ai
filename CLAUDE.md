@@ -26,7 +26,9 @@ Hosted via GitHub Pages at `fluttersdk.github.io/ai/`
 - `skills/index.json` — OpenCode discovery manifest. Source of truth for file listing
 - `.claude-plugin/` — Plugin manifest (`plugin.json`) + marketplace catalog (`marketplace.json`)
 - `mcps/` — MCP servers (TypeScript, stdio transport, Zod schemas)
-- `commands/` — Reusable command templates per tool (`opencode/`, `claude/`, `gemini/`, `cursor/`)
+- `commands/` — Claude Code plugin commands (`flutter-review.md`, `flutter-test.md`); auto-discovered as `/fluttersdk:<name>`
+- `tool-templates/` — Cross-tool command templates (`cursor/`, `gemini/`, `opencode/`) consumed by `scripts/install.sh`
+- `.mcp.json` — Bundled MCP server config (HTTP transport to `mcp.fluttersdk.com`); auto-loaded on plugin install
 - `.github/workflows/deploy-registry.yml` — Auto-deploys `skills/` to Pages on push to main; also writes `.well-known/skills/index.json` for OpenCode forward-compat
 - `.github/workflows/sync.yml` — Automates skill sync checklist on push to main
 
