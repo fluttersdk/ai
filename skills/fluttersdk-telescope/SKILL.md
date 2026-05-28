@@ -76,10 +76,10 @@ restart, and verify with `./bin/fsa telescope:tail`.
 
 5. **Order is chronological, oldest at index 0.** The handler reads the
    queue in insertion order without reversing, then truncates from the
-   front when `limit` is set. The array's last entry is the newest.
-   Some tool descriptions say "newest-first", that wording is presenter
-   shorthand; the wire shape is oldest-first. Iterate backwards if the
-   agent wants newest-first.
+   front when `limit` is set. The array's last entry is the newest
+   captured. Iterate backwards when the agent wants newest-first; every
+   `telescope_*` tool description documents this shape directly (the
+   pre-0.0.3 "newest-first" shorthand was retired).
 
 6. **Buffers are 500-entry FIFO rings, cleared atomically.** Each
    buffer caps at 500; oldest evicts on overflow with no warning, no
