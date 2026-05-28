@@ -57,6 +57,7 @@
             "files": [
                 "SKILL.md",
                 "references/cli-commands.md",
+                "references/community.md",
                 "references/mcp-tools.md",
                 "references/records.md",
                 "references/workflows.md"
