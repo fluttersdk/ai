@@ -278,20 +278,44 @@ Cause: `artisan_start` on Windows.
 
 V1 limitation. Surface to the user; there is no agent-side recovery.
 
-### `Chrome failed to open debug port <port>`
+### `Port <web-port> is already in use` (CDP path)
 
-Cause: `artisan_start --cdp-port=<N>` with a busy port, or Chrome
-missing.
+Cause: `artisan_start --cdp-port=<N> --port=<web-port>` detects that the
+web port (the `--port` value, not the CDP port) is already in use and fails
+fast before spawning any processes. The error names the busy web port and
+suggests running `fsa stop` or selecting a different `--port`.
+
+Recovery:
 
 ```bash
-lsof -ti tcp:<N>                    # find the squatter
-kill <squatter pid>                 # or pick a different port
-./bin/fsa start --cdp-port=<other>
+lsof -ti tcp:<web-port>             # find the squatter on the web port
+kill <squatter pid>                 # or pick a different --port
+./bin/fsa start --cdp-port=<N> --port=<new-web-port>
+```
+
+The port probe runs before Chrome and the flutter web-server launch, so
+no orphaned processes are left. This fail-fast behavior replaces the prior
+90s timeout that could leave stale sessions (issue #25).
+
+### `Chrome failed to open debug port <port>`
+
+Cause: `artisan_start --cdp-port=<N>` with Chrome missing, or a Chrome
+initialization failure after the port probe passed.
+
+```bash
+# Confirm Chrome is installed:
+which google-chrome                 # Linux
+ls /Applications/Google\ Chrome.app # macOS
 ```
 
 If Chrome is missing: the `Chrome binary not found` message names the
 expected path (macOS: `/Applications/Google Chrome.app/Contents/MacOS/Google Chrome`;
 Linux: `google-chrome` on PATH).
+
+If Chrome initialization fails after the port probe, `artisan_start` reaps
+the spawned Chrome process, flutter web-server, FIFO pipe, and temporary
+profile directory before returning an error (issue #25). Run `artisan start`
+again once Chrome is healthy.
 
 ### `Flutter SDK <X> is older than 3.30.0` (CDP path)
 
