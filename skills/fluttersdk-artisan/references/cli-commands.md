@@ -75,10 +75,10 @@ Files produced (atomic write via `.tmp` + rename):
 | `lib/app/_plugins.g.dart` | Generated plugin provider barrel; empty `autoDiscoveredProviders()` thunk until `plugin:install` populates `.artisan/plugins.json`. |
 | `lib/app/commands/_index.g.dart` | Generated command index for consumer-authored commands; empty until `make:command`. |
 
-Pubspec mutation: adds `fluttersdk_artisan: ^0.0.6` (pub.dev consumers)
-or `fluttersdk_artisan: { path: ... }` (monorepo `path:` auto-detected
-via `.dart_tool/package_config.json` rootUri). Re-running is idempotent
-unless `--force`.
+Pubspec mutation: adds `fluttersdk_artisan: any` (pub.dev consumers, so the
+next `pub get` pulls the published package) or `fluttersdk_artisan: { path: ... }`
+(monorepo `path:` auto-detected via `.dart_tool/package_config.json` rootUri).
+Re-running is idempotent unless `--force`.
 
 Auto-chains to `make:fast-cli` so `./bin/fsa` is compiled and ready
 after `install` returns.
