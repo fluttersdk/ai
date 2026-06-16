@@ -37,6 +37,8 @@ and the recovery loop for every common failure substring.
 | `tmpProfileDir` | string / null | `start --cdp-port` | Chrome temp profile dir; null otherwise |
 | `cdpPort` | int / null | `start --cdp-port` | the `--cdp-port` value; null when CDP is disabled |
 
+`restart` preserves `cdpPort` across the stop+start cycle: it reads the value from `state.json` before `stop` deletes the file, then forwards it into `start`, so a CDP-enabled session survives a restart. An explicit `--cdp-port` on the `restart` invocation wins over the preserved value.
+
 The agent reads state.json via `artisan_status`. Direct file reads via
 `Read` tool are also valid for debugging but `artisan_status` adds the
 `alive` liveness probe.
