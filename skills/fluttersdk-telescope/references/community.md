@@ -43,7 +43,7 @@ A genuine telescope-side bug per SKILL.md Section 8. Before drafting, re-check t
 
 - `{"records": []}` from `telescope_requests` when no `TelescopeHttpAdapter` is registered (the CLI even hints this inline: "No HTTP records (register a TelescopeHttpAdapter).").
 - `{"caches": []}` always: documented placeholder, Magic does not yet emit `CacheHit / CacheMiss / CachePut / CacheForget / CacheFlush` events.
-- `{"queries": []}` / `{"events": []}` / `{"gates": []}` when `MagicTelescopeIntegration.install()` was not called after `Magic.init()`, or the relevant `Magic*Watcher` is not installed.
+- `{"queries": []}` / `{"events": []}` / `{"gates": []}` when `MagicTelescopeIntegration.install()` (from `magic_devtools`) was not called after `Magic.init()`, or the relevant `Magic*Watcher` is not installed.
 - A swallowed `try / catch` not appearing in `telescope_exceptions`: documented, that buffer captures uncaught only (`FlutterError.onError` + `PlatformDispatcher.instance.onError`).
 - Consumer-app exception text surfaced through `telescope_exceptions`: telescope only captured it, the bug lives in the consumer's code.
 - Raw `dart:io HttpClient` traffic missing from `telescope_requests`: only adapter-routed traffic is captured by design.

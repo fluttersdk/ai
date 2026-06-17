@@ -1,11 +1,11 @@
 ---
 name: fluttersdk-telescope
 description: "fluttersdk_telescope: passive runtime inspector for Flutter apps. Lets an LLM agent read what the app captured (HTTP traffic, structured logs, uncaught exceptions, debug dumps, in-app events, gate checks, DB queries, Magic Cache ops) by calling 9 MCP tools (`telescope_*`) or 6 CLI commands (`./bin/fsa telescope:*`). Records land in 9 in-memory ring buffers (500 entries each, FIFO eviction) backed by `ext.telescope.*` VM Service extensions. Pairs with fluttersdk_dusk: dusk drives the app, telescope reads the side effects. TRIGGER when: any `telescope_*` MCP tool call, any `telescope:*` CLI command, the user asks the agent to inspect HTTP / logs / exceptions / events / queries / cache / dump output from a running Flutter app, the user mentions ring buffer / TelescopeStore / ext.telescope, or the conversation pairs with dusk for state verification after a gesture. DO NOT TRIGGER when: only authoring flutter_test widget tests, only driving the UI without reading captured state (use fluttersdk-dusk), or only modifying Dart source without running it."
-version: 0.0.3
+version: 0.0.4
 when_to_use: "Any task that reads runtime state from a running Flutter app via telescope: calling `telescope_*` MCP tools to inspect HTTP / logs / exceptions / events / gates / dumps / queries / caches, invoking `./bin/fsa telescope:*` from a shell, pairing with dusk to verify side effects after a gesture, filtering logs by minimum level (FINE/INFO/WARNING/SEVERE/SHOUT), or clearing buffers before a repro."
 ---
 
-<!-- fluttersdk_telescope v0.0.3 | Skill updated: 2026-05-28 -->
+<!-- fluttersdk_telescope v0.0.4 | Skill updated: 2026-06-17 -->
 
 # fluttersdk_telescope
 
@@ -37,7 +37,9 @@ restart, and verify with `./bin/fsa telescope:tail`.
    Magic-stack apps must additionally call
    `MagicTelescopeIntegration.install()` after `Magic.init()` to
    populate the HTTP, events, gates, queries, and magic-cache buffers
-   (and to expose `pendingCount` for dusk's network-idle gate). When
+   (and to expose `pendingCount` for dusk's network-idle gate).
+   `MagicTelescopeIntegration` ships in the `magic_devtools` package
+   (import `package:magic_devtools/telescope.dart`), not in `magic` core. When
    `telescope_requests` returns `{"records": []}` on a known-active app,
    suspect a missing adapter, not a quiet app. The CLI gives the same
    hint inline: `"No HTTP records (register a TelescopeHttpAdapter)."`,
@@ -237,9 +239,16 @@ dart run fluttersdk_telescope telescope:install
 ```
 
 `telescope:install` injects the following into `lib/main.dart`, all gated
-by `if (kDebugMode)` so release builds tree-shake the entire block:
+by `if (kDebugMode)` so release builds tree-shake the entire block. The
+`package:magic_devtools/telescope.dart` import and the
+`MagicTelescopeIntegration.install()` block are injected only for
+Magic-stack projects (detected when `magic_devtools` is in pubspec and
+`lib/main.dart` has an `await Magic.init(` anchor); a vanilla Flutter app
+gets only the `TelescopePlugin` block:
 
 ```dart
+import 'package:magic_devtools/telescope.dart'; // magic_devtools dev_dependency
+
 if (kDebugMode) {
   TelescopePlugin.install();
   TelescopePlugin.registerWatcher(ExceptionWatcher());
@@ -249,7 +258,7 @@ if (kDebugMode) {
 await Magic.init([...]);
 
 if (kDebugMode) {
-  MagicTelescopeIntegration.install();   // only when magic is in pubspec
+  MagicTelescopeIntegration.install();   // only when magic_devtools is in pubspec
 }
 ```
 

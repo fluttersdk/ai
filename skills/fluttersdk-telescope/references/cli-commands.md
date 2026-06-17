@@ -53,9 +53,10 @@ re-run.
      TelescopePlugin.registerWatcher(ExceptionWatcher());
      TelescopePlugin.registerWatcher(DumpWatcher());
      ```
-   - When pubspec contains `magic:` and `lib/main.dart` contains
-     `await Magic.init(`, also injects
-     `MagicTelescopeIntegration.install();` inside a second
+   - When pubspec contains `magic_devtools:` (as a dependency or
+     dev_dependency) and `lib/main.dart` contains `await Magic.init(`,
+     also injects `import 'package:magic_devtools/telescope.dart';`
+     plus `MagicTelescopeIntegration.install();` inside a second
      `kDebugMode` block after `Magic.init()` completes.
 
 All three sub-steps check for a string anchor before inserting, so the
@@ -76,6 +77,7 @@ $ dart run fluttersdk_telescope telescope:install
 [ok]   Plugin registered.
 [info] Patching lib/main.dart...
 [ok]   TelescopePlugin.install() injected before await Magic.init(...).
+[ok]   import 'package:magic_devtools/telescope.dart' injected.
 [ok]   MagicTelescopeIntegration.install() injected after Magic.init(...).
 [ok]   Done.
 ```

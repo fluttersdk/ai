@@ -250,7 +250,8 @@ telescope_requests { limit: 1 }
 
 If the response is `{"records": []}` on a known-active app, the
 adapter is the missing piece. Fix by ensuring
-`MagicTelescopeIntegration.install()` runs after `Magic.init()` in
+`MagicTelescopeIntegration.install()` (from `magic_devtools`, import
+`package:magic_devtools/telescope.dart`) runs after `Magic.init()` in
 `lib/main.dart`. For non-Magic apps, register `DioHttpAdapter`
 manually:
 
