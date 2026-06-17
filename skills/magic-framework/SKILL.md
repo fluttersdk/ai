@@ -1,11 +1,11 @@
 ---
 name: magic-framework
 description: "Magic Framework: Flutter IoC + 18 Facades (Auth, Http, Cache, DB, Echo, Log, Event, Gate, Session, MagicRoute...), Eloquent ORM, FormRequest, Gate abilities, resource routing, async validation, Service Providers, testing, 4 plugins."
-version: 1.0.0-alpha.13
+version: 0.0.3
 when_to_use: "TRIGGER when: code imports `package:magic/magic.dart` or `package:magic/testing.dart`, or user mentions Magic.init, MagicApp, MagicController, MagicView, MagicStatefulView, MagicStatefulViewState, MagicResponsiveView, MagicFormData, MagicForm, MagicBuilder, MagicRoute, MagicResponse, Model with HasTimestamps, InteractsWithPersistence, CastsAttributes, EnumCast, ListCast, MassAssignmentException, fill(strict:), FormRequest, AuthorizationException, ValidationException, AsyncRule, Unique rule, ResourceController, MagicRoute.resource, Gate.allowsAny, Gate.allowsAll, controller.authorize, Session facade, Session.flash, Session.old, old(), error() helper, ServiceProvider, MagicMiddleware, MagicStateMixin, ValidatesRequests, RxStatus, Auth/Http/Config/Cache/DB/Gate/Log/Event/Lang/Schema/Vault/Storage/Pick/Crypt/Launch/Echo/Session facade, MagicApplication, MagicTitle, TitleManager, MagicTest, fetchList, fetchOne, Http.fake, Auth.fake, Echo.fake, Magic.findOrPut, Magic.make, Magic.put, Magic.find, Magic.singleton, Magic.snackbar, Magic.toast, Magic.dialog, Magic.confirm, Carbon, trans(), env(), rules(), handleApiError, MagicStarter, magic_deeplink, magic_notifications, magic_social_auth, dart run magic:magic, make:model, make:controller, make:view, make:request. DO NOT TRIGGER when: code only uses Wind UI without Magic framework, or plain Flutter without package:magic import."
 ---
 
-<!-- Magic v1.0.0-alpha.13 + [Unreleased] | magic_starter v0.0.1-alpha.14 | Skill updated: 2026-04-18 -->
+<!-- Magic v0.0.3 + [Unreleased] | magic_starter v0.0.1-alpha.14 | Skill updated: 2026-06-17 -->
 
 # Magic Framework
 
