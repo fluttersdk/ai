@@ -4,42 +4,39 @@ Complete reference for the Magic CLI — an Artisan-inspired code generation and
 
 ## Invocation
 
-All commands are invoked via `dart run magic:magic <command>` from the Flutter project root (where `pubspec.yaml` lives).
-
-> [!TIP]
-> Optionally install globally for shorter syntax: `dart pub global activate magic_cli`, then use bare `magic` command. Ensure `~/.pub-cache/bin` is in your `PATH`.
+All commands are invoked via `dart run <app>:artisan <command>` from the Flutter project root (where `pubspec.yaml` lives). The magic CLI is an `fluttersdk_artisan` plugin (`MagicArtisanProvider`) that ships inside the magic package and runs through the host app's own artisan dispatcher. There is no separate `magic_cli` package and no global activation: `<app>` is the consumer app's package name (the `name:` in its `pubspec.yaml`).
 
 ## Command Overview
 
 | Category | Command | Description |
 |:---------|:--------|:------------|
-| **Setup** | `dart run magic:magic install` | Initialize Magic in a Flutter project |
-| **Setup** | `dart run magic:magic key:generate` | Generate `APP_KEY` for encryption |
-| **Generator** | `dart run magic:magic make:model Name` | Eloquent model with optional related files |
-| **Generator** | `dart run magic:magic make:controller Name` | Controller (basic or resource) |
-| **Generator** | `dart run magic:magic make:view Name` | View class (stateless or stateful) |
-| **Generator** | `dart run magic:magic make:migration name` | Database migration |
-| **Generator** | `dart run magic:magic make:enum Name` | String-backed enum with `fromValue()` |
-| **Generator** | `dart run magic:magic make:event Name` | Event class extending `MagicEvent` |
-| **Generator** | `dart run magic:magic make:listener Name` | Listener class extending `MagicListener` |
-| **Generator** | `dart run magic:magic make:middleware Name` | Route middleware extending `MagicMiddleware` |
-| **Generator** | `dart run magic:magic make:factory Name` | Model factory for seeding/testing |
-| **Generator** | `dart run magic:magic make:seeder Name` | Database seeder |
-| **Generator** | `dart run magic:magic make:provider Name` | Service provider |
-| **Generator** | `dart run magic:magic make:policy Name` | Authorization policy with Gate definitions |
-| **Generator** | `dart run magic:magic make:request Name` | Form request (validation rules class) |
-| **Generator** | `dart run magic:magic make:lang code` | JSON language file |
+| **Setup** | `dart run <app>:artisan magic:install` | Initialize Magic in a Flutter project |
+| **Setup** | `dart run <app>:artisan key:generate` | Generate `APP_KEY` for encryption |
+| **Generator** | `dart run <app>:artisan make:model Name` | Eloquent model with optional related files |
+| **Generator** | `dart run <app>:artisan make:controller Name` | Controller (basic or resource) |
+| **Generator** | `dart run <app>:artisan make:view Name` | View class (stateless or stateful) |
+| **Generator** | `dart run <app>:artisan make:migration name` | Database migration |
+| **Generator** | `dart run <app>:artisan make:enum Name` | String-backed enum with `fromValue()` |
+| **Generator** | `dart run <app>:artisan make:event Name` | Event class extending `MagicEvent` |
+| **Generator** | `dart run <app>:artisan make:listener Name` | Listener class extending `MagicListener` |
+| **Generator** | `dart run <app>:artisan make:middleware Name` | Route middleware extending `MagicMiddleware` |
+| **Generator** | `dart run <app>:artisan make:factory Name` | Model factory for seeding/testing |
+| **Generator** | `dart run <app>:artisan make:seeder Name` | Database seeder |
+| **Generator** | `dart run <app>:artisan make:provider Name` | Service provider |
+| **Generator** | `dart run <app>:artisan make:policy Name` | Authorization policy with Gate definitions |
+| **Generator** | `dart run <app>:artisan make:request Name` | Form request (validation rules class) |
+| **Generator** | `dart run <app>:artisan make:lang code` | JSON language file |
 
 
 ## Project Setup
 
-### `dart run magic:magic install`
+### `dart run <app>:artisan magic:install`
 
 Initializes Magic in an existing Flutter project. Creates the full directory structure, configuration files, service providers, routes, and `main.dart` bootstrap.
 
 ```bash
-dart run magic:magic install
-dart run magic:magic install --without-database --without-events
+dart run <app>:artisan magic:install
+dart run <app>:artisan magic:install --without-database --without-events
 ```
 
 | Flag | Effect |
@@ -88,13 +85,13 @@ lib/
 └── main.dart                 # Bootstrap with Magic.init()
 ```
 
-### `dart run magic:magic key:generate`
+### `dart run <app>:artisan key:generate`
 
 Generates a random 32-byte encryption key (base64-encoded) and writes it to `.env`.
 
 ```bash
-dart run magic:magic key:generate
-dart run magic:magic key:generate --show    # Display without writing to .env
+dart run <app>:artisan key:generate
+dart run <app>:artisan key:generate --show    # Display without writing to .env
 ```
 
 Updates your `.env`:
@@ -113,22 +110,22 @@ Required for the `Crypt` facade and encryption operations.
 
 All generators share these conventions:
 
-- **Auto-suffix**: `dart run magic:magic make:controller User` → `UserController`. The suffix is appended if not already present; existing suffixes are detected and not doubled.
-- **Nested paths**: `dart run magic:magic make:controller Admin/Dashboard` → `lib/app/controllers/admin/dashboard_controller.dart`. Directory segments are converted to snake_case.
+- **Auto-suffix**: `dart run <app>:artisan make:controller User` → `UserController`. The suffix is appended if not already present; existing suffixes are detected and not doubled.
+- **Nested paths**: `dart run <app>:artisan make:controller Admin/Dashboard` → `lib/app/controllers/admin/dashboard_controller.dart`. Directory segments are converted to snake_case.
 - **`--force` flag**: All generators accept `--force` to overwrite existing files.
 - **Import statement**: Generated files automatically import `package:magic/magic.dart`.
 
-### `dart run magic:magic make:model`
+### `dart run <app>:artisan make:model`
 
 Creates an Eloquent model with optional companion files.
 
 ```bash
-dart run magic:magic make:model Monitor
-dart run magic:magic make:model Monitor -m          # + migration
-dart run magic:magic make:model Monitor -mc         # + migration + controller
-dart run magic:magic make:model Monitor -mcf        # + migration + controller + factory
-dart run magic:magic make:model Monitor -mcfsp      # + migration + controller + factory + seeder + policy
-dart run magic:magic make:model Monitor -a          # all companion files
+dart run <app>:artisan make:model Monitor
+dart run <app>:artisan make:model Monitor -m          # + migration
+dart run <app>:artisan make:model Monitor -mc         # + migration + controller
+dart run <app>:artisan make:model Monitor -mcf        # + migration + controller + factory
+dart run <app>:artisan make:model Monitor -mcfsp      # + migration + controller + factory + seeder + policy
+dart run <app>:artisan make:model Monitor -a          # all companion files
 ```
 
 | Flag | Short | Generates |
@@ -164,14 +161,14 @@ class Monitor extends Model with HasTimestamps, InteractsWithPersistence {
 }
 ```
 
-### `dart run magic:magic make:controller`
+### `dart run <app>:artisan make:controller`
 
 Creates a controller class.
 
 ```bash
-dart run magic:magic make:controller Monitor
-dart run magic:magic make:controller Monitor --resource    # CRUD resource controller
-dart run magic:magic make:controller Admin/Dashboard       # Nested path
+dart run <app>:artisan make:controller Monitor
+dart run <app>:artisan make:controller Monitor --resource    # CRUD resource controller
+dart run <app>:artisan make:controller Admin/Dashboard       # Nested path
 ```
 
 | Flag | Short | Effect |
@@ -194,14 +191,14 @@ class MonitorController extends MagicController {
 
 **Resource controller stub** (with `--resource`): Includes full CRUD methods — `index()`, `create()`, `show()`, `edit()`, `store()`, `update()`, `destroy()` — with API integration scaffolding.
 
-### `dart run magic:magic make:view`
+### `dart run <app>:artisan make:view`
 
 Creates a view widget.
 
 ```bash
-dart run magic:magic make:view Login
-dart run magic:magic make:view Login --stateful    # With initState/dispose lifecycle
-dart run magic:magic make:view Auth/Register       # Nested path
+dart run <app>:artisan make:view Login
+dart run <app>:artisan make:view Login --stateful    # With initState/dispose lifecycle
+dart run <app>:artisan make:view Auth/Register       # Nested path
 ```
 
 | Flag | Effect |
@@ -227,14 +224,14 @@ class LoginView extends StatelessWidget {
 
 **Stateful stub** (with `--stateful`): Generates `StatefulWidget` with `initState()` for resource setup and `dispose()` for cleanup.
 
-### `dart run magic:magic make:migration`
+### `dart run <app>:artisan make:migration`
 
 Creates a database migration file with a timestamp prefix.
 
 ```bash
-dart run magic:magic make:migration create_monitors_table
-dart run magic:magic make:migration add_status_to_monitors_table
-dart run magic:magic make:migration create_monitors_table --create=monitors
+dart run <app>:artisan make:migration create_monitors_table
+dart run <app>:artisan make:migration add_status_to_monitors_table
+dart run <app>:artisan make:migration create_monitors_table --create=monitors
 ```
 
 | Flag | Short | Effect |
@@ -268,13 +265,13 @@ class CreateMonitorsTable extends Migration {
 }
 ```
 
-### `dart run magic:magic make:enum`
+### `dart run <app>:artisan make:enum`
 
 Creates a string-backed enum with `fromValue()` lookup and `selectOptions` getter.
 
 ```bash
-dart run magic:magic make:enum MonitorStatus
-dart run magic:magic make:enum Status/OrderStatus       # Nested path
+dart run <app>:artisan make:enum MonitorStatus
+dart run <app>:artisan make:enum Status/OrderStatus       # Nested path
 ```
 
 **Output**: `lib/app/enums/monitor_status.dart`
@@ -307,13 +304,13 @@ enum MonitorStatus {
 }
 ```
 
-### `dart run magic:magic make:event`
+### `dart run <app>:artisan make:event`
 
 Creates an event class for the pub/sub system.
 
 ```bash
-dart run magic:magic make:event MonitorCreated
-dart run magic:magic make:event Auth/TokenRefreshed     # Nested path
+dart run <app>:artisan make:event MonitorCreated
+dart run <app>:artisan make:event Auth/TokenRefreshed     # Nested path
 ```
 
 **Output**: `lib/app/events/monitor_created.dart`
@@ -328,14 +325,14 @@ class MonitorCreated extends MagicEvent {
 }
 ```
 
-### `dart run magic:magic make:listener`
+### `dart run <app>:artisan make:listener`
 
 Creates an event listener.
 
 ```bash
-dart run magic:magic make:listener SendMonitorNotification
-dart run magic:magic make:listener SendNotification --event=MonitorCreated
-dart run magic:magic make:listener Auth/RestoreSession   # Nested path
+dart run <app>:artisan make:listener SendMonitorNotification
+dart run <app>:artisan make:listener SendNotification --event=MonitorCreated
+dart run <app>:artisan make:listener Auth/RestoreSession   # Nested path
 ```
 
 | Flag | Short | Effect |
@@ -357,13 +354,13 @@ class SendMonitorNotification extends MagicListener<MagicEvent> {
 }
 ```
 
-### `dart run magic:magic make:middleware`
+### `dart run <app>:artisan make:middleware`
 
 Creates a route middleware.
 
 ```bash
-dart run magic:magic make:middleware EnsureAuthenticated
-dart run magic:magic make:middleware Admin/RoleCheck     # Nested path
+dart run <app>:artisan make:middleware EnsureAuthenticated
+dart run <app>:artisan make:middleware Admin/RoleCheck     # Nested path
 ```
 
 **Output**: `lib/app/middleware/ensure_authenticated.dart`
@@ -383,13 +380,13 @@ class EnsureAuthenticated extends MagicMiddleware {
 }
 ```
 
-### `dart run magic:magic make:factory`
+### `dart run <app>:artisan make:factory`
 
 Creates a model factory for testing and seeding.
 
 ```bash
-dart run magic:magic make:factory Monitor        # Auto-appends 'Factory'
-dart run magic:magic make:factory MonitorFactory # No double-suffix
+dart run <app>:artisan make:factory Monitor        # Auto-appends 'Factory'
+dart run <app>:artisan make:factory MonitorFactory # No double-suffix
 ```
 
 **Output**: `lib/database/factories/monitor_factory.dart`
@@ -414,13 +411,13 @@ class MonitorFactory extends Factory<Model> {
 }
 ```
 
-### `dart run magic:magic make:seeder`
+### `dart run <app>:artisan make:seeder`
 
 Creates a database seeder.
 
 ```bash
-dart run magic:magic make:seeder User           # Auto-appends 'Seeder'
-dart run magic:magic make:seeder UserSeeder     # No double-suffix
+dart run <app>:artisan make:seeder User           # Auto-appends 'Seeder'
+dart run <app>:artisan make:seeder UserSeeder     # No double-suffix
 ```
 
 **Output**: `lib/database/seeders/user_seeder.dart`
@@ -439,13 +436,13 @@ class UserSeeder extends Seeder {
 }
 ```
 
-### `dart run magic:magic make:provider`
+### `dart run <app>:artisan make:provider`
 
 Creates a service provider.
 
 ```bash
-dart run magic:magic make:provider Payment             # Auto-appends 'ServiceProvider'
-dart run magic:magic make:provider PaymentServiceProvider # No double-suffix
+dart run <app>:artisan make:provider Payment             # Auto-appends 'ServiceProvider'
+dart run <app>:artisan make:provider PaymentServiceProvider # No double-suffix
 ```
 
 **Output**: `lib/app/providers/payment_service_provider.dart`
@@ -470,14 +467,14 @@ class PaymentServiceProvider extends ServiceProvider {
 }
 ```
 
-### `dart run magic:magic make:policy`
+### `dart run <app>:artisan make:policy`
 
 Creates an authorization policy with Gate definitions.
 
 ```bash
-dart run magic:magic make:policy Monitor              # Auto-appends 'Policy'
-dart run magic:magic make:policy MonitorPolicy        # No double-suffix
-dart run magic:magic make:policy Monitor --model=Monitor
+dart run <app>:artisan make:policy Monitor              # Auto-appends 'Policy'
+dart run <app>:artisan make:policy MonitorPolicy        # No double-suffix
+dart run <app>:artisan make:policy Monitor --model=Monitor
 ```
 
 | Flag | Short | Effect |
@@ -488,13 +485,13 @@ dart run magic:magic make:policy Monitor --model=Monitor
 
 **Generated stub:** Includes policy methods for authorization checks and Gate definitions.
 
-### `dart run magic:magic make:request`
+### `dart run <app>:artisan make:request`
 
 Creates a form request class for validation.
 
 ```bash
-dart run magic:magic make:request StoreMonitor          # Auto-appends 'Request'
-dart run magic:magic make:request StoreMonitorRequest   # No double-suffix
+dart run <app>:artisan make:request StoreMonitor          # Auto-appends 'Request'
+dart run <app>:artisan make:request StoreMonitorRequest   # No double-suffix
 ```
 
 **Output**: `lib/app/validation/requests/store_monitor_request.dart`
@@ -515,13 +512,13 @@ class StoreMonitorRequest extends FormRequest {
 }
 ```
 
-### `dart run magic:magic make:lang`
+### `dart run <app>:artisan make:lang`
 
 Creates a JSON language/translation file.
 
 ```bash
-dart run magic:magic make:lang tr
-dart run magic:magic make:lang en
+dart run <app>:artisan make:lang tr
+dart run <app>:artisan make:lang en
 ```
 
 **Output**: `assets/lang/tr.json`
@@ -542,7 +539,7 @@ flutter:
 Generate all companion files for a new resource with chained `-mcfsp` flags:
 
 ```bash
-dart run magic:magic make:model Monitor -mcfsp
+dart run <app>:artisan make:model Monitor -mcfsp
 ```
 
 This creates:
@@ -556,7 +553,7 @@ This creates:
 Or use the shorthand:
 
 ```bash
-dart run magic:magic make:model Monitor --all
+dart run <app>:artisan make:model Monitor --all
 ```
 
 ### Nested Paths
@@ -564,10 +561,10 @@ dart run magic:magic make:model Monitor --all
 Organize files into subdirectories:
 
 ```bash
-dart run magic:magic make:controller Admin/Dashboard
+dart run <app>:artisan make:controller Admin/Dashboard
 # → lib/app/controllers/admin/dashboard_controller.dart
 
-dart run magic:magic make:view Settings/Profile
+dart run <app>:artisan make:view Settings/Profile
 # → lib/resources/views/settings/profile_view.dart
 ```
 
@@ -578,8 +575,8 @@ Directory segments are automatically converted to snake_case in filenames.
 Combine flags for automatic resource controller generation with model binding:
 
 ```bash
-dart run magic:magic make:model Monitor -c --all
-dart run magic:magic make:controller Monitor --resource --model=Monitor
+dart run <app>:artisan make:model Monitor -c --all
+dart run <app>:artisan make:controller Monitor --resource --model=Monitor
 ```
 
 ## Gotchas

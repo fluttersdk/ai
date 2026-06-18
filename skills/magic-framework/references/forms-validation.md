@@ -501,7 +501,7 @@ Pair with `Model.fill(validated, strict: true)` to catch schema drift at the bou
 
 ### CLI
 
-Generate a FormRequest with: `dart run magic:magic make:request StoreUser`.
+Generate a FormRequest with: `dart run <app>:artisan make:request StoreUser`.
 
 
 ## AsyncRule & Unique

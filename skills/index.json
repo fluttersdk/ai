@@ -18,12 +18,13 @@
         },
         {
             "name": "magic-framework",
-            "description": "Magic Framework: Flutter IoC + 18 Facades (Auth, Http, Cache, DB, Echo, Log, Event, Gate, Session, MagicRoute...), Eloquent ORM, FormRequest, Gate abilities, resource routing, async validation, Service Providers, testing, 4 plugins.",
+            "description": "Write correct, idiomatic code in a Flutter app that depends on the `magic` framework (Laravel-inspired: IoC container, 18 facades, Eloquent-style ORM, service providers, reactive controllers, GoRouter routing, validation, auth, broadcasting). Use whenever code imports `package:magic/magic.dart` or `package:magic/testing.dart`, or the work touches Magic.init, MagicApp, a facade (Auth/Http/Cache/DB/Echo/Event/Gate/Config/Lang/Launch/Log/Pick/MagicRoute/Schema/Session/Storage/Vault/Crypt), a Model, MagicController, a MagicView, MagicFormData, FormRequest, a ServiceProvider, a migration, or the artisan make:* CLI. UI styling is Wind (separate wind-ui skill). Do NOT use for plain Flutter or Wind-only work with no magic import.",
             "files": [
                 "SKILL.md",
                 "references/auth-system.md",
                 "references/bootstrap-lifecycle.md",
                 "references/cli-commands.md",
+                "references/community.md",
                 "references/controllers-views.md",
                 "references/eloquent-orm.md",
                 "references/facades-api.md",
