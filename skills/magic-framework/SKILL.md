@@ -19,7 +19,7 @@ Three checks, each pays off across the whole session.
 
 1. **Read `lib/main.dart` and `lib/config/app.dart`.** Note the `providers` list and its ORDER (AppServiceProvider must precede AuthServiceProvider so `setUserFactory` is set before auth restore runs), and whether `configFactories` or `configs` is used.
 2. **Scan one existing controller + view pair in `lib/app/`** for the project's idioms: the singleton accessor shape, how views resolve controllers, how forms are wired. Match the surrounding code, do not invent a dialect.
-3. **Confirm the package name** (the `name:` in `pubspec.yaml`). The CLI invocation is `dart run <name>:artisan <cmd>`; `<app>` in this skill is that package name.
+3. **CLI invocation.** Magic ships an `artisan` executable, so every command runs as `dart run magic:artisan <cmd>` from any app that depends on magic (no package-name placeholder, no global activate).
 
 ## 1. Core Laws
 
@@ -330,17 +330,17 @@ Before reporting a magic task done, verify (with evidence, not assumption):
 
 ## 10. CLI
 
-The magic CLI is an `fluttersdk_artisan` plugin (`MagicArtisanProvider`); run it through the app's own artisan dispatcher. There is no `magic_cli` package and no global activation. `<app>` is the consumer package name.
+The magic CLI ships as an `artisan` executable in magic's `pubspec.yaml` (`executables: { artisan: }`, backed by `bin/artisan.dart`). Once magic is a dependency, run any command with `dart run magic:artisan <cmd>`. There is no `magic_cli` package and no global activation.
 
 ```bash
-dart run <app>:artisan magic:install                  # scaffold project structure
-dart run <app>:artisan make:model User -mcfsp          # model (+ migration/controller/factory/seeder/policy via flags)
-dart run <app>:artisan make:controller User -r         # resource controller
-dart run <app>:artisan make:view Login --stateful      # stateful view
-dart run <app>:artisan make:migration create_users     # migration
-dart run <app>:artisan make:request StoreUser          # form request
-dart run <app>:artisan make:policy User                # authorization policy
-dart run <app>:artisan key:generate                    # APP_KEY
+dart run magic:artisan magic:install                  # scaffold project structure
+dart run magic:artisan make:model User -mcfsp          # model (+ migration/controller/factory/seeder/policy via flags)
+dart run magic:artisan make:controller User -r         # resource controller
+dart run magic:artisan make:view Login --stateful      # stateful view
+dart run magic:artisan make:migration create_users     # migration
+dart run magic:artisan make:request StoreUser          # form request
+dart run magic:artisan make:policy User                # authorization policy
+dart run magic:artisan key:generate                    # APP_KEY
 ```
 
 Other generators: `make:seeder`, `make:factory`, `make:middleware`, `make:provider`, `make:event`, `make:listener`, `make:enum`, `make:lang`. Generators accept `--force` and nested paths (`Admin/Dashboard`). Full reference: `${CLAUDE_SKILL_DIR}/references/cli-commands.md`.
