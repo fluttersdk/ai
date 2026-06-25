@@ -49,6 +49,13 @@ dart run magic:artisan magic:install --without-database --without-events
 | `--without-logging` | Skip logging channels and `config/logging.dart` |
 | `--without-network` | Skip HTTP/Dio network layer and `config/network.dart` |
 | `--without-broadcasting` | Skip broadcasting/WebSocket setup and `config/broadcasting.dart` |
+| `--with-devtools` | Add the debug trio (`magic_devtools` + `fluttersdk_dusk` + `fluttersdk_telescope`) to `dependencies` and wire it into `lib/main.dart` under `kDebugMode`, in one step |
+
+`--with-devtools` is a one-step replacement for the manual debug-tooling bootstrap. After the core install it adds the three packages as regular `dependencies` (the `kDebugMode` gate tree-shakes them from release builds, so `dev_dependencies` would trip `depend_on_referenced_packages`) and injects `DuskPlugin.install()` / `TelescopePlugin.install()` (+ `ExceptionWatcher` + `DumpWatcher`) before `Magic.init()` plus `MagicDuskIntegration.install()` / `MagicTelescopeIntegration.install()` after it. Idempotent: re-running never duplicates the wiring or the deps.
+
+```bash
+dart run magic:artisan magic:install --with-devtools
+```
 
 **Generated structure:**
 
