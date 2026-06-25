@@ -236,7 +236,7 @@ against the freshly-regenerated barrel.
 
 ## plugin:install
 
-- **Signature**: `plugin:install <name> [--dry-run] [--force] [--use-yaml-only] [--provider=<C>] [--bootstrap-command=<cmd>]`
+- **Signature**: `plugin:install <name> [--dry-run] [--force] [--non-interactive] [--no-bootstrap] [--use-yaml-only] [--provider=<C>] [--bootstrap-command=<cmd>]`
 - **Group**: plugin management
 - **Boot**: `none`
 - **Allowlisted**: no (interactive prompts for destructive ops)
@@ -247,7 +247,12 @@ Install a plugin. Dispatches in three routing modes
 1. **Manifest flow** (preferred): plugin ships `install.yaml` at package
    root. Parse, walk `ManifestInstaller`, commit atomically, record at
    `.artisan/installed/<plugin>.json`, register in `.artisan/plugins.json`,
-   regen `lib/app/_plugins.g.dart`.
+   regen `lib/app/_plugins.g.dart`. When the manifest declares a
+   `bootstrap_command`, it AUTO-RUNS after registration as a fresh dispatcher
+   subprocess (`./bin/fsa <cmd> --non-interactive`, or `dart run
+   <consumer>:artisan <cmd> --non-interactive` when no `bin/fsa`). `--no-bootstrap`
+   skips the auto-run (falls back to a hint); `--bootstrap-command=<cmd>`
+   overrides the manifest value.
 2. **Magic-free canonical fast path**: no manifest, but
    `lib/app/_plugins.g.dart` exists (canonical scaffold from `install`).
    Skip legacy injection; write directly to `plugins.json` + refresh.
