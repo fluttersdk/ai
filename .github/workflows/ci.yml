@@ -34,7 +34,7 @@ jobs:
             run:
                 working-directory: mcps/fluttersdk-mcp
         steps:
-            - uses: actions/checkout@v6
+            - uses: actions/checkout@v7
 
             - uses: actions/setup-node@v6
               with:
@@ -58,7 +58,7 @@ jobs:
         name: Workflows lint
         runs-on: ubuntu-latest
         steps:
-            - uses: actions/checkout@v6
+            - uses: actions/checkout@v7
 
             - name: actionlint
               uses: docker://rhysd/actionlint:1.7.7
@@ -75,7 +75,7 @@ jobs:
         name: Plugin manifest + version sync
         runs-on: ubuntu-latest
         steps:
-            - uses: actions/checkout@v6
+            - uses: actions/checkout@v7
 
             - name: Install check-jsonschema
               run: pipx install check-jsonschema==0.37.2
