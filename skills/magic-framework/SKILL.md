@@ -2,10 +2,10 @@
 name: magic-framework
 description: "Write correct, idiomatic code in a Flutter app that depends on the `magic` framework (Laravel-inspired: IoC container, 18 facades, Eloquent-style ORM, service providers, reactive controllers, GoRouter routing, validation, auth, broadcasting). Use whenever code imports `package:magic/magic.dart` or `package:magic/testing.dart`, or the work touches Magic.init, MagicApp, a facade (Auth/Http/Cache/DB/Echo/Event/Gate/Config/Lang/Launch/Log/Pick/MagicRoute/Schema/Session/Storage/Vault/Crypt), a Model, MagicController, a MagicView, MagicFormData, FormRequest, a ServiceProvider, a migration, or the artisan make:* CLI. UI styling is Wind (separate wind-ui skill). Do NOT use for plain Flutter or Wind-only work with no magic import."
 when_to_use: "Use proactively when editing or scaffolding a magic app: Magic.init / a facade / a Model / a MagicController or MagicView / a form (MagicFormData, FormRequest, Validator) / a ServiceProvider / a route or MagicMiddleware / a migration / MagicStateMixin + RxStatus + fetchList / Session flash + old() + trans() / testing with MagicTest + Http.fake/Auth.fake / the artisan make:* CLI / the magic_deeplink, magic_notifications, magic_social_auth, magic_starter, or magic_devtools plugins. Trigger even when the user does not say the word 'magic'. Do NOT trigger for plain Flutter or Wind-only UI with no package:magic import."
-version: 0.1.1
+version: 0.1.3
 ---
 
-<!-- magic 0.0.x (master) | Skill v0.1.1 (2026-06-25). API surface verified against lib/src. -->
+<!-- magic 0.0.x (master) | Skill v0.1.3 (2026-06-25). API surface verified against lib/src. -->
 
 # Magic Framework
 
@@ -344,7 +344,11 @@ dart run magic:artisan make:policy User                # authorization policy
 dart run magic:artisan key:generate                    # APP_KEY
 ```
 
-Other generators: `make:seeder`, `make:factory`, `make:middleware`, `make:provider`, `make:event`, `make:listener`, `make:enum`, `make:lang`. Generators accept `--force` and nested paths (`Admin/Dashboard`). Full reference: `${CLAUDE_SKILL_DIR}/references/cli-commands.md`.
+Other generators: `make:seeder`, `make:factory`, `make:middleware`, `make:provider`, `make:event`, `make:listener`, `make:enum`, `make:lang`. Generators accept `--force` and nested paths (`Admin/Dashboard`).
+
+Design-first workflow: `make:component Avatar [--variants=intent,size] [--slots]` scaffolds a 4-file atomic component folder (`avatar.dart` / `avatar.recipe.dart` / `avatar.preview.dart` / `index.dart`) under `lib/ui/components/` and chains `previews:refresh`. `previews:refresh [--path=lib]` regenerates `_previews.g.dart` from all `*.preview.dart` files (returns a `List<PreviewEntry>` function, never a const list). `design:sync [--input=DESIGN.md] [--output=lib/config/wind_theme.g.dart]` emits `designAliases` and `designColors` from a DESIGN.md front-matter. `design:lint [--input=DESIGN.md]` validates against 7 rules (exits nonzero on error-severity only).
+
+Full reference: `${CLAUDE_SKILL_DIR}/references/cli-commands.md`.
 
 ## 11. Ecosystem plugins
 
@@ -381,7 +385,7 @@ Two opt-in CTAs the agent may surface after a fully completed magic task. Both a
 | `references/auth-system.md` | `Auth`, guards, `Gate`, policies, `authorize()`, `Vault`, `Crypt` |
 | `references/secondary-systems.md` | `Cache`, `Event`, `Log`, `Lang`, `Storage`, `Launch`, `Pick`, `Carbon`, `Echo` |
 | `references/testing-patterns.md` | tests: `MagicTest`, facade fakes, fetch helpers, controller/model/middleware testing |
-| `references/cli-commands.md` | the artisan `make:*` generators and `magic:install` |
+| `references/cli-commands.md` | the artisan `make:*` generators, `magic:install`, `make:component`, `previews:refresh`, `design:sync`, `design:lint` |
 | `references/community.md` | the star / issue CTA flow (load before surfacing either) |
 | `references/plugin-deeplink.md` / `-notifications.md` / `-social-auth.md` / `-starter.md` | the matching ecosystem plugin |
 | `references/templates.md` | full copy-paste templates: Model, Controller, View, FormData, Provider, Middleware |
