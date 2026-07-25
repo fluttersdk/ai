@@ -300,6 +300,33 @@ Magic handles Laravel-style 422 error responses end-to-end:
 5. **`rules()` / `FormValidator.rules()`** checks `controller.hasError(field)` first; if found, returns the server message directly.
 6. Error appears automatically under the form field with no extra widget code.
 
+When the write goes through the ORM instead of a hand-rolled `Http` call, the model captures the same shape, so step 2 reads from the model:
+
+| Member | Type | Notes |
+|---|---|---|
+| `model.validationErrors` | `Map<String, List<String>>` | Per-field messages from the most recent remote `save()`. Deeply unmodifiable, cleared at the start of every remote save |
+| `model.validationError(field)` | `String?` | First message for `field`, or `null` |
+
+```dart
+if (!await monitor.save()) {
+  final Map<String, List<String>> errors = monitor.validationErrors;
+
+  // Empty map + false return = transport failure, not a field failure.
+  if (errors.isEmpty) {
+    setError(trans('common.error_occurred'));
+    return;
+  }
+
+  validationErrors = {
+    for (final MapEntry<String, List<String>> entry in errors.entries)
+      entry.key: entry.value.first,
+  };
+  notifyListeners();
+}
+```
+
+A hybrid model (`useRemote` and `useLocal`) whose remote leg 422s while its local write succeeds returns `true` from `save()` with the map filled, so check the map even on success when local persistence is on.
+
 
 ## Message i18n
 
