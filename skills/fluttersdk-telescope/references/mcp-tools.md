@@ -1,382 +1,479 @@
-# MCP tools reference
+# MCP tool reference
 
-Authoritative source: `lib/src/telescope_artisan_provider.dart` (all 9 `McpToolDescriptor` entries, descriptions,
-and input schemas). VM extension registrations: `lib/src/extensions/register_telescope_extensions.dart`.
+Per-tool schema, response envelope, and example calls for the 9
+`telescope_*` MCP tools. Every read tool returns a single
+`{"<key>": [<record>, ...]}` JSON object inside a single `text` content
+block; parse the `text` body as JSON before reasoning over fields.
 
-## Overview
+For per-record field shape (every key inside the record objects), see
+`records.md`.
 
-Telescope contributes 9 MCP tools to the fluttersdk artisan dispatcher. All use the `telescope_` prefix. Each
-tool is backed by a `ext.telescope.*` VM Service extension registered in the running Flutter app. The tools are
-read-only (except `telescope_clear`) and return JSON arrays of immutable records from ring buffers in
-`TelescopeStore`. Records are returned newest-first.
+## Contents
 
-**Prerequisites:** the running app must have called `TelescopePlugin.install()` (and the relevant watcher
-registrations) before the tool can return any records. If the extension is registered but no watcher has fed
-the buffer, the tool returns an empty array, not an error.
-
-**Common workflow for an LLM agent:**
-
-```
-1. artisan_start (start the Flutter app)
-2. telescope_clear (zero out all buffers)
-3. <trigger the user action or navigation>
-4. telescope_requests / telescope_tail / telescope_exceptions (inspect results)
-```
+- [`telescope_requests`](#telescope_requests)
+- [`telescope_tail`](#telescope_tail)
+- [`telescope_exceptions`](#telescope_exceptions)
+- [`telescope_events`](#telescope_events)
+- [`telescope_gates`](#telescope_gates)
+- [`telescope_dumps`](#telescope_dumps)
+- [`telescope_queries`](#telescope_queries)
+- [`telescope_caches`](#telescope_caches)
+- [`telescope_clear`](#telescope_clear)
+- [Common semantics](#common-semantics)
+- [Empty-buffer diagnosis](#empty-buffer-diagnosis)
 
 ---
 
-## Tool catalog
+## telescope_requests
 
-### telescope_tail
+Outbound HTTP records captured by the registered `TelescopeHttpAdapter`.
 
-**VM extension:** `ext.telescope.console`
-**Buffer:** `TelescopeStore.recentLogs()`
-**Populated by:** `LogWatcher` (auto-installed; subscribes to `Logger.root.onRecord`)
+**VM extension:** `ext.telescope.requests`.
 
-Return recent log records from the running Flutter app. Each record carries timestamp, log level, logger name,
-message, and optional error / stackTrace attachment.
-
-**Input schema:**
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `level` | string | no | Minimum log level to include. Values (lowest to highest): `FINEST`, `FINER`, `FINE`, `CONFIG`, `INFO`, `WARNING`, `SEVERE`, `SHOUT`. Omit for all levels. |
-| `limit` | integer | no | Maximum number of records to return, newest first. Omit for the whole buffer (cap: 500). |
-
-**Return shape:** JSON array of `LogRecordEntry` objects.
+**Input:**
 
 ```json
-[
-  {
-    "level": "WARNING",
-    "loggerName": "MonitorController",
-    "message": "poll failed, retrying in 5s",
-    "time": "2026-05-21T10:14:22.000Z"
-  }
-]
+{ "limit": 20 }
 ```
 
-**Usage notes:**
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `limit` | integer | whole buffer | Cap on records returned. Bad value silently falls back to whole buffer. |
 
-- Pair with `telescope_clear` before a repro to isolate the relevant log lines.
-- For HTTP traffic use `telescope_requests`; for crashes use `telescope_exceptions`.
-- If the app does not use `package:logging`, this tool returns an empty array. All Magic framework logs go through
-  `package:logging` so they do appear here.
-
-**Agent example:**
-
-```
-Call telescope_tail with level="WARNING" and limit=20 to check for recent warnings
-after the user navigated to the monitors dashboard.
-```
-
----
-
-### telescope_requests
-
-**VM extension:** `ext.telescope.requests`
-**Buffer:** `TelescopeStore.recentHttp()`
-**Populated by:** `DioHttpAdapter` (vanilla Dio) or `MagicHttpFacadeAdapter` (Magic apps)
-
-Return recent HTTP request/response records from the running Flutter app. Each record carries method, URL,
-status code, duration (ms), request headers, response body snippet, and `isError` flag.
-
-**Input schema:**
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `limit` | integer | no | Maximum number of HTTP records to return, newest first. Omit for the whole buffer (cap: 500). |
-
-**Return shape:** JSON array of `HttpRequestRecord` objects.
+**Response:**
 
 ```json
-[
-  {
-    "url": "https://api.uptizm.com/monitors",
-    "method": "GET",
-    "statusCode": 200,
-    "durationMs": 143,
-    "isError": false,
-    "timestamp": "2026-05-21T10:14:21.000Z",
-    "responseBody": "{\"data\":[...]}"
-  }
-]
+{
+  "records": [
+    {
+      "url": "https://api.example.test/users",
+      "method": "GET",
+      "statusCode": 200,
+      "durationMs": 184,
+      "isError": false,
+      "timestamp": "2026-05-25T09:14:22.318Z",
+      "requestHeaders": { "Authorization": "Bearer ..." },
+      "responseBody": "{\"data\":[...]}"
+    }
+  ]
+}
 ```
 
-**Usage notes:**
+**Origin:** populated only when a `TelescopeHttpAdapter` is registered.
+Magic-stack apps get `MagicHttpFacadeAdapter` via
+`MagicTelescopeIntegration.install()`. Vanilla Dio apps register
+`DioHttpAdapter` manually. Raw `dart:io HttpClient` is invisible.
 
-- Only calls routed through an installed `TelescopeHttpAdapter` are captured. Raw `dart:io HttpClient` calls are
-  invisible.
-- `attributedHeuristically: true` appears on records when the adapter could not exactly match a response to its
-  request (concurrent in-flight calls). Attribution is best-effort FIFO.
-- Pair with `telescope_clear` to isolate the HTTP traffic of a specific user action.
+**Common pattern:** call right after a `dusk_tap` that submitted a
+form; filter the `records` array on `method == 'POST'` and a URL
+substring to find the call of interest.
 
 ---
 
-### telescope_exceptions
+## telescope_tail
 
-**VM extension:** `ext.telescope.exceptions`
-**Buffer:** `TelescopeStore.recentExceptions()`
-**Populated by:** `ExceptionWatcher` (opt-in; hooks `FlutterError.onError` + `PlatformDispatcher.instance.onError`)
+Structured log records from `package:logging`.
 
-Return recent uncaught exception records. Each record carries timestamp, exception type, message, and full
-stackTrace.
+**VM extension:** `ext.telescope.console`.
 
-**Input schema:**
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `limit` | integer | no | Maximum number of exception records to return, newest first. Omit for the whole buffer (cap: 500). |
-
-**Return shape:** JSON array of `ExceptionRecord` objects.
+**Input:**
 
 ```json
-[
-  {
-    "exceptionType": "StateError",
-    "message": "Bad state: no element",
-    "time": "2026-05-21T10:14:25.000Z",
-    "stackTrace": "#0 List.first (dart:core/list.dart:158)\n..."
-  }
-]
+{ "level": "WARNING", "limit": 50 }
 ```
 
-**Usage notes:**
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `level` | string | no filter | Minimum-threshold filter. Uppercase names from `package:logging` (`FINEST`, `FINER`, `FINE`, `CONFIG`, `INFO`, `WARNING`, `SEVERE`, `SHOUT`). Case-insensitive inside the handler. |
+| `limit` | integer | whole buffer | Cap on records returned. |
 
-- Covers uncaught exceptions only. `try / catch` blocks that swallow errors do NOT appear here.
-- Requires `ExceptionWatcher` to have been registered before the exception occurred.
-- Pair with `telescope_tail` (level="SEVERE") to see what the app logged around the crash.
-
----
-
-### telescope_events
-
-**VM extension:** `ext.telescope.events`
-**Buffer:** `TelescopeStore.recentEvents()`
-**Populated by:** `MagicEventWatcher` (Magic apps only)
-
-Return recent in-app event records. Each record carries timestamp, event class name, and a JSON snapshot of
-the event payload. Events are dispatched through Magic's `Event.dispatch()` facade.
-
-**Input schema:**
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `limit` | integer | no | Maximum number of event records to return, newest first. Omit for the whole buffer (cap: 500). |
-
-**Return shape:** JSON array of `EventRecord` objects.
+**Response:**
 
 ```json
-[
-  {
-    "eventClass": "MonitorChecked",
-    "payload": {"monitorId": "abc-123", "status": "up"},
-    "time": "2026-05-21T10:14:22.000Z"
-  }
-]
+{
+  "messages": [
+    {
+      "level": "WARNING",
+      "levelValue": 900,
+      "message": "User 42 reload returned no data",
+      "loggerName": "UserController",
+      "time": "2026-05-25T09:14:22.318Z",
+      "error": "...",
+      "stackTrace": "..."
+    }
+  ]
+}
 ```
 
-**Usage notes:**
+**Level threshold semantics:** `level: "WARNING"` returns WARNING (900)
++ SEVERE (1000) + SHOUT (1200) only. `level: "INFO"` adds INFO (800) on
+top. Omit `level` to get every level.
 
-- Only events dispatched via the Magic `Event` facade appear here. Raw `ChangeNotifier.notifyListeners` calls
-  are invisible.
-- Requires `MagicEventWatcher` (registered by `MagicTelescopeIntegration.install()`).
-- For gate checks use `telescope_gates`; for HTTP use `telescope_requests`.
-- CLI access: MCP-only in V1 (no `telescope:events` CLI command).
+**Capture gate:** `LogWatcher` sets `Logger.root.level = Level.ALL`,
+so every record is captured regardless of named-logger thresholds.
+The `level` filter only narrows what comes back from the buffer; the
+buffer itself still holds the lower-level records (re-querying without
+the filter recovers them).
+
+**Origin:** `LogWatcher` auto-installs as part of
+`TelescopePlugin.install()`. Always wired in a telescope-enabled app.
 
 ---
 
-### telescope_gates
+## telescope_exceptions
 
-**VM extension:** `ext.telescope.gates`
-**Buffer:** `TelescopeStore.recentGates()`
-**Populated by:** `MagicGateWatcher` (Magic apps only)
+Uncaught exception records.
 
-Return recent Gate authorization check records. Each record carries timestamp, ability name, result
-(allowed / denied), authenticated user ID, and the argument class name when one was provided.
+**VM extension:** `ext.telescope.exceptions`. **MCP-only**, no CLI
+mirror in V1.
 
-**Input schema:**
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `limit` | integer | no | Maximum number of gate check records to return, newest first. Omit for the whole buffer (cap: 500). |
-
-**Return shape:** JSON array of `GateRecord` objects.
+**Input:**
 
 ```json
-[
-  {
-    "ability": "monitors.destroy",
-    "result": "denied",
-    "userId": "user-456",
-    "argumentClass": "Monitor",
-    "time": "2026-05-21T10:14:23.000Z"
-  }
-]
+{ "limit": 5 }
 ```
 
-**Usage notes:**
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `limit` | integer | whole buffer | Cap on records returned. |
 
-- Only checks routed through Magic's `Gate.allows` / `Gate.denies` are captured. Direct policy class calls are
-  not recorded.
-- Requires `MagicGateWatcher` (registered by `MagicTelescopeIntegration.install()`).
-- Useful for debugging why a button is hidden or a route is blocked without modifying policy classes.
-- CLI access: MCP-only in V1 (no `telescope:gates` CLI command).
-
----
-
-### telescope_dumps
-
-**VM extension:** `ext.telescope.dumps`
-**Buffer:** `TelescopeStore.recentDumps()`
-**Populated by:** `DumpWatcher` (opt-in; overrides global `debugPrint`)
-
-Return recent debug print records. Each record carries timestamp and the full message string passed to
-`debugPrint`.
-
-**Input schema:**
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `limit` | integer | no | Maximum number of dump records to return, newest first. Omit for the whole buffer (cap: 500). |
-
-**Return shape:** JSON array of `DumpRecord` objects.
+**Response:**
 
 ```json
-[
-  {
-    "message": "MonitorController: polling interval set to 30s",
-    "time": "2026-05-21T10:14:20.000Z"
-  }
-]
+{
+  "exceptions": [
+    {
+      "exceptionType": "AuthorizationException",
+      "message": "Ability 'users.destroy' denied",
+      "time": "2026-05-25T09:14:22.318Z",
+      "stackTrace": "...",
+      "isolate": "main"
+    }
+  ]
+}
 ```
 
-**Usage notes:**
+**Capture surface:** `FlutterError.onError` and
+`PlatformDispatcher.instance.onError`, chained over any prior handler
+(Sentry / Bugsnag still receive the same throw). Swallowed `try /
+catch` is invisible by design; pair with `telescope_tail` to catch a
+breadcrumb the swallower logged.
 
-- Only output routed through `debugPrint` (the Flutter global override point) is captured. `dart:io stdout.write`
-  calls are invisible.
-- Requires `DumpWatcher` to have been registered (opt-in).
-- For structured logs use `telescope_tail`; for crashes use `telescope_exceptions`.
-- CLI access: MCP-only in V1 (no `telescope:dumps` CLI command).
+**Origin:** populated only when `ExceptionWatcher` is registered (opt-
+in via `TelescopePlugin.registerWatcher(ExceptionWatcher())`).
+`telescope:install` adds this line during bootstrap.
 
 ---
 
-### telescope_queries
+## telescope_events
 
-**VM extension:** `ext.telescope.queries`
-**CLI command:** `telescope:queries`
-**Buffer:** `TelescopeStore.recentQueries()`
-**Populated by:** `MagicQueryWatcher` (Magic apps only; subscribes to `QueryExecuted` event)
+In-app events dispatched through Magic's `Event` facade.
 
-Return recent database query records. Each record carries timestamp, SQL string, bindings list, execution time
-(ms), and connection name.
+**VM extension:** `ext.telescope.events`. **MCP-only**, no CLI mirror
+in V1.
 
-**Input schema:**
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `limit` | integer | no | Maximum number of query records to return, newest first. Omit for the whole buffer (cap: 500). |
-
-**Return shape:** JSON array of `QueryRecord` objects.
+**Input:**
 
 ```json
-[
-  {
-    "sql": "SELECT * FROM monitors WHERE team_id = ?",
-    "bindings": ["team-789"],
-    "timeMs": 4,
-    "connection": "default",
-    "time": "2026-05-21T10:14:22.000Z"
-  }
-]
+{ "limit": 10 }
 ```
 
-**Usage notes:**
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `limit` | integer | whole buffer | Cap on records returned. |
 
-- Only queries that go through Magic's QueryBuilder (dispatching `QueryExecuted` via the EventDispatcher) are
-  recorded. Raw sqlite3 / Dio SQL calls bypass this tool.
-- Requires `MagicQueryWatcher` (registered by `MagicTelescopeIntegration.install()`).
-- For Magic Cache traffic use `telescope_caches`; for HTTP use `telescope_requests`.
-
----
-
-### telescope_caches
-
-**VM extension:** `ext.telescope.caches`
-**CLI command:** `telescope:caches`
-**Buffer:** `TelescopeStore.recentCaches()`
-**Populated by:** `MagicCacheWatcher` (Magic apps only; subscribes to CacheHit / CacheMiss / CachePut /
-CacheForget / CacheFlush events)
-
-Return recent Magic Cache operation records. Each record carries timestamp, operation tag
-(`hit | miss | put | forget | flush`), cache key, and optional TTL.
-
-**Input schema:**
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `limit` | integer | no | Maximum number of cache records to return, newest first. Omit for the whole buffer (cap: 500). |
-
-**Return shape:** JSON array of `MagicCacheRecord` objects.
+**Response:**
 
 ```json
-[
-  {
-    "key": "monitors.team-789",
-    "tag": "miss",
-    "time": "2026-05-21T10:14:21.000Z"
-  },
-  {
-    "key": "monitors.team-789",
-    "tag": "put",
-    "ttl": 300,
-    "time": "2026-05-21T10:14:21.000Z"
-  }
-]
+{
+  "events": [
+    {
+      "eventType": "AuthLoginSucceeded",
+      "payload": {},
+      "time": "2026-05-25T09:14:22.318Z",
+      "listenerCount": 3
+    }
+  ]
+}
 ```
 
-**Usage notes:**
+**Coverage:** `MagicEventWatcher` listens for `AuthLogin`,
+`AuthLogout`, `AuthFailed`, `AuthRestored`, `DatabaseConnected`,
+`GateAbilityDefined`, `GateBeforeRegistered`, plus `ModelCreated`,
+`ModelSaved`, `ModelDeleted`. To inspect Magic model lifecycle from
+the agent, query this buffer and filter on `eventType` containing
+`Model`.
 
-- Only `Magic.Cache` facade calls dispatch these events. Raw driver-level cache calls bypass this tool.
-- Requires `MagicCacheWatcher` (registered by `MagicTelescopeIntegration.install()`).
-- For DB queries use `telescope_queries`; for HTTP use `telescope_requests`.
+`payload` is `{}` in the V1 release (placeholder; structured payload
+extraction is V1.x backlog). Raw
+`ChangeNotifier.notifyListeners` calls are not captured.
 
----
-
-### telescope_clear
-
-**VM extension:** `ext.telescope.clear`
-**CLI command:** `telescope:clear`
-**Buffer:** all 9 buffers simultaneously
-
-Clear every Telescope ring buffer (http, logs, exceptions, events, gates, dumps, queries, caches, models) in one
-call. Use as a "set zero" before reproducing a bug so the next read returns only records produced after the clear.
-
-**Input schema:** no parameters.
-
-**Return shape:** empty JSON object `{}` (acknowledgment).
-
-**Usage notes:**
-
-- Idempotent: safe to call when buffers are already empty.
-- Does NOT affect the live `package:logging` stream; only the captured ring buffers.
-- Does NOT pause recording. New records start accumulating immediately after the clear.
+**Origin:** requires `MagicTelescopeIntegration.install()`. Without
+it the buffer stays empty.
 
 ---
 
-## Tool summary table
+## telescope_gates
 
-| Tool | VM extension | CLI command | Requires watcher | limit param |
-|------|-------------|-------------|-----------------|-------------|
-| `telescope_tail` | `ext.telescope.console` | `telescope:tail` | `LogWatcher` (auto) | yes |
-| `telescope_requests` | `ext.telescope.requests` | `telescope:requests` | `DioHttpAdapter` or `MagicHttpFacadeAdapter` | yes |
-| `telescope_exceptions` | `ext.telescope.exceptions` | - | `ExceptionWatcher` (opt-in) | yes |
-| `telescope_events` | `ext.telescope.events` | - | `MagicEventWatcher` (Magic) | yes |
-| `telescope_gates` | `ext.telescope.gates` | - | `MagicGateWatcher` (Magic) | yes |
-| `telescope_dumps` | `ext.telescope.dumps` | - | `DumpWatcher` (opt-in) | yes |
-| `telescope_queries` | `ext.telescope.queries` | `telescope:queries` | `MagicQueryWatcher` (Magic) | yes |
-| `telescope_caches` | `ext.telescope.caches` | `telescope:caches` | `MagicCacheWatcher` (Magic) | yes |
-| `telescope_clear` | `ext.telescope.clear` | `telescope:clear` | none | no |
+Gate authorization checks.
 
-Pause and resume VM extensions (`ext.telescope.pause`, `ext.telescope.resume`) are registered in the app but NOT
-surfaced as MCP tools in V1. They remain backlog.
+**VM extension:** `ext.telescope.gates`. **MCP-only**, no CLI mirror
+in V1.
+
+**Input:**
+
+```json
+{ "limit": 20 }
+```
+
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `limit` | integer | whole buffer | Cap on records returned. |
+
+**Response:**
+
+```json
+{
+  "gates": [
+    {
+      "ability": "users.destroy",
+      "result": false,
+      "arguments": ["User#42"],
+      "time": "2026-05-25T09:14:22.318Z",
+      "userId": "user_7"
+    }
+  ]
+}
+```
+
+**Coverage:** every `Gate.allows(...)` / `Gate.denies(...)` call.
+`result` is the bool the facade returned; `arguments` is the list
+passed positionally (each entry serialized as its `runtimeType.toString()`
+unless it has its own `toJson`). `userId` is the authenticated user's
+id at the time of the check (string-stringified), or absent for guest.
+
+**Origin:** requires `MagicTelescopeIntegration.install()`.
+
+---
+
+## telescope_dumps
+
+`debugPrint` captures.
+
+**VM extension:** `ext.telescope.dumps`. **MCP-only**, no CLI mirror in
+V1.
+
+**Input:**
+
+```json
+{ "limit": 50 }
+```
+
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `limit` | integer | whole buffer | Cap on records returned. |
+
+**Response:**
+
+```json
+{
+  "dumps": [
+    {
+      "message": "UserController: rxState=loaded",
+      "time": "2026-05-25T09:14:22.318Z",
+      "wrapWidth": 80
+    }
+  ]
+}
+```
+
+**Capture surface:** global `debugPrint` override that chains the
+prior implementation. Only calls that go through the `debugPrint`
+callback are captured. Plain Dart `print(...)` does NOT route through
+`debugPrint`, so `print("...")` output is invisible to this buffer;
+callers must use `debugPrint(...)` to land in `telescope_dumps`. Raw
+`dart:io stdout.write` and `stderr.write` are also invisible.
+
+**Origin:** populated only when `DumpWatcher` is registered (opt-in
+via `TelescopePlugin.registerWatcher(DumpWatcher())`).
+`telescope:install` adds this line during bootstrap. The watcher
+self-gates on `kDebugMode` and never captures in release builds.
+
+---
+
+## telescope_queries
+
+DB queries via Magic's QueryBuilder.
+
+**VM extension:** `ext.telescope.queries`.
+
+**Input:**
+
+```json
+{ "limit": 50 }
+```
+
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `limit` | integer | whole buffer | Cap on records returned. |
+
+**Response:**
+
+```json
+{
+  "queries": [
+    {
+      "sql": "SELECT * FROM users WHERE team_id = ?",
+      "bindings": ["team_3"],
+      "timeMs": 4,
+      "connectionName": "default",
+      "time": "2026-05-25T09:14:22.318Z"
+    }
+  ]
+}
+```
+
+**Coverage:** every query dispatched via `MagicQueryWatcher` listening
+on the `QueryExecuted` event. Raw `sqlite3` / `drift` / `package:sqflite`
+calls are invisible.
+
+**Origin:** requires `MagicTelescopeIntegration.install()`.
+
+---
+
+## telescope_caches
+
+Magic Cache operations.
+
+**VM extension:** `ext.telescope.caches`.
+
+**Input:**
+
+```json
+{ "limit": 20 }
+```
+
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `limit` | integer | whole buffer | Cap on records returned. |
+
+**Response:**
+
+```json
+{
+  "caches": [
+    {
+      "operation": "hit",
+      "key": "team:3:users",
+      "time": "2026-05-25T09:14:22.318Z",
+      "ttlMs": 300000
+    }
+  ]
+}
+```
+
+`operation` is one of `put`, `hit`, `miss`, `forget`, `flush`. `ttlMs`
+is the TTL in milliseconds (converted from `Duration` on the producer
+side); absent for operations that do not carry a TTL.
+
+**Current state:** placeholder. Magic's `Cache` facade does not yet
+emit the cache events `MagicCacheWatcher` subscribes to, so this
+buffer reads as `{"caches": []}` in current builds. The watcher is
+wired and ready for when Magic ships the events.
+
+**Origin:** requires `MagicTelescopeIntegration.install()` (when
+events ship).
+
+---
+
+## telescope_clear
+
+Wipe all 9 ring buffers atomically.
+
+**VM extension:** `ext.telescope.clear`.
+
+**Input:**
+
+```json
+{}
+```
+
+No parameters.
+
+**Response:**
+
+```json
+{ "cleared": true }
+```
+
+Idempotent: safe to call when buffers are already empty. Does NOT
+affect live subscriptions (`package:logging` Logger streams, the
+`onXRecord` broadcast streams inside the running app); only the
+captured ring buffers are emptied.
+
+`ext.telescope.pause` and `ext.telescope.resume` exist as VM
+extensions for completeness but are deliberately not surfaced as MCP
+tools in V1. Reach for them only from Dart code via
+`TelescopeStore.pause()` / `.resume()` in a custom helper.
+
+---
+
+## Common semantics
+
+- **Envelope wrapping.** MCP returns the JSON object as a single
+  `text` content block: `{ "content": [{ "type": "text", "text":
+  "<json string>" }], "isError": false }`. Parse the `text` body as
+  JSON before reasoning over fields.
+
+- **Tool naming.** Tools surface to the model as
+  `mcp__fluttersdk__telescope_<name>` (the `.mcp.json` server key is
+  `fluttersdk`). The `telescope_` prefix is part of the tool name, not
+  the server.
+
+- **Ordering.** Records come back in chronological order (oldest at
+  index 0). The handler does not reverse the queue. Iterate from the
+  end for newest-first.
+
+- **Cap.** Each ring buffer holds 500 records by default; older
+  entries evict silently on overflow. Without `limit`, the response
+  carries up to 500 records per buffer.
+
+- **Bad input is silent.** Invalid `limit` (non-numeric string)
+  coerces to null, returning the whole buffer. Invalid `level` (a name
+  not in the `package:logging` order list) is also lenient and returns
+  the whole buffer, not empty: `_meetsLevel` resolves the threshold
+  with `List.indexOf` and falls back to `-1` on a miss, so every
+  captured level (indices 0..7) passes the `actual >= min` check. No
+  error envelope is emitted; the handler always returns
+  `ServiceExtensionResponse.result`.
+
+- **Hot-restart safety.** All 11 extensions register via
+  `registerExtensionIdempotent` from `fluttersdk_artisan`. Hot
+  restart re-runs the install code without re-registration errors.
+
+- **Pause / resume gating.** When `TelescopeStore.pause()` is called
+  (no MCP tool, Dart-only), all `recordX` methods early-return. The
+  buffers retain their existing records; reading still works.
+  `resume()` re-enables recording.
+
+---
+
+## Empty-buffer diagnosis
+
+When a tool returns an empty array on an active app, the watcher /
+adapter is the most likely missing piece:
+
+| Tool empty | Likely cause | Fix |
+|---|---|---|
+| `telescope_requests` | No `TelescopeHttpAdapter` registered | Call `MagicTelescopeIntegration.install()` (Magic) or `TelescopePlugin.registerHttpAdapter(DioHttpAdapter(dio))` (vanilla). |
+| `telescope_tail` | `LogWatcher` not auto-installed (very rare; only if `TelescopePlugin.install()` was skipped) | Confirm `TelescopePlugin.install()` runs inside the `kDebugMode` block in `main.dart`. |
+| `telescope_exceptions` | `ExceptionWatcher` not registered | Add `TelescopePlugin.registerWatcher(ExceptionWatcher())`. |
+| `telescope_dumps` | `DumpWatcher` not registered, or the code uses `dart:io stdout.write` | Add `TelescopePlugin.registerWatcher(DumpWatcher())`; rewrite calls to `debugPrint`. |
+| `telescope_events` | `MagicTelescopeIntegration.install()` not called | Add the call after `Magic.init()` inside the `kDebugMode` block. |
+| `telescope_gates` | Same as events | Same fix. |
+| `telescope_queries` | Same as events, or queries use `sqlite3` directly | Same fix; or migrate the call to the Magic QueryBuilder. |
+| `telescope_caches` | Magic does not yet emit cache events (V1 placeholder) | Wait for Magic to ship cache events; nothing to fix in telescope. |
+
+If every tool reads empty: the app is not running, the VM Service is
+not reachable, or `TelescopePlugin.install()` itself was skipped.
+Confirm with `./bin/fsa status`.

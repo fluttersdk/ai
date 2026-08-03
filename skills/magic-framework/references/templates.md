@@ -333,16 +333,14 @@ import 'package:magic/magic.dart';
 
 class EnsureAuthenticated extends MagicMiddleware {
     @override
-    Future<void> handle(void Function() next) async {
-        if (Auth.check()) {
-            next(); // Proceed to next middleware or route
-        } else {
-            MagicRouter.instance.setIntendedUrl(
-                MagicRouter.instance.currentLocation ?? '/',
-            );
-            MagicRoute.replace('/login');
-            // Do NOT call next() -- halts pipeline
+    String? redirectTarget(String location) {
+        // Evaluated pre-build in the router redirect; the destination
+        // view mounts exactly once. Return null to allow navigation.
+        if (!Auth.check() && location != '/login') {
+            MagicRouter.instance.setIntendedUrl(location);
+            return '/login';
         }
+        return null;
     }
 }
 ```

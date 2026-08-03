@@ -5,7 +5,7 @@ Deep link handling plugin for Magic Framework — wraps `app_links` with a handl
 ## Installation
 
 ```bash
-dart run magic_deeplink install
+dart run magic:artisan deeplink:install
 ```
 
 Scaffolds `lib/config/deeplink.dart`, injects `DeeplinkServiceProvider` into `lib/config/app.dart`, and injects `deeplinkConfig` into `lib/main.dart`.
@@ -124,7 +124,7 @@ No manual registration needed when using `magic_notifications`.
 
 ## Configuration
 
-Scaffolded to `lib/config/deeplink.dart` by `dart run magic_deeplink install`. The `ios` and `android` sub-keys are only read by `dart run magic_deeplink:generate` — they are not used at runtime.
+Scaffolded to `lib/config/deeplink.dart` by `dart run magic:artisan deeplink:install`. The `ios` and `android` sub-keys are only read by `dart run magic:artisan deeplink:generate` — they are not used at runtime.
 
 ```dart
 Map<String, dynamic> get deeplinkConfig => {
@@ -155,7 +155,7 @@ Map<String, dynamic> get deeplinkConfig => {
 
 ## ServiceProvider
 
-`DeeplinkServiceProvider` is **NOT auto-registered** — add it explicitly or use `dart run magic_deeplink install` which does this automatically.
+`DeeplinkServiceProvider` is **NOT auto-registered** — add it explicitly or use `dart run magic:artisan deeplink:install` which does this automatically.
 
 **register()**: Binds `DeeplinkManager()` as a singleton under key `'deeplinks'`.
 
@@ -179,8 +179,8 @@ final appConfig = {
 ### install
 
 ```bash
-dart run magic_deeplink install
-dart run magic_deeplink install --force   # Overwrite existing config
+dart run magic:artisan deeplink:install
+dart run magic:artisan deeplink:install --force   # Overwrite existing config
 ```
 
 Writes `lib/config/deeplink.dart`, injects `DeeplinkServiceProvider` into `lib/config/app.dart`, and injects `deeplinkConfig` factory into `lib/main.dart`.
@@ -188,8 +188,8 @@ Writes `lib/config/deeplink.dart`, injects `DeeplinkServiceProvider` into `lib/c
 ### generate
 
 ```bash
-dart run magic_deeplink generate --output ./public
-dart run magic_deeplink generate \
+dart run magic:artisan deeplink:generate --output ./public
+dart run magic:artisan deeplink:generate \
   --team-id ABCDE12345 \
   --bundle-id com.example.app \
   --package-name com.example.app \

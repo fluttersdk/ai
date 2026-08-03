@@ -1,8 +1,8 @@
 {
     "$schema": "https://json.schemastore.org/claude-code-marketplace.json",
     "name": "fluttersdk-marketplace",
-    "version": "1.3.0",
-    "description": "FlutterSDK community AI skills for Flutter development — Wind UI styling, Magic Framework architecture, and more",
+    "version": "1.4.0",
+    "description": "FlutterSDK community AI skills for Flutter development: Wind UI styling, Magic Framework architecture, and more",
     "owner": {
         "name": "Anilcan Cakir",
         "email": "anilcan.cakir@gmail.com"
@@ -10,9 +10,9 @@
     "plugins": [
         {
             "name": "fluttersdk",
-            "description": "FlutterSDK AI skills — Wind UI utility-first styling and Magic Framework Laravel-inspired architecture for Flutter",
+            "description": "FlutterSDK AI skills: Wind UI utility-first styling and Magic Framework Laravel-inspired architecture for Flutter",
             "source": "./",
-            "version": "1.3.0",
+            "version": "1.4.0",
             "author": {
                 "name": "Anilcan Cakir",
                 "email": "anilcan.cakir@gmail.com"

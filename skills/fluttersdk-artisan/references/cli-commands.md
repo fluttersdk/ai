@@ -1,8 +1,9 @@
-# CLI commands (the 11 not in the MCP allowlist)
+# CLI commands (the 12 not in the MCP allowlist)
 
-Of the 21 builtin commands in `fluttersdk_artisan`, only 10 surface as
-MCP tools (allowlist at `lib/src/mcp/mcp_server.dart:871-882`). The other
-11 are CLI-only. This file documents each: flag set, defaults, output
+Of the 22 builtin commands in `fluttersdk_artisan`, only 10 surface as
+MCP tools (the `_safeArtisanCommandNames` allowlist in
+`lib/src/mcp/mcp_server.dart`). The other
+12 are CLI-only. This file documents each: flag set, defaults, output
 shapes, exit codes, and the Bash form the agent should call.
 
 The allowlist excludes a command for one of five reasons:
@@ -75,10 +76,10 @@ Files produced (atomic write via `.tmp` + rename):
 | `lib/app/_plugins.g.dart` | Generated plugin provider barrel; empty `autoDiscoveredProviders()` thunk until `plugin:install` populates `.artisan/plugins.json`. |
 | `lib/app/commands/_index.g.dart` | Generated command index for consumer-authored commands; empty until `make:command`. |
 
-Pubspec mutation: adds `fluttersdk_artisan: ^0.0.5` (pub.dev consumers)
-or `fluttersdk_artisan: { path: ... }` (monorepo `path:` auto-detected
-via `.dart_tool/package_config.json` rootUri). Re-running is idempotent
-unless `--force`.
+Pubspec mutation: adds `fluttersdk_artisan: any` (pub.dev consumers, so the
+next `pub get` pulls the published package) or `fluttersdk_artisan: { path: ... }`
+(monorepo `path:` auto-detected via `.dart_tool/package_config.json` rootUri).
+Re-running is idempotent unless `--force`.
 
 Auto-chains to `make:fast-cli` so `./bin/fsa` is compiled and ready
 after `install` returns.
@@ -236,7 +237,7 @@ against the freshly-regenerated barrel.
 
 ## plugin:install
 
-- **Signature**: `plugin:install <name> [--dry-run] [--force] [--use-yaml-only] [--provider=<C>] [--bootstrap-command=<cmd>]`
+- **Signature**: `plugin:install <name> [--dry-run] [--force] [--non-interactive] [--no-bootstrap] [--use-yaml-only] [--provider=<C>] [--bootstrap-command=<cmd>]`
 - **Group**: plugin management
 - **Boot**: `none`
 - **Allowlisted**: no (interactive prompts for destructive ops)
@@ -247,7 +248,12 @@ Install a plugin. Dispatches in three routing modes
 1. **Manifest flow** (preferred): plugin ships `install.yaml` at package
    root. Parse, walk `ManifestInstaller`, commit atomically, record at
    `.artisan/installed/<plugin>.json`, register in `.artisan/plugins.json`,
-   regen `lib/app/_plugins.g.dart`.
+   regen `lib/app/_plugins.g.dart`. When the manifest declares a
+   `bootstrap_command`, it AUTO-RUNS after registration as a fresh dispatcher
+   subprocess (`./bin/fsa <cmd> --non-interactive`, or `dart run
+   <consumer>:artisan <cmd> --non-interactive` when no `bin/fsa`). `--no-bootstrap`
+   skips the auto-run (falls back to a hint); `--bootstrap-command=<cmd>`
+   overrides the manifest value.
 2. **Magic-free canonical fast path**: no manifest, but
    `lib/app/_plugins.g.dart` exists (canonical scaffold from `install`).
    Skip legacy injection; write directly to `plugins.json` + refresh.
@@ -420,7 +426,7 @@ without `--force`.
 ## Reading the 21-command surface from `artisan_list`
 
 Use `artisan_list` (MCP) or `./bin/fsa list` (CLI) to see the live
-catalog. The 11 CLI-only commands appear under these namespaces:
+catalog. The 12 CLI-only commands appear under these namespaces:
 
 - root: `help`, `install`
 - `commands:`: `commands:refresh`

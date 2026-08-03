@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>AI coding skills for the FlutterSDK ecosystem.</strong><br/>
-  Teach your AI assistant Wind UI, Magic Framework, and more — across every major coding tool.
+  Teach your AI assistant Wind UI, Magic Framework, and more, across every major coding tool.
 </p>
 
 <p align="center">
@@ -25,9 +25,9 @@
 
 ## Why?
 
-AI coding assistants are powerful — but they don't know your frameworks. They hallucinate widget names, guess at API patterns, and miss conventions.
+AI coding assistants are powerful, but they don't know your frameworks. They hallucinate widget names, guess at API patterns, and miss conventions.
 
-**FlutterSDK AI fixes this.** It gives your AI structured knowledge about Wind UI's className system, Magic Framework's Laravel-inspired architecture, and more — so it generates correct code on the first try.
+**FlutterSDK AI fixes this.** It gives your AI structured knowledge about Wind UI's className system, Magic Framework's Laravel-inspired architecture, and more, so it generates correct code on the first try.
 
 One install, every tool:
 
@@ -47,13 +47,13 @@ One install, every tool:
 
 Five skills are available. See [docs/SKILLS.md](docs/SKILLS.md) for full descriptions.
 
-| Skill | Version | What it covers |
-|:------|:--------|:---------------|
-| `wind-ui` | 1.0.0-alpha.6 | W-prefix widgets, `className` utility system, dark mode, responsive breakpoints |
-| `magic-framework` | 1.0.0-alpha.13 | IoC container, 17 facades, Eloquent ORM, GoRouter, forms, testing |
-| `fluttersdk-dusk` | 0.0.2 | E2E driver: 31 MCP tools to snap, tap, type, screenshot a running Flutter app |
-| `fluttersdk-telescope` | 0.0.1 | Runtime inspector: 9 ring buffers for HTTP, logs, exceptions, DB queries |
-| `fluttersdk-artisan` | 0.0.1 | CLI framework + stdio MCP server, 21 commands, plugin scaffold, `artisan_tinker` |
+| Skill | Package | Skill doc | What it covers |
+|:------|:--------|:----------|:---------------|
+| `wind-ui` | `fluttersdk_wind` 1.3.0 | 2.11.0 | 27 W-prefix widgets, the 20-parser `className` pipeline, `WindRecipe` variants, dark mode, responsive breakpoints, design culture |
+| `magic-framework` | `magic` 0.0.6 | 0.1.4 | IoC container, 18 facades, Eloquent ORM, GoRouter routing, forms, auth, testing, 5 ecosystem plugins |
+| `fluttersdk-dusk` | `fluttersdk_dusk` 0.0.9 | 0.0.9 | E2E driver: 33 MCP tools and 34 CLI commands to snap, tap, type, screenshot a running Flutter app |
+| `fluttersdk-telescope` | `fluttersdk_telescope` 0.0.4 | 0.0.4 | Runtime inspector: 9 MCP tools and 6 CLI commands over 9 ring buffers (HTTP, logs, exceptions, DB queries) |
+| `fluttersdk-artisan` | `fluttersdk_artisan` 0.0.9 | 0.0.3 | CLI framework + stdio MCP server: 10 substrate MCP tools, 21 builtin commands, `artisan_tinker` |
 
 ## MCP Server
 
@@ -74,7 +74,7 @@ The npx bridge proxies stdio to the upstream HTTP server transparently.
 
 ### Option 1: `npx skills` (Recommended)
 
-The fastest way — works with [40+ AI coding agents](https://github.com/vercel-labs/skills).
+The fastest way, works with [40+ AI coding agents](https://github.com/vercel-labs/skills).
 
 ```bash
 # Install all FlutterSDK skills to all detected agents
@@ -195,21 +195,21 @@ skills/index.json              ← OpenCode fetches this from GitHub Pages
 
 1. Create `skills/<skill-name>/SKILL.md` with YAML frontmatter (`name`, `description`)
 2. Add reference files in `skills/<skill-name>/references/`
-3. Update `skills/index.json` — list **every** file in the `files` array
+3. Update `skills/index.json`: list **every** file in the `files` array
 4. Bump version in `.claude-plugin/plugin.json` and `.claude-plugin/marketplace.json`
 5. Push to `main`
 
 See [CLAUDE.md](CLAUDE.md) for the full specification.
 
-> **Important**: Every file must be listed in `index.json` — OpenCode only downloads listed files. Forgetting a file means users get incomplete skills.
+> **Important**: Every file must be listed in `index.json`: OpenCode only downloads listed files. Forgetting a file means users get incomplete skills.
 
 ## License
 
-MIT — see [LICENSE](LICENSE) for details.
+MIT, see [LICENSE](LICENSE) for details.
 
 ---
 
 <p align="center">
   <sub>Built with care by <a href="https://github.com/fluttersdk">FlutterSDK</a></sub><br/>
-  <sub>If this saves you time, <a href="https://github.com/fluttersdk/ai">give it a star</a> — it helps others discover it.</sub>
+  <sub>If this saves you time, <a href="https://github.com/fluttersdk/ai">give it a star</a>, it helps others discover it.</sub>
 </p>

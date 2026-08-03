@@ -16,8 +16,8 @@ For interactive agent loops, MCP is faster (no process spawn per call).
 | Form | Startup | When to use |
 |---|---|---|
 | `./bin/fsa <cmd>` | ~110ms warm AOT | Default; what `dusk:install` scaffolds |
-| `dart run fluttersdk_dusk <cmd>` | ~3s cold | When `./bin/fsa` is missing |
-| `dart run fluttersdk_artisan <cmd>` | ~3s cold | Substrate-level commands without dusk |
+| `dart run fluttersdk_dusk <cmd>` | ~3s cold | When `./bin/fsa` is missing; preloads `DuskArtisanProvider` so `dusk:*` commands are available |
+| `dart run fluttersdk_artisan <cmd>` | ~3s cold | Substrate-level commands without dusk (bypasses the dusk wrapper) |
 
 `./bin/fsa` auto-rebuilds when stale (4-condition check); manual force
 rebuild: `rm -rf .artisan/cli-bundle .artisan/build.stamp && ./bin/fsa list`.
@@ -117,7 +117,19 @@ Returns `{ "ref": "q3", "matched": true }` or `{ "ref": null, "matched": false }
 ./bin/fsa dusk:press_key --key=Tab --modifiers=shift
 ./bin/fsa dusk:focus --ref=e4
 ./bin/fsa dusk:blur
+
+./bin/fsa dusk:fill --ref=e4 --text="user@example.com"   # focus + clear + type + settle
+./bin/fsa dusk:fill --ref=q3 --text=""                   # clear the field
+./bin/fsa dusk:fill --ref=e4 --text="x" --includeSnapshot
 ```
+
+`dusk:fill` replaces the focus + clear + type + wait sequence and retries
+once when the ref goes stale mid-fill, so it is the default for entering
+text. `--ref` and `--text` are both mandatory. `--includeSnapshot` defaults
+to FALSE on the CLI while the `dusk_fill` MCP tool defaults it to true;
+pass it explicitly when you want the post-fill tree from Bash.
+`--no-checkStable` and `--no-checkReceivesEvents` skip the matching
+actionability steps, same as on the other gestures.
 
 ### Form controls
 
@@ -153,7 +165,16 @@ running app; without it, it returns immediately as `matched: true`.
 ./bin/fsa dusk:navigate_back
 ./bin/fsa dusk:get_routes
 ./bin/fsa dusk:modal                                            # dismiss every PopupRoute
+./bin/fsa dusk:reset_overlays                                   # pop + Escape + Cancel-tap
 ```
+
+`dusk:modal` only pops `PopupRoute` subclasses. `dusk:reset_overlays` runs
+three escalating layers instead (pop every `PopupRoute`, press Escape, then
+tap a Cancel / Dismiss / Close / OK / Done affordance), each a no-op once the
+screen is clear, and returns `{popped, escaped, dismissTapped}` so you can
+see which layer did the work. It is idempotent, so it is safe to call
+speculatively between flows; reach for it when the overlay is not a
+`PopupRoute` (a custom `OverlayEntry`, a dropdown menu, a barrier dialog).
 
 ### Diagnostics
 
@@ -202,7 +223,9 @@ dart run fluttersdk_dusk dusk:install                           # one-time setup
 
 `dusk:install` patches `lib/main.dart` (adds `kDebugMode` guard +
 `DuskPlugin.install()`), scaffolds `./bin/fsa`, registers the provider in
-`lib/app/_plugins.g.dart`, and (when magic is in pubspec) injects
+`lib/app/_plugins.g.dart`, and (when `magic_devtools` is in pubspec AND
+`lib/main.dart` contains an `await Magic.init(` anchor) injects
+`import 'package:magic_devtools/dusk.dart';` and
 `MagicDuskIntegration.install()` after `Magic.init()`. Idempotent.
 
 `dusk:doctor` checks:

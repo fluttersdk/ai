@@ -2,33 +2,37 @@
     "skills": [
         {
             "name": "wind-ui",
-            "description": "Build Flutter UI with Wind's utility-first className system. W-prefix widgets, design culture, enforcement gates, theming, component-first workflow.",
+            "description": "fluttersdk_wind 1.3: utility-first Flutter styling with Tailwind-syntax className strings. 27 W-prefix widgets (WDiv, WText, WButton, WInput, WSelect, WDatePicker, WPopover, WCard, WTabs, plus five WForm* wrappers) parse className into a cached immutable WindStyle; WindRecipe and WindSlotRecipe compose variant classNames. Prefixes stack freely (dark: / hover: / focus: / md: / ios: / selected: / disabled: / custom), the last class in a family wins, an unrecognized token drops with a one-time kDebugMode hint, and every color token carries a dark: peer in the same className. TRIGGER when: writing or editing UI in a Flutter app that depends on fluttersdk_wind; any className string; any W-prefix widget; any WindTheme or WindThemeData reference; the user mentions Tailwind for Flutter, utility-first, className, or wind-ui. DO NOT TRIGGER when: backend, API, or state-management work that never touches a widget tree; a Flutter project without fluttersdk_wind in pubspec.yaml; Material-only widgets (Scaffold, AppBar, Dialog) with no Wind content inside.",
             "files": [
                 "SKILL.md",
-                "references/component-patterns.md",
+                "references/community.md",
+                "references/debug.md",
                 "references/design-culture.md",
-                "references/design-tokens.md",
-                "references/form-patterns.md",
-                "references/layout-patterns.md",
-                "references/theme-setup.md",
+                "references/dynamic.md",
+                "references/forms.md",
+                "references/layouts.md",
+                "references/tailwind-divergence.md",
+                "references/theme.md",
                 "references/tokens.md",
                 "references/widgets.md"
             ]
         },
         {
             "name": "magic-framework",
-            "description": "Magic Framework: Flutter IoC + 18 Facades (Auth, Http, Cache, DB, Echo, Log, Event, Gate, Session, MagicRoute...), Eloquent ORM, FormRequest, Gate abilities, resource routing, async validation, Service Providers, testing, 4 plugins.",
+            "description": "Write correct, idiomatic code in a Flutter app that depends on the `magic` framework (Laravel-inspired: IoC container, 18 facades, Eloquent-style ORM, service providers, reactive controllers, GoRouter routing, validation, auth, broadcasting). Use whenever code imports `package:magic/magic.dart` or `package:magic/testing.dart`, or the work touches Magic.init, MagicApp, a facade (Auth/Http/Cache/DB/Echo/Event/Gate/Config/Lang/Launch/Log/Pick/MagicRoute/Schema/Session/Storage/Vault/Crypt), a Model, MagicController, a MagicView, MagicFormData, FormRequest, a ServiceProvider, a migration, or the artisan make:* CLI. UI styling is Wind (separate wind-ui skill). Do NOT use for plain Flutter or Wind-only work with no magic import.",
             "files": [
                 "SKILL.md",
                 "references/auth-system.md",
                 "references/bootstrap-lifecycle.md",
                 "references/cli-commands.md",
+                "references/community.md",
                 "references/controllers-views.md",
                 "references/eloquent-orm.md",
                 "references/facades-api.md",
                 "references/forms-validation.md",
                 "references/http-network.md",
                 "references/plugin-deeplink.md",
+                "references/plugin-devtools.md",
                 "references/plugin-notifications.md",
                 "references/plugin-social-auth.md",
                 "references/plugin-starter.md",
@@ -40,7 +44,7 @@
         },
         {
             "name": "fluttersdk-dusk",
-            "description": "fluttersdk_dusk: E2E driver for Flutter apps that lets an LLM agent see (snap, observe, screenshot) and act (tap, type, drag, scroll, navigate) on a running Flutter app via 31 MCP tools (`dusk_*`) and 32 matching CLI commands (`./bin/fsa dusk:*`). Snapshots emit a YAML Semantics tree with stable `[ref=eN]` tokens; `dusk_find` and `dusk_observe` mint re-resolvable `q<N>` query handles. Every gesture passes a 6-step actionability gate with substring-parseable failure reasons (`not enabled`, `zero rect`, `off-viewport`, `not stable`, `obscured by`, `defunct`). TRIGGER when: any `dusk_*` MCP tool call, any `dusk:*` CLI command, `./bin/fsa` invocation, the user asks the agent to drive / inspect / test / debug a running Flutter app, the user mentions snap / observe / actionability / ref / eN / qN, or the conversation touches end-to-end testing of a Flutter UI. DO NOT TRIGGER when: only authoring `flutter_test` widget tests, only reading telescope ring buffers without driving the UI (use fluttersdk-telescope), or only modifying Dart source without running it.",
+            "description": "fluttersdk_dusk: E2E driver for Flutter apps that lets an LLM agent see (snap, observe, screenshot) and act (tap, type, drag, scroll, navigate) on a running Flutter app via 33 MCP tools (`dusk_*`) and 34 matching CLI commands (`./bin/fsa dusk:*`). Snapshots emit a YAML Semantics tree with stable `[ref=eN]` tokens; `dusk_find` and `dusk_observe` mint re-resolvable `q<N>` query handles. Every gesture passes a 6-step actionability gate with substring-parseable failure reasons (`not enabled`, `zero rect`, `off-viewport`, `not stable`, `obscured by`, `defunct`). TRIGGER when: any `dusk_*` MCP tool call, any `dusk:*` CLI command, `./bin/fsa` invocation, the user asks the agent to drive / inspect / test / debug a running Flutter app, the user mentions snap / observe / actionability / ref / eN / qN, or the conversation touches end-to-end testing of a Flutter UI. DO NOT TRIGGER when: only authoring `flutter_test` widget tests, only reading telescope ring buffers without driving the UI (use fluttersdk-telescope), or only modifying Dart source without running it.",
             "files": [
                 "SKILL.md",
                 "references/actionability-and-refs.md",
@@ -52,19 +56,23 @@
         },
         {
             "name": "fluttersdk-telescope",
-            "description": "fluttersdk_telescope: runtime inspector plugin for Flutter apps. Captures HTTP traffic, structured logs, uncaught exceptions, Magic Model lifecycle events, Magic Cache operations, in-app events, Gate authorization checks, debugPrint output, and DB queries into 9 in-memory ring buffers. Surfaces all 9 buffers as VM Service extensions (ext.telescope.*) and exposes 9 MCP tools (telescope_*) for LLM-agent inspection without modifying app code or attaching DevTools. Plugin of fluttersdk_artisan: contributes 6 CLI commands and 9 MCP tools via TelescopeArtisanProvider. TRIGGER when: package:fluttersdk_telescope import, TelescopePlugin.install() call, TelescopeWatcher / TelescopeHttpAdapter mention, ext.telescope.* VM extension, telescope_* MCP tool call, or user asks about inspecting HTTP, logs, exceptions, or Magic framework state in a running Flutter app. DO NOT TRIGGER when code only uses fluttersdk_artisan substrate tools without telescope.",
+            "description": "fluttersdk_telescope: passive runtime inspector for Flutter apps. Lets an LLM agent read what the app captured (HTTP traffic, structured logs, uncaught exceptions, debug dumps, in-app events, gate checks, DB queries, Magic Cache ops) by calling 9 MCP tools (`telescope_*`) or 6 CLI commands (`./bin/fsa telescope:*`). Records land in 9 in-memory ring buffers (500 entries each, FIFO eviction) backed by `ext.telescope.*` VM Service extensions. Pairs with fluttersdk_dusk: dusk drives the app, telescope reads the side effects. TRIGGER when: any `telescope_*` MCP tool call, any `telescope:*` CLI command, the user asks the agent to inspect HTTP / logs / exceptions / events / queries / cache / dump output from a running Flutter app, the user mentions ring buffer / TelescopeStore / ext.telescope, or the conversation pairs with dusk for state verification after a gesture. DO NOT TRIGGER when: only authoring flutter_test widget tests, only driving the UI without reading captured state (use fluttersdk-dusk), or only modifying Dart source without running it.",
             "files": [
                 "SKILL.md",
+                "references/cli-commands.md",
+                "references/community.md",
                 "references/mcp-tools.md",
-                "references/watchers.md"
+                "references/records.md",
+                "references/workflows.md"
             ]
         },
         {
             "name": "fluttersdk-artisan",
-            "description": "fluttersdk_artisan: Dart CLI framework + stdio MCP server that lets an LLM agent boot, inspect, hot-reload, and evaluate a running Flutter app via 10 substrate MCP tools (`artisan_*`) and 21 builtin CLI commands (`./bin/fsa`). `~/.artisan/state.json` carries the running app's pid + VM Service URI + FIFO pipe; lazy-reconnect picks it up after `artisan_start`. Plugin tools (`dusk_*`, `telescope_*`) surface ONLY via `./bin/fsa mcp:serve` (dispatcher path), not `dart run fluttersdk_artisan:mcp` (substrate-only). TRIGGER when: any `artisan_*` MCP call, `./bin/fsa` or `dart run artisan` invocation, `.artisan/state.json` / `bin/dispatcher.dart` / `_plugins.g.dart` mention, or the user asks to start / stop / restart / reload / hot-restart / inspect / tinker a Flutter app. DO NOT TRIGGER on plugin authoring (install.yaml / PluginInstaller DSL) or pure `dart test` without driving the app.",
+            "description": "fluttersdk_artisan: Dart CLI framework + stdio MCP server that lets an LLM agent boot, inspect, hot-reload, and evaluate a running Flutter app via 10 substrate MCP tools (`artisan_*`) and 22 builtin CLI commands (`./bin/fsa`). `~/.artisan/state.json` carries the running app's pid + VM Service URI + FIFO pipe; lazy-reconnect picks it up after `artisan_start`. Plugin tools (`dusk_*`, `telescope_*`) surface ONLY via `./bin/fsa mcp:serve` (dispatcher path), not `dart run fluttersdk_artisan:mcp` (substrate-only). TRIGGER when: any `artisan_*` MCP call, `./bin/fsa` or `dart run artisan` invocation, `.artisan/state.json` / `bin/dispatcher.dart` / `_plugins.g.dart` mention, or the user asks to start / stop / restart / reload / hot-restart / inspect / tinker a Flutter app. DO NOT TRIGGER on plugin authoring (install.yaml / PluginInstaller DSL) or pure `dart test` without driving the app.",
             "files": [
                 "SKILL.md",
                 "references/cli-commands.md",
+                "references/community.md",
                 "references/mcp-tools.md",
                 "references/state-and-recovery.md",
                 "references/tinker-eval.md"

@@ -1,11 +1,11 @@
 ---
 name: fluttersdk-dusk
-description: "fluttersdk_dusk: E2E driver for Flutter apps that lets an LLM agent see (snap, observe, screenshot) and act (tap, type, drag, scroll, navigate) on a running Flutter app via 31 MCP tools (`dusk_*`) and 32 matching CLI commands (`./bin/fsa dusk:*`). Snapshots emit a YAML Semantics tree with stable `[ref=eN]` tokens; `dusk_find` and `dusk_observe` mint re-resolvable `q<N>` query handles. Every gesture passes a 6-step actionability gate with substring-parseable failure reasons (`not enabled`, `zero rect`, `off-viewport`, `not stable`, `obscured by`, `defunct`). TRIGGER when: any `dusk_*` MCP tool call, any `dusk:*` CLI command, `./bin/fsa` invocation, the user asks the agent to drive / inspect / test / debug a running Flutter app, the user mentions snap / observe / actionability / ref / eN / qN, or the conversation touches end-to-end testing of a Flutter UI. DO NOT TRIGGER when: only authoring `flutter_test` widget tests, only reading telescope ring buffers without driving the UI (use fluttersdk-telescope), or only modifying Dart source without running it."
-version: 0.0.3
+description: "fluttersdk_dusk: E2E driver for Flutter apps that lets an LLM agent see (snap, observe, screenshot) and act (tap, type, drag, scroll, navigate) on a running Flutter app via 33 MCP tools (`dusk_*`) and 34 matching CLI commands (`./bin/fsa dusk:*`). Snapshots emit a YAML Semantics tree with stable `[ref=eN]` tokens; `dusk_find` and `dusk_observe` mint re-resolvable `q<N>` query handles. Every gesture passes a 6-step actionability gate with substring-parseable failure reasons (`not enabled`, `zero rect`, `off-viewport`, `not stable`, `obscured by`, `defunct`). TRIGGER when: any `dusk_*` MCP tool call, any `dusk:*` CLI command, `./bin/fsa` invocation, the user asks the agent to drive / inspect / test / debug a running Flutter app, the user mentions snap / observe / actionability / ref / eN / qN, or the conversation touches end-to-end testing of a Flutter UI. DO NOT TRIGGER when: only authoring `flutter_test` widget tests, only reading telescope ring buffers without driving the UI (use fluttersdk-telescope), or only modifying Dart source without running it."
+version: 0.0.9
 when_to_use: "Any task where the agent drives or inspects a running Flutter app via dusk: calling `dusk_*` MCP tools in a loop (snap, tap, type, screenshot, hot_reload_and_snap), invoking `./bin/fsa dusk:<verb>` from a shell, recovering from an actionability failure, choosing between `e<N>` and `q<N>` ref tokens, waiting for text or network idle, navigating routes, or filling a form."
 ---
 
-<!-- fluttersdk_dusk v0.0.3 | Skill updated: 2026-05-26 -->
+<!-- fluttersdk_dusk v0.0.9 | Skill updated: 2026-08-04 -->
 
 # fluttersdk_dusk
 
@@ -86,12 +86,14 @@ and verify with `./bin/fsa dusk:doctor`.
    (a) MCP responses are always JSON. The CLI splits by verb: read /
    query verbs return JSON (`dusk:snap`, `dusk:observe`, `dusk:find`,
    `dusk:get_routes`, `dusk:console`, `dusk:exceptions`, `dusk:wait`,
-   `dusk:wait_for_network_idle`, `dusk:hot_reload_and_snap`); the 18
+   `dusk:wait_for_network_idle`, `dusk:hot_reload_and_snap`,
+   `dusk:reset_overlays`); the 19
    side-effect verbs (`dusk:tap`, `dusk:hover`, `dusk:drag`, `dusk:type`,
-   `dusk:clear`, `dusk:press_key`, `dusk:scroll`, `dusk:focus`,
-   `dusk:blur`, `dusk:dblclick`, `dusk:right_click`, `dusk:triple_click`,
-   `dusk:set_checkbox`, `dusk:select_option`, `dusk:navigate`,
-   `dusk:navigate_back`, `dusk:modal`, `dusk:close_app`) print a
+   `dusk:fill`, `dusk:clear`, `dusk:press_key`, `dusk:scroll`,
+   `dusk:focus`, `dusk:blur`, `dusk:dblclick`, `dusk:right_click`,
+   `dusk:triple_click`, `dusk:set_checkbox`, `dusk:select_option`,
+   `dusk:navigate`, `dusk:navigate_back`, `dusk:modal`,
+   `dusk:close_app`) print a
    one-line success summary by default and only emit JSON when
    `--includeSnapshot` is passed. `dusk:screenshot` writes bytes to disk
    and prints `Wrote N bytes...`; `dusk:install` / `dusk:doctor` print
@@ -100,18 +102,18 @@ and verify with `./bin/fsa dusk:doctor`.
    dusk-aware Dart REPL lives behind `./bin/fsa tinker` (one-shot form:
    `./bin/fsa tinker --eval="<expression>"`).
 
-## 2. Tool surface (31 MCP tools, 32 CLI commands)
+## 2. Tool surface (33 MCP tools, 34 CLI commands)
 
 | Family | Tools | Mental model |
 |---|---|---|
 | See | `dusk_snap`, `dusk_observe`, `dusk_screenshot` | Snap returns the YAML tree with `e<N>` tokens. Observe returns a structured candidate list with `q<N>` handles plus enricher fields. Screenshot returns base64 PNG or JPEG (default JPEG q70). |
 | Find | `dusk_find` | Mints a `q<N>` from `text` / `contains` / `semanticsLabel` / `key`. Re-walks on every action. |
 | Click family | `dusk_tap`, `dusk_dblclick`, `dusk_right_click`, `dusk_triple_click`, `dusk_hover`, `dusk_drag` | Pointer gestures, all gate-checked. `dusk_drag` takes `startRef` + `endRef`. |
-| Text input | `dusk_type`, `dusk_clear`, `dusk_press_key`, `dusk_focus`, `dusk_blur` | `type` calls `userUpdateTextEditingValue` (fires `onChanged`, the Wind / Magic forms path). `press_key` synthesizes a `HardwareKeyboard` Down+Up; supports Enter, Tab, Escape, Backspace, Delete, Space, Arrow keys, Home, End, PageUp, PageDown, F1-F12. |
+| Text input | `dusk_fill`, `dusk_type`, `dusk_clear`, `dusk_press_key`, `dusk_focus`, `dusk_blur` | `fill` is the default: focus + clear + type + settle in one call, with a stale-ref retry. `type` calls `userUpdateTextEditingValue` (fires `onChanged`, the Wind / Magic forms path). `press_key` synthesizes a `HardwareKeyboard` Down+Up; supports Enter, Tab, Escape, Backspace, Delete, Space, Arrow keys, Home, End, PageUp, PageDown, F1-F12. |
 | Form controls | `dusk_set_checkbox`, `dusk_select_option` | Idempotent: `set_checkbox` does nothing if already in the target state. `select_option` dispatches through `onChanged` directly, no popup walk. |
 | Scroll | `dusk_scroll` | Scrolls by `dx` / `dy` logical pixels, or `intoView: true` to bring a ref into view. Operates on the nearest scrollable ancestor. |
 | Wait | `dusk_wait_for`, `dusk_wait_for_network_idle` | `wait_for` polls every 200ms for `text` / `textGone` / `expression`, default 5s timeout. `wait_for_network_idle` waits for `idleMs` (default 500) of zero pending HTTP, max `timeoutMs` (default 5000). |
-| Navigation | `dusk_navigate`, `dusk_navigate_back`, `dusk_get_routes`, `dusk_dismiss_modals` | `navigate` tries `Navigator.pushNamed`, then a consumer-registered `DuskNavigateAdapter`, then `SystemNavigator.routeInformationUpdated`. Returns `{ navigated, route, reason? }`. |
+| Navigation | `dusk_navigate`, `dusk_navigate_back`, `dusk_get_routes`, `dusk_dismiss_modals`, `dusk_reset_overlays` | `navigate` tries `Navigator.pushNamed`, then a consumer-registered `DuskNavigateAdapter`, then `SystemNavigator.routeInformationUpdated`. Returns `{ navigated, route, reason? }`. `dismiss_modals` pops `PopupRoute`s only; `reset_overlays` escalates through pop, Escape, and a Cancel-tap, and is idempotent. |
 | Diagnostics | `dusk_console`, `dusk_exceptions` | Telescope ring-buffer reads. Empty when telescope is not wired. |
 | Evaluation | `dusk_evaluate` (MCP-only) | Evaluates a Dart expression in the running isolate via the VM Service. Single expression, no semicolons. |
 | App control | `dusk_close_app` | `SystemNavigator.pop()`. Graceful; web `window.close()` may no-op if the tab was not script-opened. |
@@ -189,6 +191,22 @@ Default: snap returns `e<N>`; use them inline. Switch to `dusk_find` /
 `dusk_observe` and `q<N>` the moment the agent enters a retry or
 multi-step flow against the same target.
 
+**e-ref staleness on rebuild-prone pages.** `e<N>` tokens are frozen to
+the Semantics node at snap time. The `RefRegistry` backing them does NOT
+re-resolve; on pages that rebuild (Settings, lists driven by async data,
+any page with conditional sections), use `dusk_find` from the start
+instead of snapping and then regretting the stale `defunct` failure.
+
+**`--semanticsLabel` over-match.** `dusk_find { semanticsLabel: "X" }`
+exact-matches against the accessibility label and resolves to the FIRST node;
+ambiguity is now surfaced via `matchCount` and `diagnostic` in the response.
+On forms with repeated labels ("Password" and "Confirm Password" both labelled
+"Password"), the handle points at the first match. Check the `matchCount`
+field in the response; when `> 1`, read the `diagnostic` key and add a second
+predicate (`--key`, `--text`, or `--contains`) before acting. Full
+disambiguation table: `references/actionability-and-refs.md` section
+"semanticsLabel exact-match and over-match".
+
 ## 5. Quick install + doctor (when dusk is missing)
 
 If `./bin/fsa dusk:snap` returns "VM Service URI absent" (or any
@@ -200,7 +218,7 @@ debug port. The agent should:
 ```bash
 # From the Flutter app root:
 dart run fluttersdk_dusk dusk:install        # patches main.dart, scaffolds ./bin/fsa
-dart run fluttersdk_artisan mcp:install      # writes .mcp.json
+dart run fluttersdk_dusk mcp:install      # writes .mcp.json
 ./bin/fsa start --device=chrome              # or macos / linux / windows / <device-id>
 ./bin/fsa dusk:doctor                        # 5 checks; only semanticsEnabled is hard fail
 ./bin/fsa dusk:snap                          # confirm the agent can reach the app
