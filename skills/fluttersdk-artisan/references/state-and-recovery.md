@@ -211,7 +211,10 @@ fails, the state file is mid-write (race) or owned by a different user;
 ### `state.json missing vmServiceUri`
 
 Cause: `start` wrote a partial state, usually because flutter run
-crashed during boot before the VM Service URI was scraped (90s timeout).
+crashed during boot before the VM Service URI was scraped (90s by default).
+When the boot is merely slow rather than broken, raise the window from Bash:
+`./bin/fsa start -d chrome --timeout=180`. The MCP tool has no timeout
+parameter, so that path is CLI-only.
 
 ```
 artisan_status         # confirm the bad state

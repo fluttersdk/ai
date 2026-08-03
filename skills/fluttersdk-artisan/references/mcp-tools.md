@@ -1,8 +1,8 @@
 # MCP tools reference
 
 Per-tool deep reference for the 10 substrate MCP tools exposed by the
-`fluttersdk_artisan` MCP server. The allowlist lives at
-`lib/src/mcp/mcp_server.dart:871-882`:
+`fluttersdk_artisan` MCP server. The allowlist is the
+`_safeArtisanCommandNames` constant in `lib/src/mcp/mcp_server.dart`:
 
 ```dart
 const Set<String> _safeArtisanCommandNames = <String>{
@@ -57,6 +57,10 @@ responses with `isError: true` text.
 
 - **Maps to CLI**: `start`
 - **Boot mode**: `none`
+- **CLI-only flag**: `--timeout=<seconds>` raises the VM Service URI scrape
+  window, default 90. The MCP schema exposes no timeout parameter, so a boot
+  that legitimately takes longer than 90s (a cold web build, a slow emulator)
+  has to go through Bash: `./bin/fsa start -d chrome --timeout=180`.
 - **Handler**: `lib/src/commands/start_command.dart:197`
 - **MCP descriptor**: `lib/src/mcp/mcp_server.dart` (description block in
   `_mcpDescriptionFor`, input schema in `_commandInputSchema`)
@@ -69,13 +73,13 @@ responses with `isError: true` text.
 > Spawns `flutter run -d <device>` as a background process and writes the
 > resulting VM Service URI + pid + web port to `~/.artisan/state.json`.
 > Other tools (`artisan_status`, `artisan_logs`, `dusk_*`,
-> `telescope_*`, `tinker_eval`) read this state file to find the running
+> `telescope_*`, `artisan_tinker`) read this state file to find the running
 > app. ONLY ONE Flutter app per machine can be tracked at a time
 > (single-slot state).
 >
 > Usage:
 > - Call this BEFORE invoking any plugin tool (`dusk_snap`,
->   `telescope_tail`, `tinker_eval`) that needs VM Service access.
+>   `telescope_tail`, `artisan_tinker`) that needs VM Service access.
 > - Default device is the first available; pass `device: "chrome"` for
 >   web (port 3100), `device: "macos"` for desktop, or
 >   `device: "<serial>"` for a connected mobile.

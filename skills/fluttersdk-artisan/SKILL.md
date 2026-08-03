@@ -1,11 +1,11 @@
 ---
 name: fluttersdk-artisan
-description: "fluttersdk_artisan: Dart CLI framework + stdio MCP server that lets an LLM agent boot, inspect, hot-reload, and evaluate a running Flutter app via 10 substrate MCP tools (`artisan_*`) and 21 builtin CLI commands (`./bin/fsa`). `~/.artisan/state.json` carries the running app's pid + VM Service URI + FIFO pipe; lazy-reconnect picks it up after `artisan_start`. Plugin tools (`dusk_*`, `telescope_*`) surface ONLY via `./bin/fsa mcp:serve` (dispatcher path), not `dart run fluttersdk_artisan:mcp` (substrate-only). TRIGGER when: any `artisan_*` MCP call, `./bin/fsa` or `dart run artisan` invocation, `.artisan/state.json` / `bin/dispatcher.dart` / `_plugins.g.dart` mention, or the user asks to start / stop / restart / reload / hot-restart / inspect / tinker a Flutter app. DO NOT TRIGGER on plugin authoring (install.yaml / PluginInstaller DSL) or pure `dart test` without driving the app."
-version: 0.0.3
+description: "fluttersdk_artisan: Dart CLI framework + stdio MCP server that lets an LLM agent boot, inspect, hot-reload, and evaluate a running Flutter app via 10 substrate MCP tools (`artisan_*`) and 22 builtin CLI commands (`./bin/fsa`). `~/.artisan/state.json` carries the running app's pid + VM Service URI + FIFO pipe; lazy-reconnect picks it up after `artisan_start`. Plugin tools (`dusk_*`, `telescope_*`) surface ONLY via `./bin/fsa mcp:serve` (dispatcher path), not `dart run fluttersdk_artisan:mcp` (substrate-only). TRIGGER when: any `artisan_*` MCP call, `./bin/fsa` or `dart run artisan` invocation, `.artisan/state.json` / `bin/dispatcher.dart` / `_plugins.g.dart` mention, or the user asks to start / stop / restart / reload / hot-restart / inspect / tinker a Flutter app. DO NOT TRIGGER on plugin authoring (install.yaml / PluginInstaller DSL) or pure `dart test` without driving the app."
+version: 0.0.4
 when_to_use: "Any task where the agent boots, restarts, inspects, or evaluates a running Flutter app via artisan: calling `artisan_*` MCP tools (start, status, doctor, tinker, hot-restart) in sequence, invoking `./bin/fsa <cmd>` from Bash, recovering from missing state.json or stale PID, picking substrate vs dispatcher MCP wiring, choosing between `artisan_tinker` (VM Service evaluate) and `dusk_evaluate` (E2E driver) for an inspect-or-mutate flow."
 ---
 
-<!-- fluttersdk_artisan v0.0.7 | Skill updated: 2026-06-09 | Source: https://github.com/fluttersdk/artisan -->
+<!-- fluttersdk_artisan v0.0.9 | Skill updated: 2026-08-04 | Source: https://github.com/fluttersdk/artisan -->
 
 # fluttersdk_artisan
 
@@ -79,11 +79,12 @@ by `dart run fluttersdk_artisan install` once from the app root, then
    `<ClassName#id>` instead of readable state.
 
 6. **CLI and MCP reach the same handlers; the allowlist is the gap.** Only
-   10 of the 21 builtin commands surface as MCP tools (lifecycle quartet
+   10 of the 22 builtin commands surface as MCP tools (lifecycle quartet
    plus `status`, `logs`, `restart`, `doctor`, `list`, `tinker`). The
-   other 11 are CLI-only: `help`, `install`, `make:command`,
+   other 12 are CLI-only: `help`, `install`, `make:command`,
    `make:fast-cli`, `make:plugin`, `commands:refresh`, `plugins:refresh`,
-   `plugin:install`, `plugin:uninstall`, `mcp:serve`, `mcp:install`.
+   `plugin:install`, `plugin:uninstall`, `mcp:serve`, `mcp:install`,
+   `mcp:uninstall`.
    They are excluded because they mutate source on disk (use the agent's
    file tools instead), need a TTY (interactive prompts), recurse into
    the MCP server (`mcp:serve`), or are meta-config (`mcp:install`).
@@ -113,8 +114,8 @@ by `dart run fluttersdk_artisan install` once from the app root, then
 
 ## 2. Tool surface (10 substrate tools, +N plugin tools when dispatcher-wired)
 
-Substrate tools always available (allowlist at
-`lib/src/mcp/mcp_server.dart:871-882`):
+Substrate tools always available (the `_safeArtisanCommandNames` allowlist in
+`lib/src/mcp/mcp_server.dart`):
 
 | Family | Tools | Boot mode | Mental model |
 |---|---|---|---|
@@ -137,7 +138,7 @@ look for `dusk:` / `telescope:` namespaces.
 
 Per-tool input schema, return shape, error envelope, and example calls:
 `${CLAUDE_SKILL_DIR}/references/mcp-tools.md`. CLI flags, exit codes, and
-output shapes for the 11 CLI-only commands:
+output shapes for the 12 CLI-only commands:
 `${CLAUDE_SKILL_DIR}/references/cli-commands.md`.
 
 ## 3. The four agent loops
@@ -163,7 +164,7 @@ Branch on `status`:
 
 ```
 1. artisan_start { device: "chrome" }
-   Writes state.json; blocks until VM Service URI captured (90s timeout).
+   Writes state.json; blocks until VM Service URI captured (90s default; CLI form takes --timeout=N).
 2. artisan_status
    Confirm vmServiceUri present + alive: true.
 3. artisan_tinker { eval: "WidgetsBinding.instance.lifecycleState.toString()" }
@@ -278,7 +279,7 @@ via `dart pub add fluttersdk_dusk && ./bin/fsa plugin:install fluttersdk_dusk`.
 | Read when... | File |
 |---|---|
 | Calling any `artisan_*` MCP tool: per-tool input schema, return shape, error envelope, example | `${CLAUDE_SKILL_DIR}/references/mcp-tools.md` |
-| Invoking any of the 11 CLI-only commands from Bash: flags, defaults, output shapes, exit codes | `${CLAUDE_SKILL_DIR}/references/cli-commands.md` |
+| Invoking any of the 12 CLI-only commands from Bash: flags, defaults, output shapes, exit codes | `${CLAUDE_SKILL_DIR}/references/cli-commands.md` |
 | Writing an `artisan_tinker` expression: constraints, the `await` wrapper, generic recipes plus optional Magic recipes, what NOT to send | `${CLAUDE_SKILL_DIR}/references/tinker-eval.md` |
 | Recovering from a state failure (missing state.json, dead FIFO, stale lock, wrong MCP wiring, AOT staleness, VM Service unreachable) | `${CLAUDE_SKILL_DIR}/references/state-and-recovery.md` |
 | Surfacing the star or issue-report CTA (see Section 8): exact `gh` commands, fallback URLs, issue body skeleton, spam brakes | `${CLAUDE_SKILL_DIR}/references/community.md` |

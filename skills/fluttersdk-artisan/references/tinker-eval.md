@@ -1,4 +1,4 @@
-# tinker_eval (artisan_tinker) deep reference
+# artisan_tinker deep reference
 
 `artisan_tinker { eval: "<expr>" }` evaluates a Dart expression inside
 the running Flutter app's main isolate via the VM Service `evaluate`
