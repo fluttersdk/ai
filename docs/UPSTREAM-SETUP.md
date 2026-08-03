@@ -101,3 +101,11 @@ git push
 - `sync.yml` bumps the registry patch version on every accepted dispatch, so the registry
   version counts syncs, not upstream releases. With the release-only trigger those are now
   roughly one to one.
+- **Fire manual dispatches one at a time, waiting for each sync to finish.** The
+  `sync-registry` concurrency group serializes running jobs, but GitHub keeps only ONE
+  pending run per group: fire four dispatches within a few seconds and the two that queue
+  behind the pending one are cancelled outright, with no failure to notice. Measured on
+  2026-08-03: four dispatches produced one success, one push rejection, and two silent
+  cancellations. The push rejection is handled now (the sync step rebuilds on the live
+  `main` and retries up to three times), but a cancelled run never starts, so nothing can
+  recover it except firing again.

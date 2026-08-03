@@ -167,69 +167,79 @@ jobs:
                   token: ${{ steps.upstream-token.outputs.token }}
                   persist-credentials: false
 
-            - name: Rsync upstream subtree into skills/<name>
+            - name: Sync, bump, and push
+              id: sync
               env:
                   SKILL: ${{ steps.cfg.outputs.skill }}
                   SUBPATH: ${{ steps.cfg.outputs.subpath }}
-              run: |
-                  set -euo pipefail
-                  mkdir -p "skills/${SKILL}"
-                  rsync -av --delete "tmp-upstream-${SKILL}/${SUBPATH}/" "skills/${SKILL}/"
-
-            - name: Update index.json description + files
-              env:
-                  SKILL: ${{ steps.cfg.outputs.skill }}
-              run: node scripts/update-skill-index.mjs
-
-            - name: Bump versions
-              id: bump
-              run: |
-                  set -euo pipefail
-                  CUR=$(jq -r .version .claude-plugin/plugin.json)
-                  MAJ=${CUR%%.*}
-                  REST=${CUR#*.}
-                  MIN=${REST%%.*}
-                  PATCH=${REST#*.}
-                  NEW="${MAJ}.${MIN}.$((PATCH + 1))"
-                  # --indent 4 matches the repo's JSON style (CLAUDE.md); plain jq
-                  # would rewrite both manifests at 2 spaces and turn a one-line
-                  # version bump into a whole-file diff.
-                  jq --indent 4 --arg v "$NEW" '.version = $v' .claude-plugin/plugin.json > .claude-plugin/plugin.json.tmp
-                  mv .claude-plugin/plugin.json.tmp .claude-plugin/plugin.json
-                  jq --indent 4 --arg v "$NEW" '.version = $v | .plugins[0].version = $v' .claude-plugin/marketplace.json > .claude-plugin/marketplace.json.tmp
-                  mv .claude-plugin/marketplace.json.tmp .claude-plugin/marketplace.json
-                  echo "new=$NEW" >> "$GITHUB_OUTPUT"
-
-            - name: Commit and push
-              env:
-                  SKILL: ${{ steps.cfg.outputs.skill }}
                   VER: ${{ github.event.client_payload.version || inputs.version }}
-                  NEW: ${{ steps.bump.outputs.new }}
                   TOKEN: ${{ steps.app-token.outputs.token }}
                   BOT_USER_EMAIL: ${{ vars.REGISTRY_BOT_USER_EMAIL }}
               run: |
                   set -euo pipefail
+
                   git config user.name "fluttersdk-registry[bot]"
                   # BOT_USER_EMAIL must be set as a repo variable, format:
                   # "<bot-installation-id>+fluttersdk-registry[bot]@users.noreply.github.com"
                   # Falls back to a placeholder that any sane App owner will replace post-install.
                   git config user.email "${BOT_USER_EMAIL:-fluttersdk-registry[bot]@users.noreply.github.com}"
                   git remote set-url origin "https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
-                  git add skills/ .claude-plugin/plugin.json .claude-plugin/marketplace.json
-                  if git diff --cached --quiet; then
-                      echo "no changes after sync; skipping commit"
-                      exit 0
-                  fi
-                  git commit -m "chore: sync ${SKILL} from upstream ${VER}, bump to v${NEW}"
-                  git push origin HEAD:main
-                  echo "committed=true" >> "$GITHUB_OUTPUT"
-              id: push
+
+                  # Rebuild the whole change on top of the live main on every attempt.
+                  # The concurrency group serializes jobs but does not stop a sibling
+                  # sync from pushing between this job's checkout and its push, and
+                  # the version bump is a read-modify-write on the same two lines, so
+                  # a rebase would conflict exactly where a re-apply cannot. Observed
+                  # on 2026-08-03: four dispatches fired together, one landed, one was
+                  # rejected non-fast-forward, and its skill update was silently lost.
+                  for attempt in 1 2 3; do
+                      git fetch --quiet origin main
+                      git reset --quiet --hard origin/main
+
+                      mkdir -p "skills/${SKILL}"
+                      rsync -a --delete "tmp-upstream-${SKILL}/${SUBPATH}/" "skills/${SKILL}/"
+                      node scripts/update-skill-index.mjs
+
+                      CUR=$(jq -r .version .claude-plugin/plugin.json)
+                      MAJ=${CUR%%.*}
+                      REST=${CUR#*.}
+                      MIN=${REST%%.*}
+                      PATCH=${REST#*.}
+                      NEW="${MAJ}.${MIN}.$((PATCH + 1))"
+                      # --indent 4 matches the repo's JSON style (CLAUDE.md); plain jq
+                      # would rewrite both manifests at 2 spaces and turn a one-line
+                      # version bump into a whole-file diff.
+                      jq --indent 4 --arg v "$NEW" '.version = $v' .claude-plugin/plugin.json > .claude-plugin/plugin.json.tmp
+                      mv .claude-plugin/plugin.json.tmp .claude-plugin/plugin.json
+                      jq --indent 4 --arg v "$NEW" '.version = $v | .plugins[0].version = $v' .claude-plugin/marketplace.json > .claude-plugin/marketplace.json.tmp
+                      mv .claude-plugin/marketplace.json.tmp .claude-plugin/marketplace.json
+
+                      git add skills/ .claude-plugin/plugin.json .claude-plugin/marketplace.json
+                      if git diff --cached --quiet; then
+                          echo "no changes after sync; skipping commit"
+                          echo "committed=false" >> "$GITHUB_OUTPUT"
+                          exit 0
+                      fi
+
+                      git commit --quiet -m "chore: sync ${SKILL} from upstream ${VER}, bump to v${NEW}"
+                      if git push --quiet origin HEAD:main; then
+                          echo "new=$NEW" >> "$GITHUB_OUTPUT"
+                          echo "committed=true" >> "$GITHUB_OUTPUT"
+                          exit 0
+                      fi
+
+                      echo "::warning::push rejected on attempt ${attempt}; a sibling sync landed first, rebuilding on the new main"
+                      sleep $((attempt * 5))
+                  done
+
+                  echo "::error::could not push after 3 attempts"
+                  exit 1
 
             - name: Create GitHub Release
-              if: steps.push.outputs.committed == 'true'
+              if: steps.sync.outputs.committed == 'true'
               env:
                   GH_TOKEN: ${{ steps.app-token.outputs.token }}
-                  NEW: ${{ steps.bump.outputs.new }}
+                  NEW: ${{ steps.sync.outputs.new }}
                   SKILL: ${{ steps.cfg.outputs.skill }}
                   VER: ${{ github.event.client_payload.version || inputs.version }}
                   SHA_UP: ${{ github.event.client_payload.sha || inputs.sha }}
