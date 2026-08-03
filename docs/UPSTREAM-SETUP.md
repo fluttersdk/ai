@@ -4,9 +4,16 @@
 
 This guide is for the maintainer wiring auto-sync between upstream skill source repos
 (fluttersdk/wind, magic, dusk, telescope, artisan) and the registry (fluttersdk/ai).
-Each upstream repo needs one workflow file and one secret. Once in place, any push to a
-skill path or a new release fires `repository_dispatch` to fluttersdk/ai, triggering
-`sync.yml` to pull updated files and commit them to main.
+Each upstream repo needs one workflow file and one secret. Once in place, a published
+release fires `repository_dispatch` to fluttersdk/ai, triggering `sync.yml` to pull the
+updated skill subtree and commit it to main.
+
+**Release-scoped on purpose.** The dispatch does not fire on ordinary pushes. It used to,
+and the registry paid a version per commit for it: v1.3.75, most of those re-publishing
+byte-identical skill content because a docs commit and a release commit each triggered a
+sync. A skill edit now reaches users with the release that carries it. When a skill fix
+cannot wait for a release, run the upstream's "Dispatch skill update to registry"
+workflow manually from the Actions tab.
 
 ## One-time prerequisite (registry side)
 
@@ -52,17 +59,18 @@ The template lives under `docs/templates/` (not `.github/workflows/`) so GitHub 
 execute it inside fluttersdk/ai. Once copied into an upstream repo's `.github/workflows/`
 directory, it becomes a live workflow there.
 
-**c. Replace placeholders** in the copied file:
+**c. Replace the one placeholder** in the copied file:
 
 | Placeholder | Replace with |
 |---|---|
 | `<SOURCE_NAME>` | `wind` / `magic` / `dusk` / `telescope` / `artisan` |
-| `<SKILL_PATH>` | `fluttersdk_wind/skills/wind-ui` (wind), `skills/magic-framework` (magic), `skills/fluttersdk-dusk` (dusk), `skills/fluttersdk-telescope` (telescope), `skills/fluttersdk-artisan` (artisan) |
 
-**d. Set the real default branch.** Change `branches: ["never-trigger-in-registry"]` to
-`branches: ["main"]` (or `"master"`) in the copied file.
+The skill path itself is not a placeholder any more: the registry resolves it from
+`source` in `sync.yml`'s config step, and the workflow no longer filters pushes by path
+because it no longer triggers on push. There is also no branch to set, for the same
+reason.
 
-**e. Commit and push** to the upstream's default branch:
+**d. Commit and push** to the upstream's default branch:
 ```bash
 git add .github/workflows/dispatch-to-registry.yml
 git commit -m "chore: add registry dispatch workflow"
@@ -85,3 +93,11 @@ git push
 - The template lives at `docs/templates/upstream-dispatch-template.yml`, outside the
   `.github/workflows/` directory, so GitHub does not load it as a workflow in fluttersdk/ai.
   It only becomes active when copied into an upstream repo's `.github/workflows/` directory.
+- On a `release: published` event the checkout lands on the release tag, so `Extract version`
+  reads the released `pubspec.yaml`. These packages tag without a `v` prefix, so the
+  `^v[0-9]` branch of that step does not match and the pubspec fallback is the live path;
+  both shapes resolve to the same string. A manual run from the default branch reads that
+  branch's pubspec instead, which is what you want for an unreleased skill fix.
+- `sync.yml` bumps the registry patch version on every accepted dispatch, so the registry
+  version counts syncs, not upstream releases. With the release-only trigger those are now
+  roughly one to one.

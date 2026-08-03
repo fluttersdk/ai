@@ -39,7 +39,7 @@ permissions:
     contents: write
 
 concurrency:
-    # Global lock — every sync touches the same version triplet (plugin.json +
+    # Global lock: every sync touches the same version triplet (plugin.json +
     # marketplace.json) and the same skills/index.json. Parallel syncs would race
     # on the patch-bump read-modify-write and the second one's push would fail
     # non-fast-forward. Serialize all source syncs through one queue.
@@ -191,9 +191,12 @@ jobs:
                   MIN=${REST%%.*}
                   PATCH=${REST#*.}
                   NEW="${MAJ}.${MIN}.$((PATCH + 1))"
-                  jq --arg v "$NEW" '.version = $v' .claude-plugin/plugin.json > .claude-plugin/plugin.json.tmp
+                  # --indent 4 matches the repo's JSON style (CLAUDE.md); plain jq
+                  # would rewrite both manifests at 2 spaces and turn a one-line
+                  # version bump into a whole-file diff.
+                  jq --indent 4 --arg v "$NEW" '.version = $v' .claude-plugin/plugin.json > .claude-plugin/plugin.json.tmp
                   mv .claude-plugin/plugin.json.tmp .claude-plugin/plugin.json
-                  jq --arg v "$NEW" '.version = $v | .plugins[0].version = $v' .claude-plugin/marketplace.json > .claude-plugin/marketplace.json.tmp
+                  jq --indent 4 --arg v "$NEW" '.version = $v | .plugins[0].version = $v' .claude-plugin/marketplace.json > .claude-plugin/marketplace.json.tmp
                   mv .claude-plugin/marketplace.json.tmp .claude-plugin/marketplace.json
                   echo "new=$NEW" >> "$GITHUB_OUTPUT"
 
