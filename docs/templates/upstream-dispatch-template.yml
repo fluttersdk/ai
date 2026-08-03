@@ -1,11 +1,15 @@
 # pragma: example
-# Template workflow — install in upstream skill source repos (fluttersdk/wind, magic, dusk, telescope, artisan).
+# Template workflow, installed in the upstream skill source repos (fluttersdk/wind,
+# magic, dusk, telescope, artisan).
 # This file lives under docs/templates/ (NOT .github/workflows/) so GitHub does not
 # execute it in fluttersdk/ai. Copy it into the upstream repo's .github/workflows/
-# directory and fill in the placeholders below.
+# directory and replace <SOURCE_NAME> with: wind | magic | dusk | telescope | artisan.
 #
-# Replace <SOURCE_NAME> with: wind | magic | dusk | telescope | artisan.
-# Replace <SKILL_PATH> with the upstream's `skills/<name>/` relative path.
+# Fires on a published release only. An earlier version of this template also
+# fired on every push touching the skill path, which cost the registry a version
+# per commit: it reached v1.3.75, most of those re-publishing identical skill
+# content. Skill edits now ride the release that carries them, and
+# workflow_dispatch is the manual path when a fix has to ship sooner.
 #
 # Auth: uses the fluttersdk-registry GitHub App (1-hour mint-on-demand tokens) instead
 # of a personal PAT. Requires REGISTRY_BOT_APP_ID + REGISTRY_BOT_PRIVATE_KEY secrets
@@ -14,11 +18,6 @@
 name: Dispatch skill update to registry
 
 on:
-  push:
-    branches: ["never-trigger-in-registry"]  # placeholder; replace with actual upstream branch
-    paths:
-      - "<SKILL_PATH>/**"
-      - "pubspec.yaml"
   release:
     types: [published]
   workflow_dispatch:
