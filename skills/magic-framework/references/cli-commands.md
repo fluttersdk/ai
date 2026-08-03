@@ -40,7 +40,7 @@ Initializes Magic in an existing Flutter project. Creates the full directory str
 
 ```bash
 dart run magic:artisan magic:install
-dart run magic:artisan magic:install --without-database --without-events
+dart run magic:artisan magic:install --without-database --without-cache
 ```
 
 | Flag | Effect |
@@ -48,7 +48,6 @@ dart run magic:artisan magic:install --without-database --without-events
 | `--without-database` | Skip SQLite/Eloquent setup and migrations directory |
 | `--without-cache` | Skip cache system and `config/cache.dart` |
 | `--without-auth` | Skip authentication guards and `config/auth.dart` |
-| `--without-events` | Skip event dispatcher and events/listeners directories |
 | `--without-localization` | Skip i18n/translator and `assets/lang/` directory |
 | `--without-logging` | Skip logging channels and `config/logging.dart` |
 | `--without-network` | Skip HTTP/Dio network layer and `config/network.dart` |
@@ -446,6 +445,18 @@ class UserSeeder extends Seeder {
     }
 }
 ```
+
+**Running a seeder**: there is no `db:seed` CLI command. Seeders run from Dart, through `Magic.seed(List<Seeder>)`, after `Magic.init()` has completed (the seeders need the container and the database connection):
+
+```dart
+await Magic.init(configFactories: [...]);
+
+if (kDebugMode) {
+  await Magic.seed([UserSeeder(), TodoSeeder()]);
+}
+```
+
+It runs each seeder's `run()` in list order, sequentially, and logs a start and a finish line through `Log.info`. Order is the caller's responsibility: a seeder depending on rows another one creates must come after it.
 
 ### `dart run magic:artisan make:provider`
 

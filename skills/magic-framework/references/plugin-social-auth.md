@@ -1,6 +1,20 @@
+<!-- magic_social_auth v0.0.2 | Updated: 2026-08-03 -->
+
 # magic_social_auth Plugin
 
-Laravel Socialite-style social authentication for Magic Framework — Google, Microsoft, and GitHub out of the box with a pluggable driver system.
+Laravel Socialite-style social authentication for Magic Framework: Google, Microsoft, and GitHub out of the box with a pluggable driver system.
+
+## Installation
+
+```bash
+# Register the plugin's artisan provider with the app dispatcher (once)
+dart run magic:artisan plugin:install magic_social_auth
+
+# Scaffold lib/config/social_auth.dart with the selected provider entries
+dart run magic:artisan social:install --providers=google,github
+```
+
+`plugin:install` injects `SocialAuthServiceProvider` into `lib/config/app.dart` and registers `SocialAuthArtisanProvider` in the app's `_plugins.g.dart`; it publishes no stub files. `social:install` writes the OAuth client config for the providers you name, and wires the social buttons row into the magic_starter login screen when that plugin is present. Only `google`, `microsoft`, and `github` have shipped drivers; anything else needs a custom driver (see below).
 
 ## Registration
 

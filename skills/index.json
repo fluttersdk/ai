@@ -31,6 +31,7 @@
                 "references/forms-validation.md",
                 "references/http-network.md",
                 "references/plugin-deeplink.md",
+                "references/plugin-devtools.md",
                 "references/plugin-notifications.md",
                 "references/plugin-social-auth.md",
                 "references/plugin-starter.md",

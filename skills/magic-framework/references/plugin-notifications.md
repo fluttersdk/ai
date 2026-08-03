@@ -1,8 +1,34 @@
+<!-- magic_notifications v0.0.2 | Updated: 2026-08-03 -->
+
 # magic_notifications Plugin
 
-Push and in-app notification system for Magic Framework — provides the `Notify` facade, database (in-app) notifications with real-time streaming, OneSignal push integration, and background polling.
+Push and in-app notification system for Magic Framework: the `Notify` facade, database (in-app) notifications with real-time streaming, OneSignal push integration, and background polling.
 
-**Package**: `magic_notifications` v0.0.1-alpha.1 · **Install**: `dart run magic_notifications install`
+## Installation
+
+```bash
+# Register the plugin's artisan provider with the app dispatcher (once)
+dart run magic:artisan plugin:install magic_notifications
+
+# Scaffold lib/config/notifications.dart, inject the provider, wire the config factory
+dart run magic:artisan notifications:install
+```
+
+## CLI commands and MCP tools
+
+Seven commands, all through the app's artisan dispatcher:
+
+| Command | Purpose |
+|:--------|:--------|
+| `notifications:install` | Scaffold config, inject `NotificationServiceProvider`, wire platform setup |
+| `notifications:configure` | Reconfigure channels and platforms interactively |
+| `notifications:channels` | Report the configured channels and their status |
+| `notifications:doctor` | Diagnose install, config presence, OneSignal App ID format, `polling_interval` range, platform setup |
+| `notifications:test` | Send a test notification |
+| `notifications:publish` | Publish views for customization |
+| `notifications:uninstall` | Remove the plugin scaffolding |
+
+Two of them are exposed as read-only MCP tools, so an agent can diagnose without mutating anything: `notifications_doctor` (takes `verbose`) and `notifications_channels`. The mutating commands (install, configure, test, uninstall, publish) are deliberately absent from the MCP surface. Run `dart run magic:artisan mcp:install` once to register them with the client.
 
 ## Notify Facade API
 
