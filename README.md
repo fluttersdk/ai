@@ -76,7 +76,7 @@ The npx bridge proxies stdio to the upstream HTTP server transparently.
 
 ### Option 1: `npx skills` (Recommended)
 
-The fastest way, works with [40+ AI coding agents](https://github.com/vercel-labs/skills).
+The fastest way. Works with [40+ AI coding agents](https://github.com/vercel-labs/skills).
 
 ```bash
 # Install all FlutterSDK skills to all detected agents
@@ -207,11 +207,11 @@ See [CLAUDE.md](CLAUDE.md) for the full specification.
 
 ## License
 
-MIT, see [LICENSE](LICENSE) for details.
+MIT. See [LICENSE](LICENSE) for details.
 
 ---
 
 <p align="center">
   <sub>Built with care by <a href="https://github.com/fluttersdk">FlutterSDK</a></sub><br/>
-  <sub>If this saves you time, <a href="https://github.com/fluttersdk/ai">give it a star</a>, it helps others discover it.</sub>
+  <sub>If this saves you time, <a href="https://github.com/fluttersdk/ai">give it a star</a>; it helps others discover it.</sub>
 </p>
