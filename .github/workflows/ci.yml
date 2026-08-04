@@ -117,17 +117,90 @@ jobs:
                   fi
                   echo "Version sync OK: all three are $PLUGIN_VER"
 
-            - name: Verify command frontmatter
+            - name: Verify command, skill, and agent frontmatter
               run: |
-                  for f in commands/flutter-review.md commands/flutter-test.md; do
-                      if [ ! -f "$f" ]; then
-                          echo "ERROR: $f does not exist"
-                          exit 1
-                      fi
-                      first=$(head -1 "$f")
-                      if [ "$first" != "---" ]; then
-                          echo "ERROR: $f does not start with YAML frontmatter (---)"
-                          exit 1
-                      fi
-                      echo "$f: frontmatter OK"
-                  done
+                  python3 - <<'PY'
+                  import sys, yaml, pathlib
+
+                  # Every plugin component whose frontmatter Claude Code parses at load
+                  # time. A malformed one does not error: the component is skipped and
+                  # the capability silently disappears, so this is a gate rather than a
+                  # lint. An unquoted description containing ": " is the way it usually
+                  # breaks, because YAML reads it as a nested mapping.
+                  files = [
+                      "commands/flutter-test.md",
+                      "skills/flutter-review/SKILL.md",
+                      "agents/flutter-reviewer.md",
+                      "agents/flutter-reviewer-deep.md",
+                  ]
+
+                  # Plugin-shipped agents support this set only. hooks, mcpServers, and
+                  # permissionMode are dropped for plugin agents, so shipping them would
+                  # promise behavior the loader ignores.
+                  agent_fields = {
+                      "name", "description", "model", "effort", "maxTurns", "tools",
+                      "disallowedTools", "skills", "memory", "background", "isolation",
+                      "color",
+                  }
+
+                  bad = 0
+                  for rel in files:
+                      p = pathlib.Path(rel)
+                      if not p.is_file():
+                          print(f"ERROR: {rel} does not exist")
+                          bad += 1
+                          continue
+                      text = p.read_text(encoding="utf-8")
+                      if not text.startswith("---"):
+                          print(f"ERROR: {rel} does not start with YAML frontmatter")
+                          bad += 1
+                          continue
+                      try:
+                          meta = yaml.safe_load(text.split("---")[1])
+                      except yaml.YAMLError as exc:
+                          print(f"ERROR: {rel} frontmatter does not parse: {exc}")
+                          bad += 1
+                          continue
+                      if not isinstance(meta, dict) or "description" not in meta:
+                          print(f"ERROR: {rel} frontmatter has no description")
+                          bad += 1
+                          continue
+                      if rel.startswith("agents/"):
+                          unsupported = set(meta) - agent_fields
+                          if unsupported:
+                              print(f"ERROR: {rel} uses fields plugin agents ignore: {sorted(unsupported)}")
+                              bad += 1
+                          if ":" in str(meta.get("name", "")):
+                              print(f"ERROR: {rel} agent name contains ':', which is reserved for plugin scoping")
+                              bad += 1
+                      print(f"{rel}: frontmatter OK")
+
+                  sys.exit(1 if bad else 0)
+                  PY
+
+            - name: Verify the review skill's plugin-root references resolve
+              run: |
+                  python3 - <<'PY'
+                  import re, sys, pathlib
+
+                  # A ${CLAUDE_PLUGIN_ROOT} path that does not exist fails at review
+                  # time, inside a subagent, as a file-not-found the user never sees.
+                  sources = [
+                      "skills/flutter-review/SKILL.md",
+                      "agents/flutter-reviewer.md",
+                      "agents/flutter-reviewer-deep.md",
+                      "references/flutter-review-core.md",
+                  ]
+                  pattern = re.compile(r"\$\{CLAUDE_PLUGIN_ROOT\}/([A-Za-z0-9_./-]+)")
+
+                  targets = set()
+                  for src in sources:
+                      targets.update(pattern.findall(pathlib.Path(src).read_text(encoding="utf-8")))
+
+                  missing = sorted(t for t in targets if not pathlib.Path(t).exists())
+                  for t in sorted(targets):
+                      print(f"{t}: {'MISSING' if t in missing else 'exists'}")
+                  if missing:
+                      print(f"ERROR: {len(missing)} referenced plugin file(s) do not exist")
+                  sys.exit(1 if missing else 0)
+                  PY

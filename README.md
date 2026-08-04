@@ -136,7 +136,8 @@ Skills are fetched automatically and cached locally.
 
 The plugin auto-registers:
 - 5 skills (`/fluttersdk:wind-ui`, `/fluttersdk:magic-framework`, `/fluttersdk:fluttersdk-dusk`, `/fluttersdk:fluttersdk-telescope`, `/fluttersdk:fluttersdk-artisan`)
-- `/fluttersdk:flutter-review` and `/fluttersdk:flutter-test` slash commands
+- `/fluttersdk:flutter-review`, a review that runs in a subagent as an independent second pair of eyes and then fixes what it finds, plus `/fluttersdk:flutter-test`
+- `fluttersdk:flutter-reviewer` and `fluttersdk:flutter-reviewer-deep` subagents, invokable directly with `@`
 - `fluttersdk` MCP server (HTTP transport to `mcp.fluttersdk.com`; no manual `.mcp.json` edit required)
 
 </details>
