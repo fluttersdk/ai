@@ -30,7 +30,11 @@ Hosted via GitHub Pages at `fluttersdk.github.io/ai/`
 - `skills/index.json`: OpenCode discovery manifest. Source of truth for file listing
 - `.claude-plugin/`: Plugin manifest (`plugin.json`) + marketplace catalog (`marketplace.json`)
 - `mcps/`: MCP servers (TypeScript, stdio transport, Zod schemas)
-- `commands/`: Claude Code plugin commands (`flutter-review.md`, `flutter-test.md`); auto-discovered as `/fluttersdk:<name>`
+- `commands/`: Claude Code plugin commands (`flutter-test.md`); auto-discovered as `/fluttersdk:<name>`
+- `agents/`: plugin subagents (`flutter-reviewer.md`, `flutter-reviewer-deep.md`); auto-discovered as `fluttersdk:<name>`. Plugin agents support `name`, `description`, `model`, `effort`, `maxTurns`, `tools`, `disallowedTools`, `skills`, `memory`, `background`, `isolation` only; `hooks`, `mcpServers`, and `permissionMode` are ignored for plugin-shipped agents, so do not add them
+- `references/`: plugin-owned reference files the skill and agents read through `${CLAUDE_PLUGIN_ROOT}` (`flutter-review-core.md`, `dart-style-core.md`). Not part of any mirrored skill
+
+> `skills/flutter-review/` is the one skill this repo owns rather than mirrors, and it is deliberately absent from `skills/index.json`: it orchestrates Claude Code subagents, which the other tools the registry serves cannot spawn. Everything else under `skills/` is a mirror and belongs in the index.
 - `tool-templates/`: Cross-tool command templates (`cursor/`, `gemini/`, `opencode/`) consumed by `scripts/install.sh`
 - `.mcp.json`: Bundled MCP server config (HTTP transport to `mcp.fluttersdk.com`); auto-loaded on plugin install
 - `.github/workflows/deploy-registry.yml`: Auto-deploys `skills/` to Pages on push to main; also writes `.well-known/skills/index.json` for OpenCode forward-compat
