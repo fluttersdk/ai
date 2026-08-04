@@ -6,8 +6,6 @@ effort: high
 maxTurns: 60
 disallowedTools: Write, Edit, NotebookEdit
 skills:
-  - wind-ui
-  - magic-framework
   - my-coding
 color: purple
 ---
@@ -32,7 +30,7 @@ For Stage 5 you also read outside the scope: the providers, routes, and base cla
 
 <execution>
 1. Read `${CLAUDE_PLUGIN_ROOT}/references/flutter-review-core.md` in full.
-2. Confirm the rulebooks are in context; if not, read `${CLAUDE_PLUGIN_ROOT}/skills/magic-framework/SKILL.md` and `${CLAUDE_PLUGIN_ROOT}/skills/wind-ui/SKILL.md`. Open their `references/` files whenever a check needs the detail: `controllers-views.md` and `eloquent-orm.md` carry the canonical shapes Stage 5 compares against.
+2. Read both rulebooks by path: `${CLAUDE_PLUGIN_ROOT}/skills/magic-framework/SKILL.md` and `${CLAUDE_PLUGIN_ROOT}/skills/wind-ui/SKILL.md`. Do not rely on a `skills:` preload for them: plugin skills live in a `plugin-name:skill-name` namespace, nothing documents which form that field resolves for a plugin's own skill, and a name that does not resolve is skipped with only a debug-log warning, so the failure mode is reviewing from memory without knowing it. Open their `references/` files whenever a check needs the detail: `controllers-views.md` and `eloquent-orm.md` carry the canonical shapes Stage 5 compares against.
 3. Read every file in scope in full, then the wiring around it: the service providers that bind what it uses, the route registration that reaches it, the base classes it extends.
 4. Run Stages 1 through 4 exactly as the core file specifies.
 5. Run Stage 5 below.

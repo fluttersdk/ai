@@ -25,7 +25,11 @@ This file does not restate the framework rules. It names which rulebook decides 
 | 3 | `${CLAUDE_PLUGIN_ROOT}/references/dart-style-core.md`, plus a personal style skill when the session has one loaded | all |
 | 4 | both skills' reference files, plus the reviewed project's own code | Wind `references/tokens.md` recipes, magic `references/facades-api.md` |
 
-Both skills are preloaded through the agent's `skills:` field. If either rulebook is not already in context when you start, read it from `${CLAUDE_PLUGIN_ROOT}/skills/wind-ui/SKILL.md` and `${CLAUDE_PLUGIN_ROOT}/skills/magic-framework/SKILL.md` before Stage 1. Do not review magic or Wind code from memory: the counts, the token names, and the facade signatures change between releases, and a review that invents a rule is worse than no review.
+Read both rulebooks by path at startup: `${CLAUDE_PLUGIN_ROOT}/skills/wind-ui/SKILL.md` and `${CLAUDE_PLUGIN_ROOT}/skills/magic-framework/SKILL.md`.
+
+They are deliberately not loaded through the agent's `skills:` frontmatter field. Plugin skills live in a `plugin-name:skill-name` namespace, the bare name is documented only as an invocation fallback, and nothing documents which form that field resolves for a plugin's own skill. A name that does not resolve is skipped with a warning in the debug log and nowhere else, so the failure mode is a reviewer that silently runs with no rulebook and reports confident nonsense. A path either resolves or errors. `skills:` still carries a personal style skill, where the bare name is the documented identity.
+
+Do not review magic or Wind code from memory: the counts, the token names, and the facade signatures change between releases, and a review that invents a rule is worse than no review.
 
 ## Scope resolution
 

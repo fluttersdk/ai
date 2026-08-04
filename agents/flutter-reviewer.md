@@ -6,8 +6,6 @@ effort: medium
 maxTurns: 40
 disallowedTools: Write, Edit, NotebookEdit
 skills:
-  - wind-ui
-  - magic-framework
   - my-coding
 color: yellow
 ---
@@ -46,7 +44,7 @@ Could not resolve a file list: <what you tried>.
 
 <execution>
 1. Read `${CLAUDE_PLUGIN_ROOT}/references/flutter-review-core.md` in full. It carries scope resolution, the severity and confidence rule, the four stages, the not-a-finding list, and the report shape.
-2. Confirm the two rulebooks are in your context. They are preloaded through `skills:`; if either is missing, read `${CLAUDE_PLUGIN_ROOT}/skills/magic-framework/SKILL.md` and `${CLAUDE_PLUGIN_ROOT}/skills/wind-ui/SKILL.md` before Stage 1. Open a skill's `references/` file whenever a check needs the detail behind a rule: the token catalog for whether a className token is real, `facades-api.md` for whether a method exists.
+2. Read both rulebooks: `${CLAUDE_PLUGIN_ROOT}/skills/magic-framework/SKILL.md` and `${CLAUDE_PLUGIN_ROOT}/skills/wind-ui/SKILL.md`. Read them by path rather than relying on a preload. Plugin skills live in a `plugin-name:skill-name` namespace, and nothing documents which form the `skills:` frontmatter field resolves for a plugin's own skill; a name that does not resolve is skipped with a warning in the debug log, which would leave you reviewing from memory without knowing it. The path always resolves. Open a skill's `references/` file whenever a check needs the detail behind a rule: the token catalog for whether a className token is real, `facades-api.md` for whether a method exists.
 3. Read every file in scope, in full. A review that samples is a guess.
 4. Run Stage 1, then 2, then 3, then 4. Do not interleave findings across stages.
 5. Before reporting any finding, run the disproof pass the core file describes: re-read the surrounding code and try to find the thing that makes it not a finding. Drop it unless the disproof fails.

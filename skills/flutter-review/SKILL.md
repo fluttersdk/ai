@@ -98,4 +98,4 @@ Stop after two fix rounds. A third round means the findings are arguing with eac
 
 - The stages, the severity and confidence rule, the not-a-finding list, and the report shape: `${CLAUDE_PLUGIN_ROOT}/references/flutter-review-core.md`.
 - The style rules applied when no personal style skill is loaded: `${CLAUDE_PLUGIN_ROOT}/references/dart-style-core.md`.
-- The framework rules themselves: the `magic-framework` and `wind-ui` skills, which the reviewer loads at startup.
+- The framework rules themselves: the `magic-framework` and `wind-ui` skills. The reviewer reads them by path from `${CLAUDE_PLUGIN_ROOT}/skills/` at startup rather than through a `skills:` preload, because a plugin skill name that does not resolve in that field is skipped silently.
