@@ -77,6 +77,10 @@ Check the reviewed files against the magic rulebook, in this order:
 Check every file that builds UI.
 
 1. **Dark pairing.** Every `bg-` / `text-` / `border-` / `ring-` / `shadow-` / `fill-` token carries a `dark:` peer in the same className. This is the single most common real defect in Wind code; check it token by token, not by eye.
+
+   **Resolve the project's theme aliases before you flag anything here.** `WindThemeData.aliases` maps a bare token to a full className, and an alias value normally carries its own `dark:` peer, so an alias used on its own is correctly paired and flagging it is wrong. Find the map first: `grep -rn "aliases:" lib/` leads to it, and a project using the design-first workflow has it generated in `lib/config/wind_theme.g.dart`. Read the values, then treat every alias key whose value contains a `dark:` token as paired.
+
+   Measured on a real app before this check shipped: 38 of 76 className strings looked unpaired and every one of them was a semantic alias (`bg-surface`, `text-fg`, `border-color-border`) whose value already read `bg-[#FFFFFF] dark:bg-[#030712]`. A dark-pairing check that skips this step reports a false positive roughly half the time, which is the whole reason a reviewer stops being read.
 2. **No interpolation.** No Dart expression inside a className string. Conditional visuals route through `states:` plus prefixed classes.
 3. **Layout contracts.** `flex-1` for a fill-the-row child; `h-full` inside a scrollable parent; `absolute` without a `relative` ancestor; `truncate` without a bounded width; nested flex needing `min-w-0`; `scrollPrimary: true` on the scroll chain. The Wind skill's constraint section is the authority on each.
 4. **`child` XOR `children`** on every W-widget that accepts both.
