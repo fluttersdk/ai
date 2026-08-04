@@ -117,6 +117,13 @@ jobs:
                   fi
                   echo "Version sync OK: all three are $PLUGIN_VER"
 
+            - name: Install PyYAML
+              # The runner image happens to ship PyYAML today and the gate below
+              # passes on it, but an inherited dependency is one image update away
+              # from turning this gate into a red build with nothing wrong in the
+              # repo. Declare it.
+              run: python3 -m pip install --quiet --disable-pip-version-check pyyaml
+
             - name: Verify command, skill, and agent frontmatter
               run: |
                   python3 - <<'PY'
@@ -134,13 +141,14 @@ jobs:
                       "agents/flutter-reviewer-deep.md",
                   ]
 
-                  # Plugin-shipped agents support this set only. hooks, mcpServers, and
-                  # permissionMode are dropped for plugin agents, so shipping them would
-                  # promise behavior the loader ignores.
+                  # Plugin-shipped agents support this set only, quoted from the plugins
+                  # reference. hooks, mcpServers, and permissionMode are dropped for
+                  # plugin agents, and color is absent from that list even though the
+                  # general subagent docs carry it, so none of them belong here: an
+                  # ignored field looks identical to a working one.
                   agent_fields = {
                       "name", "description", "model", "effort", "maxTurns", "tools",
                       "disallowedTools", "skills", "memory", "background", "isolation",
-                      "color",
                   }
 
                   bad = 0

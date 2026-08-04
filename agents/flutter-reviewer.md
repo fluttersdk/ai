@@ -7,7 +7,6 @@ maxTurns: 40
 disallowedTools: Write, Edit, NotebookEdit
 skills:
   - my-coding
-color: yellow
 ---
 
 <role>
