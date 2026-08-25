@@ -135,6 +135,22 @@ Inside `telescope_queries` → `queries[]`.
 
 ---
 
+## FramePerfRecord
+
+Inside `telescope_frames` -> `frames[]`.
+
+| JSON key | Type | Required | Notes |
+|---|---|---|---|
+| `frameNumber` | integer | yes | The engine's frame number. A GAP in the sequence is a dropped scene; on web that is how a drop shows up, not as a slow frame. |
+| `buildMicros` | integer | yes | `FrameTiming.buildDuration`, microseconds. Sub-millisecond frames are the normal case, which is why the unit is in the key. |
+| `rasterMicros` | integer | yes | `FrameTiming.rasterDuration`. |
+| `vsyncOverheadMicros` | integer | yes | `FrameTiming.vsyncOverhead`. |
+| `totalSpanMicros` | integer | yes | `FrameTiming.totalSpan`. |
+| `blocks` | object | yes | `{name: {micros, count}}` per framework span drawn that frame. Empty when no measurement session was collecting. |
+| `time` | string (ISO 8601) | yes | |
+
+---
+
 ## MagicCacheRecord
 
 Inside `telescope_caches` → `caches[]`.

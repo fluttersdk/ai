@@ -18,11 +18,25 @@ the agent needs structured data.
 
 ## Contents
 
+- [Contents](#contents)
+- [telescope:install](#telescopeinstall)
+- [telescope:tail](#telescopetail)
+- [telescope:requests](#telescoperequests)
+- [telescope:queries](#telescopequeries)
+- [telescope:caches](#telescopecaches)
+- [telescope:frames](#telescopeframes)
+- [telescope:clear](#telescopeclear)
+- [Why some buffers are MCP-only](#why-some-buffers-are-mcp-only)
+- [Common output behaviour](#common-output-behaviour)
+
+## Contents
+
 - [`telescope:install`](#telescopeinstall)
 - [`telescope:tail`](#telescopetail)
 - [`telescope:requests`](#telescoperequests)
 - [`telescope:queries`](#telescopequeries)
 - [`telescope:caches`](#telescopecaches)
+- [`telescope:frames`](#telescopeframes)
 - [`telescope:clear`](#telescopeclear)
 - [Why some buffers are MCP-only](#why-some-buffers-are-mcp-only)
 - [Common output behaviour](#common-output-behaviour)
@@ -170,6 +184,33 @@ Print recent DB queries.
 
 ---
 
+## telescope:frames
+
+Print recent per-frame performance records.
+
+**Flags:**
+
+| Flag | Default | Help |
+|---|---|---|
+| `--limit=<N>` | `50` | Cap the window to the most recent N records, printed oldest to newest. |
+
+**VM extension:** `ext.telescope.frames`.
+
+**Output format:**
+
+```
+2026-08-25T10:46:51.145Z frame#409 build=57301us raster=2901us vsync=0us total=64301us blocks={WDiv: {micros: 518300, count: 122}, ...}
+livenessCounter=415
+```
+
+**Empty-buffer hint:** `"No frame records (register FramePerfWatcher). livenessCounter=<N>"`. The counter is printed even when the list is empty, and that is the point: an empty result means either a quiet app or an engine that stopped rendering, and only the second is a reason to distrust every other number in a session.
+
+**Buffer size:** 3600 records, not the 500 the other nine use. That is about a minute at 60fps, and it has its own capacity field so raising it does not inflate the other buffers.
+
+**Exit codes:** always `0`.
+
+---
+
 ## telescope:caches
 
 Print recent Magic Cache operations.
@@ -200,7 +241,7 @@ Note: the buffer is currently a placeholder, see the cache section in
 
 ## telescope:clear
 
-Wipe all 9 ring buffers atomically.
+Wipe all 10 ring buffers atomically.
 
 **Flags:** none.
 
@@ -218,7 +259,7 @@ Cleared telescope buffers.
 
 ## Why some buffers are MCP-only
 
-V1 ships 6 CLI commands and 9 MCP tools. The four buffers without a
+V1 ships 7 CLI commands and 10 MCP tools. The four buffers without a
 CLI mirror (`exceptions`, `events`, `gates`, `dumps`) are MCP-only by
 intent: their records are dense JSON objects (stack traces, payload
 maps, arguments lists) that do not pretty-print well into a single

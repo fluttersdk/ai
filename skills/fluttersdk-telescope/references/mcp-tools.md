@@ -18,6 +18,7 @@ For per-record field shape (every key inside the record objects), see
 - [`telescope_dumps`](#telescope_dumps)
 - [`telescope_queries`](#telescope_queries)
 - [`telescope_caches`](#telescope_caches)
+- [`telescope_frames`](#telescope_frames)
 - [`telescope_clear`](#telescope_clear)
 - [Common semantics](#common-semantics)
 - [Empty-buffer diagnosis](#empty-buffer-diagnosis)
@@ -341,6 +342,22 @@ calls are invisible.
 
 ---
 
+## telescope_frames
+
+Return recent per-frame performance records from the running app.
+
+**Extension:** `ext.telescope.frames`.
+
+**Input schema:** `limit` (integer, optional, default 50).
+
+**Returns:** `{"frames": [...], "livenessCounter": <int>}`. Each frame carries `frameNumber`, `buildMicros`, `rasterMicros`, `vsyncOverheadMicros`, `totalSpanMicros`, `time`, and a `blocks` map of `{name: {micros, count}}`.
+
+`livenessCounter` is present on every response, including an empty one. It is a monotonic count of frames actually drawn, and it is the only reliable proof the engine is rendering: `SchedulerBinding.framesEnabled` was measured reporting `true`, with a `resumed` lifecycle, on a backgrounded Chrome page that had produced one frame in two seconds. If the counter does not advance across an interaction, every number in the response is a zero that reads as "fast".
+
+Requires `TelescopePlugin.registerWatcher(FramePerfWatcher())`; it is opt-in and not auto-installed.
+
+---
+
 ## telescope_caches
 
 Magic Cache operations.
@@ -388,7 +405,7 @@ events ship).
 
 ## telescope_clear
 
-Wipe all 9 ring buffers atomically.
+Wipe all 10 ring buffers atomically.
 
 **VM extension:** `ext.telescope.clear`.
 
@@ -447,7 +464,7 @@ tools in V1. Reach for them only from Dart code via
   error envelope is emitted; the handler always returns
   `ServiceExtensionResponse.result`.
 
-- **Hot-restart safety.** All 11 extensions register via
+- **Hot-restart safety.** All 12 extensions register via
   `registerExtensionIdempotent` from `fluttersdk_artisan`. Hot
   restart re-runs the install code without re-registration errors.
 
