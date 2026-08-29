@@ -7,6 +7,21 @@ Import via:
 import 'package:magic/magic.dart';
 ```
 
+## Contents
+
+- [Network Configuration](#network-configuration)
+- [Http Facade](#http-facade)
+- [MagicResponse API](#magicresponse-api)
+- [Validation Error Example](#validation-error-example)
+- [Interceptors](#interceptors)
+- [Driver Plugin Hook](#driver-plugin-hook)
+- [ValidatesRequests Mixin](#validatesrequests-mixin)
+- [MagicStateMixin Fetch Helpers](#magicstatemixin-fetch-helpers)
+- [Paginated Collections](#paginated-collections)
+- [Common Patterns](#common-patterns)
+- [Testing](#testing)
+- [Gotchas](#gotchas)
+
 ## Network Configuration
 
 Defined in `lib/config/network.dart`. The default configuration uses the `api` driver.
@@ -436,6 +451,95 @@ await controller.loadProjects('team-1');
 expect(controller.isSuccess, isTrue);
 expect(controller.rxState?.length, 1);
 ```
+
+## Paginated Collections
+
+`fetchList` replaces the whole list and ignores the pagination envelope. For a collection long enough that rendering all of it is the problem (a log, a check history, a feed), use `MagicPaginator<E>` plus `MagicPaginatedListView<E>`.
+
+### `MagicPaginator<E>`
+
+```dart
+final checks = MagicPaginator<CheckRow>(
+  url: 'monitors/$id/checks',   // no pagination parameter; it adds its own
+  fromMap: CheckRow.fromMap,
+  perPage: 50,                  // sent as `per_page`; omit to let the server decide
+  query: {'region': 'eu-central'},  // travels with every page
+  dataKey: 'data',
+);
+
+await checks.loadFirst();
+await checks.loadMore();
+await checks.refresh();
+```
+
+| Member | Meaning |
+|---|---|
+| `items` | every row so far, oldest page first. A live `UnmodifiableListView`, not a copy |
+| `hasMore` | the server reported a page after the last one read |
+| `isLoading` | a request is in flight |
+| `error` | last failure message, cleared by the next success |
+| `isEmpty` | a first page arrived and held nothing (false before the first load) |
+| `mode` | `PaginationMode.cursor` / `.offset` / `.single` read from the response, or `.fetcher` on the fetcher path, where the source is behind a callback and the paginator does not know |
+| `generation` | increments on every landed reset. Lets a view tell "the same rows again" from "a fresh first page of the same length" |
+
+It is a `ChangeNotifier`; listen to it directly.
+
+### A source that is not a url
+
+`MagicPaginator.fetcher` pages anything: a rail or driver behind a swappable contract, a store, an assembled query. Reach for it instead of pointing the url constructor at the endpoint a service wraps.
+
+```dart
+MagicPaginator<Invoice>.fetcher(
+  fetch: (MagicPageRequest request) async {
+    final page = await Payments.getInvoices(cursor: request.cursor);
+
+    return MagicPage<Invoice>(items: page.invoices, nextCursor: page.nextCursor);
+  },
+)
+```
+
+`MagicPage` carries the rows plus either `nextCursor` (paged by token) or `hasMore` (paged by something the paginator never sees). The request carries `cursor` AND `isFirst`; a source keeping its own page number MUST branch on `isFirst`, or a `refresh()` is indistinguishable from a `loadMore()` and renders whatever page it was up to as the whole list. A fetcher signals failure by THROWING: an `Exception` becomes `error` with the rows kept and `hasMore` untouched, an `Error` propagates because it is the fetcher being wrong. `mode` reports `PaginationMode.fetcher`.
+
+### Mode is read, not configured
+
+| Response `meta` | Mode | Next request |
+|---|---|---|
+| `next_cursor` | `cursor` | `?cursor=<token>` |
+| `current_page` + `last_page` | `offset` | `?page=<n+1>` |
+| neither | `single` | none; the collection is complete |
+
+The `next_cursor` KEY selects the mode and its VALUE decides `hasMore`, because it is present and null on the last cursor page.
+
+**Recommend `cursorPaginate()` server-side for data that grows at the head.** Offset counts from the start, so a row inserted at the top between two requests shifts everything down and page two repeats the last row of page one. A cursor names a position, so it cannot drift, and the query stays cheap at any depth. The cost is no total and no page jumping.
+
+### `MagicPaginatedListView<E>`
+
+```dart
+WDiv(
+  className: 'h-[600px]',            // REQUIRED: it is a ListView
+  child: MagicPaginatedListView<CheckRow>(
+    paginator: controller.checks,
+    itemBuilder: (context, row, index) => CheckHistoryRow(row: row),
+    separatorBuilder: (_, _) => const WDiv(className: 'h-px bg-gray-200'),
+    emptyState: const MSEmptyState(title: 'No checks yet'),
+    loadingFooter: const WDiv(className: 'p-4', child: WText('Loading...')),
+    loadMoreExtent: 400,             // px from the end that triggers the fetch
+  ),
+)
+```
+
+Builds only what the viewport shows and calls `loadMore()` as the tail approaches. Measured: 500 rows in a 300px viewport cost under 30 `itemBuilder` calls.
+
+### Gotchas
+
+- **It needs a bounded height.** Unbounded throws; `shrinkWrap: true` "fixes" that by measuring every row, which builds all of them and saves nothing. Bound it, or move the page to a sliver scaffold.
+- **`loadMore()` is safe to call every frame.** It refuses while a request is in flight and when `hasMore` is false. Without that guard a scroll callback fetches the same page repeatedly and appends each row two or three times.
+- **A failed page does not clear the list.** Rows stay, `error` is set, `hasMore` is untouched so a retry has a target.
+- **A transport failure is a failure.** statusCode 0 (timeout, dead link) is neither `failed` nor `successful`, so the check is `!response.successful`; an offline first page sets `error` instead of reporting the collection empty.
+- **A short first page still loads the next, and knows when to stop.** Scroll notifications need a scroll, so the widget also checks `maxScrollExtent` after the frame; a small `perPage` cannot strand the reader. The fill stops on an `error` (a failure is not a reason to retry every frame) and on a page that added no rows **to that collection** (a cursor beside an empty `data` array never fills the viewport). Without both, the check re-arms per build and fetches per frame. The second brake is keyed on `(generation, count)`, not on the count alone: a `refresh()` rebuilds page one at the same length, and a brake keyed on length would read that as "nothing was added" and strand the reader on the retry path.
+- **`refresh()` during an in-flight `loadMore()` really refreshes.** It waits for that page, then starts over, so pull-to-refresh cannot retract having done nothing.
+- **Disposing mid-request is safe.** Every notify is guarded, the way `MagicController.refreshUI` is.
+- **`items` is a live view.** Reading it does not copy, and it cannot be written through.
 
 ## Common Patterns
 

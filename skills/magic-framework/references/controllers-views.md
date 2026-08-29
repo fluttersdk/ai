@@ -3,6 +3,20 @@
 Laravel-inspired UI architecture. Controllers manage state and business logic; Views observe and render.
 
 
+## Contents
+
+- [MagicController](#magiccontroller)
+- [MagicStateMixin\<T\>](#magicstatemixint)
+- [Singleton Accessor Pattern](#singleton-accessor-pattern)
+- [ValidatesRequests Mixin](#validatesrequests-mixin)
+- [ValueNotifier Pattern](#valuenotifier-pattern)
+- [MagicView\<T\>](#magicviewt)
+- [MagicStatefulView\<T\>](#magicstatefulviewt)
+- [MagicResponsiveView\<T\>](#magicresponsiveviewt)
+- [MagicBuilder\<T\>](#magicbuildert)
+- [Complete Lifecycle Example](#complete-lifecycle-example)
+- [Gotchas](#gotchas)
+
 ## MagicController
 
 Base class for all controllers. Extends `ChangeNotifier`.
@@ -15,7 +29,8 @@ abstract class MagicController extends ChangeNotifier
 | :--- | :--- | :--- |
 | `onInit()` | `void` | Called on first creation. Override to fetch data or init resources. `@mustCallSuper`. |
 | `onClose()` | `void` | Called before dispose. Override to clean up timers, streams, etc. `@mustCallSuper`. |
-| `refreshUI()` | `void` | Calls `notifyListeners()` safely (no-op if disposed). |
+| `refreshUI()` | `void` | Calls `notifyListeners()` safely (no-op if disposed). Every controller notification goes through it, including `ValidatesRequests`. |
+| `MagicController.onRefreshUI` | `void Function(MagicController)?` | Static, null by default. Debug tooling sets it to observe every notification; a hook that throws is contained and cannot stop the repaint. |
 | `initialized` | `bool` | Whether `onInit()` has been called. |
 | `isDisposed` | `bool` | Whether the controller has been disposed. |
 

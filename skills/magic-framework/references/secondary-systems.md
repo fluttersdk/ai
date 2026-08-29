@@ -2,6 +2,22 @@
 
 Complete reference for Magic framework utility systems: Cache, Events, Logging, Localization, Storage, Encryption, Vault, Carbon, Launch, and Pick. All systems are accessible through facades after importing `package:magic/magic.dart`.
 
+## Contents
+
+- [Cache System](#cache-system)
+- [Event Dispatcher](#event-dispatcher)
+- [Logging Manager](#logging-manager)
+- [Localization (Translator)](#localization-translator)
+- [Session (Flash Store)](#session-flash-store)
+- [Storage Manager](#storage-manager)
+- [Encryption (Crypt Facade)](#encryption-crypt-facade)
+- [Vault (Security Storage)](#vault-security-storage)
+- [Carbon (Date Manipulation)](#carbon-date-manipulation)
+- [Launch (URL Launcher)](#launch-url-launcher)
+- [Pick (File & Image Selection)](#pick-file--image-selection)
+- [Broadcasting](#broadcasting)
+- [Key Gotchas](#key-gotchas)
+
 ## Cache System
 
 The Cache system provides a unified key-value caching API with TTL (time-to-live) support. Backed by the `CacheManager` and resolved via the `Cache` facade.

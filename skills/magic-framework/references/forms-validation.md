@@ -3,6 +3,23 @@
 Comprehensive guide to handling form state, validation rules, and server-side error mapping in the Magic framework.
 
 
+## Contents
+
+- [MagicFormData](#magicformdata)
+- [MagicForm Widget](#magicform-widget)
+- [rules() Helper (MagicStatefulViewState)](#rules-helper-magicstatefulviewstate)
+- [FormValidator.rules() (standalone)](#formvalidatorrules-standalone)
+- [Validator.make()](#validatormake)
+- [ValidatesRequests Mixin](#validatesrequests-mixin)
+- [Built-in Rules](#built-in-rules)
+- [Custom Rules](#custom-rules)
+- [Server Error Mapping](#server-error-mapping)
+- [Message i18n](#message-i18n)
+- [Full Form Workflow Example](#full-form-workflow-example)
+- [Gotchas](#gotchas)
+- [FormRequest](#formrequest)
+- [AsyncRule & Unique](#asyncrule--unique)
+
 ## MagicFormData
 
 The central manager for form state. It automatically infers the correct controller type based on the initial value provided in the map.

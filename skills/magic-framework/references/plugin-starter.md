@@ -1,8 +1,25 @@
-<!-- magic_starter v0.0.1-alpha.18 | Updated: 2026-08-03 -->
+<!-- magic_starter v0.0.1-alpha.23 | Updated: 2026-08-29 -->
 
 # magic_starter Plugin
 
 Full-stack Flutter starter kit for Magic Framework: pre-built auth flows, team management, profile settings, notification UI, and responsive app/guest layouts with an opt-in feature flag system.
+
+## Contents
+
+- [Installation & Setup](#installation--setup)
+- [MagicStarter Facade API](#magicstarter-facade-api)
+- [Configuration](#configuration)
+- [View Registry](#view-registry)
+- [Design-system components](#design-system-components)
+- [Reusable Widgets](#reusable-widgets)
+- [Session scope (cross-tenant leak guard)](#session-scope-cross-tenant-leak-guard)
+- [Route middleware](#route-middleware)
+- [Plan upgrade wall](#plan-upgrade-wall)
+- [Settings page width](#settings-page-width)
+- [Controllers](#controllers)
+- [Layouts & Notification Integration](#layouts--notification-integration)
+- [Gate Abilities](#gate-abilities)
+- [Gotchas](#gotchas)
 
 ## Installation & Setup
 
@@ -129,7 +146,7 @@ The manager holds 7 sub-theme objects. Set all at once via `useTheme()` or indiv
 | `useModalTheme(theme)` | `void` | Override modal container, buttons, inputs, typography tokens. |
 | `useFormTheme(theme)` | `void` | Override form input, label, button, link tokens across all forms. |
 | `useAuthTheme(theme)` | `void` | Override auth card, title, error banner, social divider tokens. |
-| `useCardTheme(theme)` | `void` | Override `MagicStarterCard` variant backgrounds, border radius, padding. |
+| `useCardTheme(theme)` | `void` | Override `MSCard` variant backgrounds, border radius, padding. |
 | `usePageHeaderTheme(theme)` | `void` | Override page header container, title, subtitle tokens. |
 | `useLayoutTheme(theme)` | `void` | Override sidebar, header, content/drawer background, brand bar tokens. |
 
@@ -231,6 +248,7 @@ Copy from `lib/config/magic_starter.dart` into your app config:
     'social_login': true,
     'notifications': true,
     'timezones': false,
+    'billing': false,          // gates `teams.billing` (alpha.23+ ships it in the generated stub)
   },
   'auth': {
     'email': true,    // Email-based login/register
@@ -248,6 +266,10 @@ Copy from `lib/config/magic_starter.dart` into your app config:
     'teams_prefix': '/teams',
     'profile_prefix': '/settings',
     'notifications_prefix': '/notifications',
+    'billing': '/teams/billing',
+  },
+  'billing': {
+    'web_origin': null,   // REQUIRED once billing is on, and no default exists
   },
   'legal': {
     'terms_url': null,    // Shows ToS link on register page when set
@@ -256,7 +278,12 @@ Copy from `lib/config/magic_starter.dart` into your app config:
 },
 ```
 
-All 13 features default to `false` in code. The template above has some enabled as a reasonable starting point.
+All 14 features default to `false` in code. The template above has some enabled as a reasonable starting point.
+
+`billing.web_origin` carries no default on purpose, and its absence fails SILENTLY. The billing view
+concatenates it into Stripe's `successUrl`, `cancelUrl` and the portal `returnUrl`, Stripe rejects a
+relative url, and the resulting `BillingException` is logged rather than shown, so the customer sees a
+checkout button that does nothing. `starter:doctor` reports the missing key (alpha.23+).
 
 ## View Registry
 
@@ -283,12 +310,25 @@ MagicStarter.view.registerModal('modal.confirm', () => CustomConfirmDialog());
 | `auth.reset_password` | always | `MagicStarterResetPasswordView` |
 | `auth.two_factor_challenge` | `features.two_factor` | `MagicStarterTwoFactorChallengeView` |
 | `auth.otp_verify` | `features.phone_otp` | `MagicStarterOtpVerifyView` |
-| `profile.settings` | always | `MagicStarterProfileSettingsView` |
+| `settings.hub` | always | `MagicStarterSettingsHubView` |
+| `profile.profile` | always | `MagicStarterProfileSubPageView` |
+| `settings.appearance` | always | `MagicStarterAppearanceView` |
+| `settings.security.password` | always | `MagicStarterPasswordView` |
+| `settings.language` | `features.extended_profile` | `MagicStarterLanguageView` |
+| `settings.timezone` | `features.timezones` | `MagicStarterTimezoneView` |
+| `settings.newsletter` | `features.newsletter` | `MagicStarterNewsletterView` |
+| `settings.security.two_factor` | `features.two_factor` | `MagicStarterTwoFactorView` |
+| `settings.security.sessions` | `features.sessions` | `MagicStarterSessionsView` |
 | `teams.create` | `features.teams` | `MagicStarterTeamCreateView` |
 | `teams.settings` | `features.teams` | `MagicStarterTeamSettingsView` |
 | `teams.invitation_accept` | `features.teams` | `MagicStarterTeamInvitationAcceptView` |
+| `teams.billing` | `features.billing` | `MagicStarterBillingView` |
 | `notifications.list` | `features.notifications` | `MagicStarterNotificationsListView` |
 | `notifications.preferences` | `features.notifications` | `MagicStarterNotificationPreferencesView` |
+
+The settings surface is an iOS-style hub plus drill-down sub-pages, which is why the keys read the way they do. `settings.hub` is the index; the profile page is `profile.profile` (NOT `profile.settings`, which registers nothing); security pages nest under `settings.security.*`.
+
+`teams.billing` is gated on its OWN `features.billing` toggle, not on `features.teams`. The key sits in the `teams.` area because that is where the route lives (`MagicStarterConfig.billingRoute()`, default `/teams/billing`), but a subscription is bought by whoever holds the account, so an app with no team features can still sell one.
 
 ### Built-in Layout Keys
 
@@ -346,43 +386,76 @@ dart run magic:artisan starter:publish --tag=layouts
 
 Published files go to `lib/resources/views/starter/` (views) or `lib/resources/layouts/starter/` (layouts). Auto-wire adds `MagicStarter.view.register()` calls to `AppServiceProvider`.
 
-## Reusable Widgets
+## Design-system components
 
-Exported from `package:magic_starter/magic_starter.dart` for use in consumer apps.
+39 atomic components, all `MS`-prefixed, exported from `package:magic_starter/magic_starter.dart`. Each lives in a 4-file folder under `lib/src/ui/components/` (`<name>.dart`, `<name>.recipe.dart`, `<name>.preview.dart`, `index.dart`) and styles through a `WindRecipe` that reads `MagicStarterTokens.defaultAliases`, so a consumer's theme drives them.
 
 > [!IMPORTANT]
-> Six of these are aliases as of alpha.16, and the `MS`-prefixed name is the canonical one: `MSPageHeader`, `MSCard`, `MSSocialDivider`, `MSNotificationDropdown`, `MSTeamSelector`, `MSUserProfileDropdown`. The aliases are empty subclasses (same constructor parameters, same `CardVariant`, same export path) and they are REMOVED in the next release. Write the `MS` name in new code. `MagicStarterTimezoneSelect`, `MagicStarterConfirmDialog`, `MagicStarterPasswordConfirmDialog`, `MagicStarterTwoFactorModal`, `MagicStarterDialogShell`, `MagicStarterAuthFormCard`, and `MagicStarterHideBottomNav` are real widgets with no `MS` counterpart and keep their names.
+> The `MS` prefix is not optional and there is no compat shim. The pre-`MS` component names (`Button`, `Dialog`, `Switch`, ...) were removed in alpha.19, and so were the six `MagicStarter*` alias widgets (`MagicStarterCard`, `MagicStarterPageHeader`, `MagicStarterSocialDivider`, `MagicStarterNotificationDropdown`, `MagicStarterTeamSelector`, `MagicStarterUserProfileDropdown`). Write `MSCard`, `MSPageHeader`, `MSSocialDivider`, `MSNotificationDropdown`, `MSTeamSelector`, `MSUserProfileDropdown`. The prefix is what ends the `package:flutter/material.dart` collision, so no `hide` clause is needed either way.
 
-| Widget | Purpose |
-|:-------|:--------|
-| `MagicStarterPageHeader` | Full-width page header with `title`, `subtitle`, `leading`, `actions`, `titleSuffix` (Widget?), `inlineActions` (bool) |
-| `MagicStarterCard` | Card with `title` slot, `noPadding` mode, `CardVariant` (surface/inset/elevated) |
-| `MagicStarterConfirmDialog` | Confirmation dialog with `ConfirmDialogVariant` (primary/danger/warning), async `onConfirm` |
-| `MagicStarterPasswordConfirmDialog` | Password-confirm dialog with inline error display, `ConfirmDialogVariant` support |
-| `MagicStarterTwoFactorModal` | Multi-step 2FA wizard (QR setup, OTP confirm, recovery codes) |
-| `MagicStarterDialogShell` | Shared dialog shell with sticky header/footer, scrollable body |
-| `MagicStarterAuthFormCard` | Centered card wrapper for auth-adjacent screens |
-| `MagicStarterTimezoneSelect` | Searchable timezone dropdown backed by `GET /timezones` |
-| `MagicStarterTeamSelector` | Current-team switcher dropdown with create/settings links |
-| `MagicStarterUserProfileDropdown` | User avatar menu with profile links, theme toggle, logout |
-| `MagicStarterNotificationDropdown` | Bell-icon dropdown with live unread badge and mark-as-read |
-| `MagicStarterSocialDivider` | "Or continue with" divider for auth forms |
-| `MagicStarterHideBottomNav` | `InheritedWidget` that signals `MagicStarterAppLayout` to hide mobile bottom nav for fullscreen routes |
+| Family | Components |
+|:-------|:-----------|
+| Form controls | `MSButton`, `MSInput`, `MSTextarea`, `MSCheckbox`, `MSSwitch`, `MSRadio`, `MSSelect`, `MSCombobox` |
+| Display | `MSBadge`, `MSTypography`, `MSSkeleton`, `MSToast`, `MSTooltip`, `MSEmptyState`, `MSErrorState`, `MSDataTable` |
+| Selection / navigation | `MSSegmentedControl`, `MSTabs`, `MSAccordion`, `MSNavbar`, `MSDropdownMenu` |
+| Overlay | `MSDialog`, `MSBottomSheet`, `MSConfirmDialog` |
+| Composition | `MSFormField`, `MSCard`, `MSPageHeader`, `MSSocialDivider` |
+| Page geometry | `MSPageContainer`, `MSPageScaffold` |
+| Settings surface | `MSSettingsSection`, `MSSettingsRow`, `MSSettingsNavRow` |
+| Billing surface | `MSUsageMeter`, `MSUpgradeDialog`, `MSUpgradeNudge` |
+| App chrome | `MSNotificationDropdown`, `MSUserProfileDropdown`, `MSTeamSelector` |
 
-### MagicStarterPageHeader Props
+`MSButton`, `MSInput` and `MSTextarea` take `bool fullWidth = false`, which wraps the rendered widget in a `SizedBox(width: double.infinity)` rather than adding a className token (Material widgets ignore cross-axis stretch).
+
+`MSDataTable` (alpha.22+) has two constructors, and the choice is about the collection rather than the styling. The default renders every row, which is right for a short and complete list. `MSDataTable.paginated` hands the body to magic's `MagicPaginatedListView` inside a box bounded by `bodyHeight`, so a long collection costs the viewport instead of the whole result and reaching the tail asks the paginator for its next page. The header stays outside the scrolling body either way. Column labels and `loadingLabel` are ALREADY TRANSLATED strings, not keys: several callers render a label that is not a key at all (a currency code, a region name).
+
+### Page geometry is not per-page
+
+Every authenticated page goes through `MSPageScaffold` (page surface, own scroll, container, header, `gap-6` sections column) or `MSPageContainer` for a bare page. A page that opens with its own `WDiv(className: 'p-4 lg:p-6 ...')` has invented a width and a padding, and will not line up with its neighbours. Never put a `max-w-*` or `px-*` on a page root: the geometry comes from `MagicStarter.manager.pageContainerClassName`, which the HOST sets once.
 
 ```dart
-MagicStarterPageHeader(
+MSPageScaffold(
+  title: trans('projects.title'),
+  subtitle: trans('projects.manage_subtitle'),
+  actions: [
+    MSButton(onPressed: _onCreate, child: WText(trans('projects.new'))),
+  ],
+  children: [
+    MSCard(title: trans('projects.recent'), child: _list()),
+  ],
+)
+```
+
+### MSPageHeader props
+
+```dart
+MSPageHeader(
   title: trans('projects.title'),
   subtitle: trans('projects.manage_subtitle'),
   leading: BackButton(),
   titleSuffix: StatusBadge(status: 'active'), // inline widget after title
-  inlineActions: true, // force single-row layout on all screen sizes
+  inlineActions: true, // force single-row layout at every width
   actions: [
-    PrimaryButton(label: trans('projects.new'), onTap: _onCreate),
+    MSButton(onPressed: _onCreate, child: WText(trans('projects.new'))),
   ],
 )
 ```
+
+`inlineActions` is `bool?` and falls back to `MagicStarterPageHeaderTheme.inlineActions`. It does two things and both are required together: it swaps `containerClassName` for `containerInlineClassName`, AND it gives the title row `flex-1 min-w-0` instead of `sm:flex-1`. Theming the container into a row at every width without setting the flag leaves the title column a loose fit below `sm`, so a long title takes its intrinsic width and overflows. `MSPageScaffold` does not expose the argument, which is why the theme field exists.
+
+## Reusable Widgets
+
+The starter-specific widgets, exported from the same barrel. These are not design-system components: they carry starter behaviour (an API call, a wizard, a layout signal) rather than a style recipe.
+
+| Widget | Purpose |
+|:-------|:--------|
+| `MagicStarterTwoFactorModal` | Multi-step 2FA wizard (QR setup, OTP confirm, recovery codes) |
+| `MagicStarterPasswordConfirmDialog` | Password-confirm dialog with inline error display, `ConfirmDialogVariant` support |
+| `MagicStarterTimezoneSelect` | Searchable timezone dropdown backed by `GET /timezones` (async search, never local data) |
+| `MagicStarterAuthFormCard` | Centered card wrapper for auth-adjacent screens |
+| `MagicStarterHideBottomNav` | `InheritedWidget` that signals `MagicStarterAppLayout` to hide the mobile bottom nav for fullscreen routes |
+| `MagicStarterConfirmDialog` | Thin alias of `MSConfirmDialog`, kept for existing callers. New code writes `MSConfirmDialog`. |
+| `MagicStarterDialogShell` | Thin alias of `MSDialog` (sticky header/footer, scrollable body). New code writes `MSDialog`. |
 
 ### MagicStarterHideBottomNav
 

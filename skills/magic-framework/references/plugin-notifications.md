@@ -1,8 +1,22 @@
-<!-- magic_notifications v0.0.2 | Updated: 2026-08-03 -->
+<!-- magic_notifications v0.0.3 | Updated: 2026-08-29 -->
 
 # magic_notifications Plugin
 
-Push and in-app notification system for Magic Framework: the `Notify` facade, database (in-app) notifications with real-time streaming, OneSignal push integration, and background polling.
+Push and in-app notification system for Magic Framework: the `Notify` facade, database (in-app) notifications with real-time streaming, OneSignal push integration, and two ways to learn about a new row: a broadcast socket (preferred, 0.0.3+) or background polling (the fallback).
+
+## Contents
+
+- [Installation](#installation)
+- [CLI commands and MCP tools](#cli-commands-and-mcp-tools)
+- [Notify Facade API](#notify-facade-api)
+- [Contracts](#contracts)
+- [Channels](#channels)
+- [PushDriver](#pushdriver)
+- [Models](#models)
+- [Configuration](#configuration)
+- [Service Provider Setup](#service-provider-setup)
+- [Usage Patterns](#usage-patterns)
+- [Gotchas](#gotchas)
 
 ## Installation
 
@@ -65,10 +79,27 @@ All methods are accessed via the static `Notify` facade after importing `package
 
 | Method | Parameters | Return Type | Description |
 |:-------|:-----------|:------------|:------------|
-| `Notify.startPolling()` | — | `void` | Start 30-second polling. Fetches immediately on start. Idempotent. |
+| `Notify.startPolling()` | — | `void` | Start 30-second polling. Fetches immediately on start. Idempotent. **No-op while realtime is live**, so it is safe to wire next to `startRealtime()` as the fallback. |
 | `Notify.stopPolling()` | — | `void` | Stop polling and destroy timer. Call on logout. |
 | `Notify.pausePolling()` | — | `void` | Pause (timer keeps running, fetches are skipped). Use on app background. |
 | `Notify.resumePolling()` | — | `void` | Resume paused polling. Fetches immediately on resume. |
+| `Notify.isPolling` | — | `bool` | Whether the periodic timer is currently armed. |
+
+### Realtime (0.0.3+)
+
+Notification state can arrive over the app's broadcast socket instead of being polled for. This is the preferred path; polling stays as the fallback for a deployment with no broadcast driver.
+
+| Method | Parameters | Return Type | Description |
+|:-------|:-----------|:------------|:------------|
+| `Notify.startRealtime()` | `{String? channel, String event = 'notification.created'}` | `Future<bool>` | Subscribe to the notifiable's private channel and apply each frame to the cache. Returns `false` (changing nothing) when the app has no broadcast driver, so the caller keeps polling. |
+| `Notify.stopRealtime()` | — | `void` | Leave the channel and drop the connection watcher. Does NOT close the connection (it is shared) and does NOT restart polling. |
+| `Notify.isRealtime` | — | `bool` | Whether state is currently arriving over a socket. |
+
+`channel` has to come from the caller: this package has no user model and cannot know whose notifications these are. Laravel's default for a `Notifiable` that has not overridden `receivesBroadcastNotificationsOn()` is `App.Models.User.{id}`.
+
+What a successful `startRealtime()` does, in order: connects only if no connection exists (magic's Reverb driver `connect()` is NOT idempotent, a second call leaks the first socket), subscribes and listens for the event exactly once, stops the poller, fetches the existing list ONCE (a socket carries only what happens next), and watches the connection so a drop falls back to polling and a reconnect lifts the fallback. It is idempotent per channel: the same channel is a no-op, a different one moves the subscription.
+
+Requires `magic ^0.0.6` for `Echo.connection`, the public accessor that tells an open connection from a closed one.
 
 ### Manager Access
 
@@ -299,8 +330,11 @@ Register `NotificationServiceProvider` in `config/app.dart`. It is NOT auto-regi
 ```dart
 import 'package:magic_notifications/magic_notifications.dart';
 
-// After user login
+// After user login. Ask for the socket first, then arm polling as the fallback:
+// startPolling() is a no-op while realtime is live, so the caller does not have
+// to know whether a socket happens to be up.
 await Notify.initializePush(user.id.toString());
+await Notify.startRealtime(channel: 'App.Models.User.${user.id}');
 Notify.startPolling();
 
 // On app background (e.g., in AppLifecycleListener)
@@ -311,6 +345,7 @@ Notify.resumePolling();
 
 // On logout
 await Notify.logoutPush();
+Notify.stopRealtime();
 Notify.stopPolling();
 await Auth.logout();
 ```
@@ -376,7 +411,9 @@ Notify.manager.registerChannel(MyCustomChannel());
 | `Notify.initializePush()` throws `PUSH_DRIVER_NOT_CONFIGURED` | `NotificationServiceProvider` must be registered and `notifications.push.app_id` must be non-empty in config. |
 | `Notify.manager.pushDriver` accessed before push init | Throws `NotificationException`. Guard with `try/catch` or ensure provider is registered. |
 | Push login called before permission granted | `initializePush()` silently defers the external ID association. It will not throw, but the device won't be linked until a subscription is active. |
-| Polling not stopped on logout | Always call `Notify.stopPolling()` on logout — the timer holds a reference to `NotificationManager` and will keep fetching. |
+| Polling not stopped on logout | Always call `Notify.stopPolling()` on logout — the timer holds a reference to `NotificationManager` and will keep fetching. Pair it with `Notify.stopRealtime()`, which the manager does not do for you (only the caller knows the user is gone). |
+| `startRealtime()` returned `false` and the bell stays empty | It returns `false` without changing anything when the app has no broadcast driver (a null `BROADCAST_CONNECTION`). That is why `startPolling()` is armed next to it: reporting success there would stop the poller and leave the bell permanently empty. |
+| `startRealtime()` called without a channel | `channel` is required in practice: `null` or empty returns `false` immediately. The package has no user model and cannot derive the name. |
 | `notifications()` stream never emits | The stream emits current cache immediately to each new listener. If the cache is empty, subscribe then call `fetchNotifications()` to trigger the first emission. |
 | `markAsRead()` / `deleteNotification()` reverts | These are optimistic — if the backend call fails, local state is reverted. UI will flash back to previous state. |
 | `via()` returns unknown channel name | `NotificationManager.send()` logs a warning but does not throw. The notification is silently skipped for that channel. |

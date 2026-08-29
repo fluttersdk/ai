@@ -2,6 +2,27 @@
 
 Comprehensive guide to route registration, context-free navigation, middleware, transitions, and persistent layouts in the Magic framework.
 
+## Contents
+
+- [Route Registration](#route-registration)
+- [Fluent Route Definition API](#fluent-route-definition-api)
+- [Route Groups](#route-groups)
+- [Resource Routes (ResourceController)](#resource-routes-resourcecontroller)
+- [Persistent Layouts (Shell Routes)](#persistent-layouts-shell-routes)
+- [Route Transitions](#route-transitions)
+- [Context-Free Navigation](#context-free-navigation)
+- [Path & Query Parameters](#path--query-parameters)
+- [Named Routes](#named-routes)
+- [Intended URL (Redirect-After-Login Pattern)](#intended-url-redirect-after-login-pattern)
+- [Middleware Pipeline](#middleware-pipeline)
+- [RouteServiceProvider Pattern](#routeserviceprovider-pattern)
+- [Router Configuration](#router-configuration)
+- [Key Patterns](#key-patterns)
+- [URL Strategy (Web)](#url-strategy-web)
+- [Navigator Observers](#navigator-observers)
+- [Page Titles](#page-titles)
+- [Gotchas](#gotchas)
+
 ## Route Registration
 
 Routes are registered using the `MagicRoute.page()` method. Each route maps a path to a widget builder function.

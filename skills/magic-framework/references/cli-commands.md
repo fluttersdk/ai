@@ -2,6 +2,15 @@
 
 Complete reference for the Magic CLI — an Artisan-inspired code generation and project management tool for Magic Framework projects.
 
+## Contents
+
+- [Invocation](#invocation)
+- [Command Overview](#command-overview)
+- [Project Setup](#project-setup)
+- [Code Generators](#code-generators)
+- [Common Patterns](#common-patterns)
+- [Gotchas](#gotchas)
+
 ## Invocation
 
 All commands are invoked via `dart run magic:artisan <command>` from the Flutter project root (where `pubspec.yaml` lives). Magic declares an `artisan` executable in its `pubspec.yaml` (`executables: { artisan: }`, backed by `bin/artisan.dart`), so once `magic` is a dependency the command works with no global activation and no app-specific package name. The commands come from `MagicArtisanProvider`, which also contributes to a consumer app's own aggregated artisan dispatcher when one exists.

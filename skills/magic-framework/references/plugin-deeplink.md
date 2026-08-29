@@ -4,6 +4,19 @@
 
 Deep link handling plugin for Magic Framework: wraps `app_links` with a handler chain, IoC binding, and CLI tooling for generating server-side verification files.
 
+## Contents
+
+- [Installation](#installation)
+- [DeeplinkManager API](#deeplinkmanager-api)
+- [Contracts](#contracts)
+- [Built-in Implementations](#built-in-implementations)
+- [Configuration](#configuration)
+- [ServiceProvider](#serviceprovider)
+- [CLI Commands](#cli-commands)
+- [Usage Patterns](#usage-patterns)
+- [Testing](#testing)
+- [Gotchas](#gotchas)
+
 ## Installation
 
 ```bash

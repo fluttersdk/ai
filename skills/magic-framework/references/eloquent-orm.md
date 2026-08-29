@@ -3,6 +3,24 @@
 Laravel-inspired ORM for Flutter. Supports hybrid persistence (Remote API + Local SQLite).
 
 
+## Contents
+
+- [Model Definition Template](#model-definition-template)
+- [Configuration Properties](#configuration-properties)
+- [Attribute API](#attribute-api)
+- [Casting](#casting)
+- [Mass Assignment & MassAssignmentException](#mass-assignment--massassignmentexception)
+- [Relations](#relations)
+- [Dirty Tracking](#dirty-tracking)
+- [HasTimestamps Mixin](#hastimestamps-mixin)
+- [InteractsWithPersistence Mixin](#interactswithpersistence-mixin)
+- [Hybrid Persistence Flow](#hybrid-persistence-flow)
+- [QueryBuilder](#querybuilder)
+- [Migrations](#migrations)
+- [Factories & Seeders](#factories--seeders)
+- [Model Events](#model-events)
+- [Gotchas](#gotchas)
+
 ## Model Definition Template
 
 Complete boilerplate for a model with timestamps and persistence:
@@ -106,6 +124,17 @@ class Monitor extends Model with HasTimestamps, InteractsWithPersistence {
 | `bool` | `bool` | int 0/1 or string `"true"`/`"false"` |
 | `int` | `int` | Safe parse via `int.tryParse` |
 | `double` | `double` | Safe parse via `double.tryParse` |
+
+A built-in cast is computed once per raw value and memoised, so repeated
+reads of the same attribute return the identical instance rather than
+re-parsing. The memo is dropped by `setAttribute` for that key and by
+`setRawAttributes` for all of them. A `CastsAttributes` instance is NOT
+memoised, because it may derive its answer from something other than the
+attribute it is registered against.
+
+Reading a relation with `getRelation` / `getRelations` does not make the
+model dirty: the materialised instance replaces the raw Map in the
+original snapshot too, so `isDirty()` still answers about writes only.
 
 ### Class-based casts (`CastsAttributes<T>`)
 

@@ -4,6 +4,28 @@ All facades are available after `await Magic.init()` completes. Import: `package
 
 ---
 
+## Contents
+
+- [Auth](#auth)
+- [Cache](#cache)
+- [Config](#config)
+- [Crypt](#crypt)
+- [DB](#db)
+- [Echo](#echo)
+- [Event](#event)
+- [Gate](#gate)
+- [Http](#http)
+- [Lang](#lang)
+- [Launch](#launch)
+- [Session](#session)
+- [Log](#log)
+- [Pick](#pick)
+- [Route](#route)
+- [Schema](#schema)
+- [Storage](#storage)
+- [Vault](#vault)
+- [Gotchas](#gotchas)
+
 ## Auth
 
 Proxies calls to the default guard via the `AuthManager` singleton.

@@ -34,6 +34,7 @@
                 "references/plugin-deeplink.md",
                 "references/plugin-devtools.md",
                 "references/plugin-notifications.md",
+                "references/plugin-payments.md",
                 "references/plugin-social-auth.md",
                 "references/plugin-starter.md",
                 "references/routing-navigation.md",

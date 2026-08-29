@@ -1,8 +1,24 @@
-<!-- magic_social_auth v0.0.2 | Updated: 2026-08-03 -->
+<!-- magic_social_auth v0.0.3 | Updated: 2026-08-29 -->
 
 # magic_social_auth Plugin
 
 Laravel Socialite-style social authentication for Magic Framework: Google, Microsoft, and GitHub out of the box with a pluggable driver system.
+
+## Contents
+
+- [Installation](#installation)
+- [Registration](#registration)
+- [SocialAuth Facade](#socialauth-facade)
+- [SocialAuthManager](#socialauthmanager)
+- [Built-in Drivers](#built-in-drivers)
+- [Contracts](#contracts)
+- [Models](#models)
+- [Configuration](#configuration)
+- [SocialAuthButtons Widget](#socialauthbuttons-widget)
+- [Custom Driver](#custom-driver)
+- [Custom Handler (e.g., Firebase)](#custom-handler-eg-firebase)
+- [Exceptions](#exceptions)
+- [Gotchas](#gotchas)
 
 ## Installation
 
@@ -349,6 +365,8 @@ SocialAuth.manager.setHandler(FirebaseAuthHandler());
 | `SocialAuthCancelledException` | User cancelled the auth flow (dismisses sheet/browser). |
 | `UnsupportedPlatformException(message)` | Driver called on an unsupported platform. |
 | `ProviderNotConfiguredException(provider)` | Provider's `enabled: false` in config, or driver name not recognized. |
+
+The translation covers the whole of `getToken()`, the conversion from the provider's account object to a `SocialToken` included. Before 0.0.3 the Google driver returned that conversion from inside the try without awaiting it, so a failure in it escaped as a raw `GoogleSignInException` and consumer code catching `SocialAuthException` never saw it.
 
 ## Gotchas
 

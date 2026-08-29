@@ -2,6 +2,24 @@
 
 Reference for testing Magic framework applications including service mocking, controller tests, model persistence, and UI integration.
 
+## Contents
+
+- [Essential setUp Pattern](#essential-setup-pattern)
+- [Controller Testing](#controller-testing)
+- [Model Testing](#model-testing)
+- [Mocking Services](#mocking-services)
+- [Test Bootstrap](#test-bootstrap)
+- [Http Faking](#http-faking)
+- [Facade Faking](#facade-faking)
+- [Middleware Testing](#middleware-testing)
+- [Validation Testing](#validation-testing)
+- [Integration Testing](#integration-testing)
+- [Test Directory Structure](#test-directory-structure)
+- [Common Testing Patterns](#common-testing-patterns)
+- [Common Gotchas](#common-gotchas)
+- [Running Tests](#running-tests)
+- [Imports](#imports)
+
 ## Essential setUp Pattern
 
 Every Magic test MUST reset the global state in `setUp()` to prevent state leakage between tests. This is non-negotiable.
