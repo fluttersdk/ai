@@ -34,6 +34,23 @@ contract: protocol-level RPC errors never surface; missing-app /
 compile-error / runtime-exception cases all return successful JSON-RPC
 responses with `isError: true` text.
 
+## Contents
+
+- [Dispatch model (cross-cutting)](#dispatch-model-cross-cutting)
+- [artisan_start](#artisan_start)
+- [artisan_stop](#artisan_stop)
+- [artisan_status](#artisan_status)
+- [artisan_logs](#artisan_logs)
+- [artisan_restart](#artisan_restart)
+- [artisan_reload](#artisan_reload)
+- [artisan_hot_restart](#artisan_hot_restart)
+- [artisan_doctor](#artisan_doctor)
+- [artisan_list](#artisan_list)
+- [artisan_tinker](#artisan_tinker)
+- [Plugin-tool surface (when dispatcher path wired)](#plugin-tool-surface-when-dispatcher-path-wired)
+- [Cross-cutting: dispatch + error envelopes](#cross-cutting-dispatch--error-envelopes)
+- [Filter mechanics](#filter-mechanics)
+
 ## Dispatch model (cross-cutting)
 
 - **Boot modes**: 9 of 10 tools declare `CommandBoot.none` (no VM Service
@@ -71,11 +88,11 @@ responses with `isError: true` text.
 > downstream tools.
 >
 > Spawns `flutter run -d <device>` as a background process and writes the
-> resulting VM Service URI + pid + web port to `~/.artisan/state.json`.
-> Other tools (`artisan_status`, `artisan_logs`, `dusk_*`,
-> `telescope_*`, `artisan_tinker`) read this state file to find the running
-> app. ONLY ONE Flutter app per machine can be tracked at a time
-> (single-slot state).
+> resulting VM Service URI + pid + web port to a session file under
+> `~/.artisan/sessions/`, keyed by project. Other tools (`artisan_status`,
+> `artisan_logs`, `dusk_*`, `telescope_*`, `artisan_tinker`) read it to find
+> the running app. Sessions are PER PROJECT, so two projects can be driven
+> at once and neither overwrites the other.
 >
 > Usage:
 > - Call this BEFORE invoking any plugin tool (`dusk_snap`,
@@ -83,13 +100,20 @@ responses with `isError: true` text.
 > - Default device is the first available; pass `device: "chrome"` for
 >   web (port 3100), `device: "macos"` for desktop, or
 >   `device: "<serial>"` for a connected mobile.
-> - Returns immediately once the VM Service URI is captured; the Flutter
->   process keeps running in the background.
+> - Returns once the VM Service URI is captured; the Flutter process keeps
+>   running in the background.
+> - IF THIS CALL TIMES OUT, the app is probably still starting rather than
+>   broken: a cold iOS or Android build routinely takes longer than an MCP
+>   client allows a single tool call. The session is recorded before the
+>   wait, so call `artisan_status` to see it. A `booting: true` there means
+>   the app is up and the URI has not landed yet; the next connected tool
+>   call recovers it from the log. Do NOT re-run start, and do NOT
+>   hand-write the state file.
 > - To stop call `artisan_stop`. To full-cycle restart call
 >   `artisan_restart`. For source-change reload call `artisan_reload`
 >   (state preserved) or `artisan_hot_restart` (state dropped).
-> - Fails with "another app is recorded" when state.json already has a
->   running pid; call `artisan_stop` first.
+> - Fails with "another app is recorded" when this project's session
+>   already has a running pid; call `artisan_stop` first.
 
 **Input schema**:
 
@@ -112,7 +136,7 @@ responses with `isError: true` text.
 # `artisan start` exit 0
 Spawned flutter run (pid=12345).
 VM Service: ws://127.0.0.1:8181/<token>/ws
-Recorded to ~/.artisan/state.json
+Recorded to ~/.artisan/sessions/<hash>/state.json
 ```
 
 **Returns on error**:
@@ -151,13 +175,13 @@ artisan_start { device: "chrome", port: "3200" }    # alt web port
 > Stop the currently-running Flutter app and clear its state file.
 >
 > Sends SIGTERM to the `flutter run` process recorded in
-> `~/.artisan/state.json`, then deletes the state file. Safe to call when
+> the session, then deletes it. Safe to call when
 > no app is running (returns success, no-op).
 >
 > Usage:
 > - Call after development is done OR before `artisan_start` if the
 >   previous app process is stale.
-> - No-op when `~/.artisan/state.json` is absent; never errors on
+> - No-op when this project has no session; never errors on
 >   missing state.
 
 **Input schema**: `{ "type": "object", "properties": {} }`
@@ -195,7 +219,7 @@ No state file; nothing to stop.
 
 > Return the JSON status of the recorded Flutter app.
 >
-> Reads `~/.artisan/state.json` and reports pid, vmServiceUri, device,
+> Reads this project's session and reports pid, vmServiceUri, device,
 > webPort, profile, startedAt. Also probes whether the recorded pid is
 > still alive (process may have crashed without cleaning state).
 >
@@ -332,7 +356,7 @@ Sent SIGTERM to pid=12345.
 state.json removed.
 Spawned flutter run (pid=67890).
 VM Service: ws://127.0.0.1:8181/<new-token>/ws
-Recorded to ~/.artisan/state.json
+Recorded to ~/.artisan/sessions/<hash>/state.json
 ```
 
 **Notes**:
@@ -606,7 +630,7 @@ Available commands (60):
 ## artisan_tinker
 
 - **Maps to CLI**: `tinker --eval=<expr>`
-- **Boot mode**: `connected` (requires `~/.artisan/state.json` with
+- **Boot mode**: `connected` (requires a session with
   `vmServiceUri`)
 - **Handler**: `lib/src/commands/tinker_command.dart:35`
 
@@ -629,7 +653,7 @@ Available commands (60):
 > - Use to TRIGGER an action programmatically (call a method, fire an
 >   event, mutate a singleton) without going through the UI surface.
 > - Requires an artisan-managed running app: call `artisan_start` first
->   so `~/.artisan/state.json` records the VM Service URI.
+>   so the session records the VM Service URI.
 > - Errors (compile, runtime, breakpoints) surface as the evaluate RPC's
 >   error response; the model receives the error text and can self-correct.
 
@@ -686,7 +710,7 @@ Runtime exception: NoSuchMethodError: The getter 'foo' was called on null.
 ```
 # `artisan tinker` exit 1
 ### Error
-Not connected to a running Flutter app. Run `dart run fluttersdk_artisan start` first so `~/.artisan/state.json` records the VM Service URI.
+Not connected to a running Flutter app. Run `dart run fluttersdk_artisan start` first so the session records the VM Service URI.
 ```
 
 **Notes**:

@@ -10,6 +10,19 @@ The handler is `lib/src/commands/tinker_command.dart:35`. The VM
 client is `lib/src/vm/vm_service_client.dart`. The MCP dispatch path is
 `lib/src/mcp/mcp_server.dart:794-820`.
 
+## Contents
+
+- [Wire model](#wire-model)
+- [Expression grammar (what `evaluate` accepts)](#expression-grammar-what-evaluate-accepts)
+- [The `await` auto-wrap](#the-await-auto-wrap)
+- [Scope rules](#scope-rules)
+- [Return value formatting](#return-value-formatting)
+- [Error paths (four distinct shapes)](#error-paths-four-distinct-shapes)
+- [Recipe pack](#recipe-pack)
+- [When NOT to use tinker](#when-not-to-use-tinker)
+- [Anti-patterns](#anti-patterns)
+- [Comparison: `artisan_tinker` vs `dusk_evaluate`](#comparison-artisan_tinker-vs-dusk_evaluate)
+
 ## Wire model
 
 ```
@@ -217,14 +230,14 @@ clean isolate, then retry.
 
 ### 4. Disconnected VM Service (no app, dead WS, DDS down)
 
-Trigger: `~/.artisan/state.json` is absent, or the recorded
+Trigger: this project has no session, or the recorded
 `vmServiceUri` no longer accepts a WebSocket.
 
 Shape:
 
 ```
 ### Error
-Not connected to a running Flutter app. Run `dart run fluttersdk_artisan start` first so `~/.artisan/state.json` records the VM Service URI.
+Not connected to a running Flutter app. Run `dart run fluttersdk_artisan start` first so the session records the VM Service URI.
 ```
 
 Substring contract: `Not connected to a running Flutter app`.

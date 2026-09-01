@@ -16,6 +16,22 @@ The allowlist excludes a command for one of five reasons:
 | Recurses into the MCP server | `mcp:serve` |
 | One-time meta config | `install`, `mcp:install`, `mcp:uninstall` |
 
+## Contents
+
+- [Picking the Bash form](#picking-the-bash-form)
+- [help](#help)
+- [install](#install)
+- [make:command](#makecommand)
+- [make:fast-cli](#makefast-cli)
+- [make:plugin](#makeplugin)
+- [commands:refresh](#commandsrefresh)
+- [plugins:refresh](#pluginsrefresh)
+- [plugin:install](#plugininstall)
+- [plugin:uninstall](#pluginuninstall)
+- [mcp:serve](#mcpserve)
+- [mcp:install](#mcpinstall)
+- [Reading the 22-command surface from `artisan_list`](#reading-the-22-command-surface-from-artisan_list)
+
 ## Picking the Bash form
 
 ```

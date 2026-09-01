@@ -1,11 +1,11 @@
 ---
 name: fluttersdk-artisan
-description: "fluttersdk_artisan: Dart CLI framework + stdio MCP server that lets an LLM agent boot, inspect, hot-reload, and evaluate a running Flutter app via 10 substrate MCP tools (`artisan_*`) and 22 builtin CLI commands (`./bin/fsa`). `~/.artisan/state.json` carries the running app's pid + VM Service URI + FIFO pipe; lazy-reconnect picks it up after `artisan_start`. Plugin tools (`dusk_*`, `telescope_*`) surface ONLY via `./bin/fsa mcp:serve` (dispatcher path), not `dart run fluttersdk_artisan:mcp` (substrate-only). TRIGGER when: any `artisan_*` MCP call, `./bin/fsa` or `dart run artisan` invocation, `.artisan/state.json` / `bin/dispatcher.dart` / `_plugins.g.dart` mention, or the user asks to start / stop / restart / reload / hot-restart / inspect / tinker a Flutter app. DO NOT TRIGGER on plugin authoring (install.yaml / PluginInstaller DSL) or pure `dart test` without driving the app."
-version: 0.0.4
+description: "fluttersdk_artisan: Dart CLI framework + stdio MCP server that lets an LLM agent boot, inspect, hot-reload, and evaluate a running Flutter app via 10 substrate MCP tools (`artisan_*`) and 22 builtin CLI commands (`./bin/fsa`). `~/.artisan/state.json` under `~/.artisan/sessions/<hash>/` carries the running app's pid + VM Service URI + FIFO pipe; lazy-reconnect picks it up after `artisan_start`. Plugin tools (`dusk_*`, `telescope_*`) surface ONLY via `./bin/fsa mcp:serve` (dispatcher path), not `dart run fluttersdk_artisan:mcp` (substrate-only). TRIGGER when: any `artisan_*` MCP call, `./bin/fsa` or `dart run artisan` invocation, `.artisan/state.json` / `bin/dispatcher.dart` / `_plugins.g.dart` mention, or the user asks to start / stop / restart / reload / hot-restart / inspect / tinker a Flutter app. DO NOT TRIGGER on plugin authoring (install.yaml / PluginInstaller DSL) or pure `dart test` without driving the app."
+version: 0.0.6
 when_to_use: "Any task where the agent boots, restarts, inspects, or evaluates a running Flutter app via artisan: calling `artisan_*` MCP tools (start, status, doctor, tinker, hot-restart) in sequence, invoking `./bin/fsa <cmd>` from Bash, recovering from missing state.json or stale PID, picking substrate vs dispatcher MCP wiring, choosing between `artisan_tinker` (VM Service evaluate) and `dusk_evaluate` (E2E driver) for an inspect-or-mutate flow."
 ---
 
-<!-- fluttersdk_artisan v0.0.9 | Skill updated: 2026-08-04 | Source: https://github.com/fluttersdk/artisan -->
+<!-- fluttersdk_artisan v0.0.14 | Skill updated: 2026-09-01 | Source: https://github.com/fluttersdk/artisan -->
 
 # fluttersdk_artisan
 
@@ -39,10 +39,16 @@ by `dart run fluttersdk_artisan install` once from the app root, then
    `telescope:` groups appear only when the dispatcher wrapper loaded the
    provider.
 
-2. **State lives at `~/.artisan/state.json`, and it is the single source of
-   truth for connectedness.** `artisan_start` writes it atomically (pid +
-   `vmServiceUri` + FIFO path + device + ports). Every connected tool
-   reads it on dispatch. When absent, the soft-fail contract holds:
+2. **State lives in a PER-PROJECT session directory, and it is the single
+   source of truth for connectedness.** `artisan_start` writes
+   `~/.artisan/sessions/<hash>/state.json` atomically (pid + `vmServiceUri`
+   + FIFO path + device + ports), keyed by the project root, with the log
+   and the FIFO beside it. Two projects can be driven at once and neither
+   overwrites the other. `~/.artisan/state.json` still exists as a pointer
+   to whichever session started last, read as a fallback and used by the
+   hand-written recovery recipe, but it is NOT where your session lives.
+   Every connected tool reads the session on dispatch. When absent, the
+   soft-fail contract holds:
    `artisan_status` returns `{"running": false}`, `artisan_stop` no-ops
    (exit 0), `artisan_tinker` and any plugin tool that needs the VM
    Service return `isError: true` with an actionable "Run `artisan start`
@@ -230,10 +236,11 @@ substring, not the full message:
 
 | Substring | Cause | Agent's next move |
 |---|---|---|
-| `No Flutter app detected` / `Run `artisan start` first` | `~/.artisan/state.json` is absent | Call `artisan_start { device: ... }`, then retry. |
-| `state.json missing vmServiceUri` | start wrote a partial state (rare; usually a crashed `flutter run`) | `artisan_restart`. |
-| `Pipe missing: <path>. Run `artisan restart`` | FIFO file was deleted while state.json still recorded it | `artisan_restart` (or `rm ~/.artisan/state.json` + `artisan_start`). |
-| `state.json has no stdinPipe entry; ... older artisan` | state.json predates the FIFO refactor | `artisan_restart`. |
+| `No Flutter app detected` / `Run `artisan start` first` | no session for this project | Call `artisan_start { device: ... }`, then retry. |
+| `state.json missing vmServiceUri` | no URI and no `booting` marker: `flutter run` crashed during boot | `artisan_restart`. |
+| session reports `booting: true` | `start` was cut short by its caller (an MCP client gives up at 60s; a cold iOS build takes longer). The app IS running | Call any connected tool: it recovers the URI from the session log. Do NOT re-run start or hand-write the file. |
+| `Pipe missing: <path>. Run `artisan restart`` | FIFO file was deleted while the session still recorded it | `artisan_restart`. |
+| `The session has no stdinPipe entry` | the session predates the FIFO refactor, or was hand-written without it | `artisan_restart`, which writes one. |
 | `Expression compilation error` / `RPCError(code: 113)` | `artisan_tinker { eval }` is not a single expression | Strip trailing `;`, collapse statements to a single expression, retry. |
 | `Isolate sentinel (kind: ...)` | VM Service evaluate saw a stale isolate id | Auto-recovered on the next call; if it persists, `artisan_hot_restart` then retry. |
 | `mkfifo failed (Windows not yet supported; V1 is POSIX-only)` | `artisan_start` on Windows | V1 limitation; stop and surface to the user. |
