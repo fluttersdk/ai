@@ -56,6 +56,8 @@ Configuration options:
 - `headers`: Default headers sent with every request
 - `interceptors`: List of interceptor class names to register on boot
 
+Outgoing header names keep their casing on mobile and desktop (`preserveHeaderCase: true` on the Dio driver), which is what a case-sensitive reader such as ExoPlayer needs. On the web they are still lowercased by the browser, so never build a web feature on a case-sensitive header. Response headers are the other direction: `MagicResponse.headers` keys are always lowercase, so read them with a lowercase key.
+
 ## Http Facade
 
 The `Http` facade provides static access to the network driver for making requests.
@@ -475,8 +477,12 @@ await checks.refresh();
 | Member | Meaning |
 |---|---|
 | `items` | every row so far, oldest page first. A live `UnmodifiableListView`, not a copy |
+| `total` | `meta.total`: how many rows MATCH, not how many are fetched. Null on a cursor collection, since `cursorPaginate()` does not count. A page omitting the key leaves the last value alone |
 | `hasMore` | the server reported a page after the last one read |
-| `isLoading` | a request is in flight |
+| `loadedPages` | how many pages are HELD. A `refresh()` puts it back to 1; a failed page counts nothing. This, not the cursor, is what a screen writes into a URL |
+| `isLoading` | a request is in flight, of any kind |
+| `isRefreshing` | rebuilding page one UNDER rows already on screen. Keep the rows, do not blank them |
+| `isLoadingMore` | fetching the page after the last one. This is the state a footer belongs to |
 | `error` | last failure message, cleared by the next success |
 | `isEmpty` | a first page arrived and held nothing (false before the first load) |
 | `mode` | `PaginationMode.cursor` / `.offset` / `.single` read from the response, or `.fetcher` on the fetcher path, where the source is behind a callback and the paginator does not know |
@@ -537,6 +543,8 @@ Builds only what the viewport shows and calls `loadMore()` as the tail approache
 - **A failed page does not clear the list.** Rows stay, `error` is set, `hasMore` is untouched so a retry has a target.
 - **A transport failure is a failure.** statusCode 0 (timeout, dead link) is neither `failed` nor `successful`, so the check is `!response.successful`; an offline first page sets `error` instead of reporting the collection empty.
 - **A short first page still loads the next, and knows when to stop.** Scroll notifications need a scroll, so the widget also checks `maxScrollExtent` after the frame; a small `perPage` cannot strand the reader. The fill stops on an `error` (a failure is not a reason to retry every frame) and on a page that added no rows **to that collection** (a cursor beside an empty `data` array never fills the viewport). Without both, the check re-arms per build and fetches per frame. The second brake is keyed on `(generation, count)`, not on the count alone: a `refresh()` rebuilds page one at the same length, and a brake keyed on length would read that as "nothing was added" and strand the reader on the retry path.
+- **A deferred refresh still reports `isLoadingMore`.** `refresh()` arriving while a `loadMore()` is in flight waits for that page rather than starting, so until it lands the flags describe the REQUEST (a next page is genuinely on its way) rather than the caller's most recent ask. It is the one path where they diverge. A screen that must show its refresh indicator immediately owns that state itself.
+- **The footer is `isLoadingMore`, not `isLoading`.** It means "there is more, and it is on its way", which a refresh is not: those rows are being replaced rather than added to. Read off the general flag, every refresh over a non-empty list grows a footer promising a page nothing asked for.
 - **`refresh()` during an in-flight `loadMore()` really refreshes.** It waits for that page, then starts over, so pull-to-refresh cannot retract having done nothing.
 - **Disposing mid-request is safe.** Every notify is guarded, the way `MagicController.refreshUI` is.
 - **`items` is a live view.** Reading it does not copy, and it cannot be written through.

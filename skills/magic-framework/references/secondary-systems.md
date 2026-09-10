@@ -825,10 +825,10 @@ File and media picker facade integrating `image_picker` and `file_picker`.
 
 | Method | Parameters | Return Type | Description |
 |:-------|:-----------|:------------|:------------|
-| `Pick.file({extensions, withData})` | `List<String>? extensions`, `bool withData` | `Future<MagicFile?>` | Pick single file with optional extension filter. |
-| `Pick.files({extensions, withData})` | `List<String>? extensions`, `bool withData` | `Future<List<MagicFile>>` | Pick multiple files. |
+| `Pick.file({extensions})` | `List<String>? extensions` | `Future<MagicFile?>` | Pick single file with optional extension filter. |
+| `Pick.files({extensions})` | `List<String>? extensions` | `Future<List<MagicFile>>` | Pick multiple files; empty list if cancelled. |
 | `Pick.directory()` | — | `Future<String?>` | Pick a directory path. |
-| `Pick.saveFile({dialogTitle, fileName, bytes})` | Dialog & file options | `Future<String?>` | Open save dialog. |
+| `Pick.saveFile({fileName, bytes, mimeType, dialogTitle})` | `fileName` and `bytes` required | `Future<Uri?>` | Open save dialog; returns the written uri (`file`, `content` or `blob` scheme). |
 
 ### Usage
 
@@ -881,8 +881,9 @@ for (final doc in docs) {
 // Pick directory
 final dirPath = await Pick.directory();
 
-// Save dialog
-final savePath = await Pick.saveFile(
+// Save dialog. Returns a Uri, not a path: Android SAF gives content://,
+// the web gives blob:.
+final Uri? savedTo = await Pick.saveFile(
   fileName: 'export.csv',
   bytes: csvBytes,
 );

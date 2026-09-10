@@ -1,8 +1,8 @@
-<!-- magic_starter v0.0.1-alpha.23 | Updated: 2026-08-29 -->
+<!-- magic_starter v0.0.1-alpha.27 | Updated: 2026-09-09 -->
 
 # magic_starter Plugin
 
-Full-stack Flutter starter kit for Magic Framework: pre-built auth flows, team management, profile settings, notification UI, and responsive app/guest layouts with an opt-in feature flag system.
+Full-stack Flutter starter kit for Magic Framework: pre-built auth flows, team management, profile settings, billing, and responsive app/guest layouts with an opt-in feature flag system. The notification UI moved to `magic_notifications` in alpha.25; this package mounts it and requires `magic_notifications ^0.2.0`.
 
 ## Contents
 
@@ -15,7 +15,7 @@ Full-stack Flutter starter kit for Magic Framework: pre-built auth flows, team m
 - [Session scope (cross-tenant leak guard)](#session-scope-cross-tenant-leak-guard)
 - [Route middleware](#route-middleware)
 - [Plan upgrade wall](#plan-upgrade-wall)
-- [Settings page width](#settings-page-width)
+- [Page geometry](#page-geometry)
 - [Controllers](#controllers)
 - [Layouts & Notification Integration](#layouts--notification-integration)
 - [Gate Abilities](#gate-abilities)
@@ -24,17 +24,23 @@ Full-stack Flutter starter kit for Magic Framework: pre-built auth flows, team m
 ## Installation & Setup
 
 ```bash
-# Register the plugin's artisan provider with the app dispatcher (once)
+flutter pub add magic_starter
+
+# Register the plugin's artisan provider with the app dispatcher (once).
+# The manifest declares `bootstrap_command: starter:install`, so this chains
+# the install below by itself; run it again by hand if that subprocess failed.
 dart run magic:artisan plugin:install magic_starter
 
-# Scaffold config, register provider, inject config into main.dart
+# Scaffold config, register provider, inject config into main.dart.
+# --features implies non-interactive AND turns every key it does not list OFF.
 dart run magic:artisan starter:install
+dart run magic:artisan starter:install --features=teams,two_factor
+
+# Confirm the install (published-but-unregistered views, missing billing origin, ...)
+dart run magic:artisan starter:doctor
 
 # Reconfigure features interactively
 dart run magic:artisan starter:configure
-
-# Diagnose configuration issues
-dart run magic:artisan starter:doctor
 
 # Publish views/layouts for customization (Jetstream-style)
 dart run magic:artisan starter:publish
@@ -47,11 +53,13 @@ Register the service provider in `lib/config/app.dart`:
 
 ```dart
 'providers': [
-  AppServiceProvider,        // Must boot before MagicStarterServiceProvider
+  AppServiceProvider,        // MagicStarter.bootstrap() lives here
   AuthServiceProvider,
   (app) => MagicStarterServiceProvider(app),
 ],
 ```
+
+View defaults are register-if-absent (the manager constructor calls `registerDefaultViews()`), so a host registration made in any provider wins. Two things do care about order: the teams warning `MagicStarterServiceProvider.boot()` logs when no team resolver is configured yet, and a `Gate.define()` on one of the nine starter abilities, which is silently replaced when the starter boots after you. Override an ability AFTER this provider.
 
 ## MagicStarter Facade API
 
@@ -149,6 +157,7 @@ The manager holds 7 sub-theme objects. Set all at once via `useTheme()` or indiv
 | `useCardTheme(theme)` | `void` | Override `MSCard` variant backgrounds, border radius, padding. |
 | `usePageHeaderTheme(theme)` | `void` | Override page header container, title, subtitle tokens. |
 | `useLayoutTheme(theme)` | `void` | Override sidebar, header, content/drawer background, brand bar tokens. |
+| `useWindTheme(theme)` | `void` | Derive all 7 sub-themes from a `WindThemeData`'s semantic aliases (`MagicStarterTheme.fromWind`) and delegate to `useTheme()`. One call instead of 7 structs; individual setters still override afterwards. |
 
 ```dart
 // Set everything at once
@@ -205,20 +214,14 @@ All sub-theme classes live in `lib/src/configuration/magic_starter_theme.dart`. 
 
 ### Notifications
 
-| Method / Property | Signature | Description |
-|:------------------|:----------|:------------|
-| `useNotificationTypeMapper(mapper)` | `void` | Register a mapper to resolve notification types to icons and color classes. |
-| `notificationTypeMapper` | `MagicStarterNotificationTypeMapper?` | Get registered mapper, or `null` (views use built-in defaults). |
+The notification UI belongs to `magic_notifications` (alpha.25 removed this package's copies with no shim): `MagicStarterNotificationController`, `MagicStarterNotificationsListView`, `MagicStarterNotificationPreferencesView`, `MSNotificationDropdown`, `MagicStarter.useNotificationTypeMapper` and the `MagicStarterNotificationTypeMapper` typedef are all gone. Use `NotificationPreferencesController`, `NotificationsListView`, `NotificationPreferencesView` and `NotificationDropdown` from `package:magic_notifications/magic_notifications.dart`, and say what a type looks like through the notification package's own slot:
 
 ```dart
-MagicStarter.useNotificationTypeMapper((type) => switch (type) {
-  'monitor_down' => (icon: Icons.error_outline, colorClass: 'text-red-500'),
-  'monitor_up' => (icon: Icons.check_circle_outline, colorClass: 'text-green-500'),
-  _ => (icon: Icons.info_outline, colorClass: 'text-blue-500'),
-});
+Notify.view.slot(NotificationViewRegistry.typeIconSlotView, 'monitor_down',
+    (context) => WIcon(Icons.error_outline, className: 'text-lg text-red-500'));
 ```
 
-Notification polling is handled automatically by the app layout. See `plugin-notifications.md` for the `Notify` facade API.
+What stays here: `registerMagicStarterNotificationRoutes()` mounts `/notifications` and `/settings/notifications` in the `layout.app` shell and re-registers both screens wrapped in `MSPageContainer`, so they inherit the host's page geometry. The delete row asks first, through this package's `MSConfirmDialog`. See `plugin-notifications.md` for the `Notify` facade API.
 
 ### Access
 
@@ -323,10 +326,10 @@ MagicStarter.view.registerModal('modal.confirm', () => CustomConfirmDialog());
 | `teams.settings` | `features.teams` | `MagicStarterTeamSettingsView` |
 | `teams.invitation_accept` | `features.teams` | `MagicStarterTeamInvitationAcceptView` |
 | `teams.billing` | `features.billing` | `MagicStarterBillingView` |
-| `notifications.list` | `features.notifications` | `MagicStarterNotificationsListView` |
-| `notifications.preferences` | `features.notifications` | `MagicStarterNotificationPreferencesView` |
 
-The settings surface is an iOS-style hub plus drill-down sub-pages, which is why the keys read the way they do. `settings.hub` is the index; the profile page is `profile.profile` (NOT `profile.settings`, which registers nothing); security pages nest under `settings.security.*`.
+`notifications.list` and `notifications.preferences` are NOT on this registry (alpha.25). They live on `Notify.view`, whose API is the same; move the override there.
+
+The settings surface is an iOS-style hub plus drill-down sub-pages, which is why the keys read the way they do. `settings.hub` is the index; the profile page is `profile.profile` (NOT `profile.settings`, which registers nothing; `MagicStarterProfileSettingsView` is exported and publishable, but nothing mounts it for you); security pages nest under `settings.security.*`.
 
 `teams.billing` is gated on its OWN `features.billing` toggle, not on `features.teams`. The key sits in the `teams.` area because that is where the route lives (`MagicStarterConfig.billingRoute()`, default `/teams/billing`), but a subscription is bought by whoever holds the account, so an app with no team features can still sell one.
 
@@ -357,12 +360,14 @@ MagicStarter.view.slot('auth.login', 'header', (context) {
   return WText('Welcome back!', className: 'text-2xl font-bold text-center');
 });
 
-MagicStarter.view.slot('profile.settings', 'afterSection:info', (context) {
+MagicStarter.view.slot('teams.settings', 'afterSection:members', (context) {
   return MyCustomBillingSection();
 });
 ```
 
 Slot API: `slot(viewKey, slotName, builder)`, `hasSlot(viewKey, slotName)`, `buildSlot(viewKey, slotName, context)`. `buildSlot()` returns `null` when no slot is registered. Slots are cleared by `registry.clear()`.
+
+Slots that a shipped view actually reads: `header` and `footer` on every auth view, `settings.hub`, `profile.profile` and the three `teams.*` views; `formFooter` on `auth.login` and `auth.register`; `afterSection:members` on `teams.settings`. A slot name a view does not read is silently inert.
 
 **Timing rule**: Slot registration must happen before the view is built (ideally in `AppServiceProvider.boot()`).
 
@@ -384,14 +389,16 @@ dart run magic:artisan starter:publish --tag=views:auth
 dart run magic:artisan starter:publish --tag=layouts
 ```
 
+`--tag` takes `config`, `views`, `layouts`, `middleware`, `lang` or `all` (the default), each with an optional scope (`views:auth`, `views:auth.login`, `layouts:app`). There is no `views:notifications` any more: this package no longer ships those two screens, so customise them through `Notify.view`.
+
 Published files go to `lib/resources/views/starter/` (views) or `lib/resources/layouts/starter/` (layouts). Auto-wire adds `MagicStarter.view.register()` calls to `AppServiceProvider`.
 
 ## Design-system components
 
-39 atomic components, all `MS`-prefixed, exported from `package:magic_starter/magic_starter.dart`. Each lives in a 4-file folder under `lib/src/ui/components/` (`<name>.dart`, `<name>.recipe.dart`, `<name>.preview.dart`, `index.dart`) and styles through a `WindRecipe` that reads `MagicStarterTokens.defaultAliases`, so a consumer's theme drives them.
+38 atomic components, all `MS`-prefixed, exported from `package:magic_starter/magic_starter.dart`. Each lives in a 4-file folder under `lib/src/ui/components/` (`<name>.dart`, `<name>.recipe.dart`, `<name>.preview.dart`, `index.dart`) and styles through a `WindRecipe` that reads `MagicStarterTokens.defaultAliases`, so a consumer's theme drives them.
 
 > [!IMPORTANT]
-> The `MS` prefix is not optional and there is no compat shim. The pre-`MS` component names (`Button`, `Dialog`, `Switch`, ...) were removed in alpha.19, and so were the six `MagicStarter*` alias widgets (`MagicStarterCard`, `MagicStarterPageHeader`, `MagicStarterSocialDivider`, `MagicStarterNotificationDropdown`, `MagicStarterTeamSelector`, `MagicStarterUserProfileDropdown`). Write `MSCard`, `MSPageHeader`, `MSSocialDivider`, `MSNotificationDropdown`, `MSTeamSelector`, `MSUserProfileDropdown`. The prefix is what ends the `package:flutter/material.dart` collision, so no `hide` clause is needed either way.
+> The `MS` prefix is not optional and there is no compat shim. The pre-`MS` component names (`Button`, `Dialog`, `Switch`, ...) were removed in alpha.19, and so were the six `MagicStarter*` alias widgets (`MagicStarterCard`, `MagicStarterPageHeader`, `MagicStarterSocialDivider`, `MagicStarterNotificationDropdown`, `MagicStarterTeamSelector`, `MagicStarterUserProfileDropdown`). Write `MSCard`, `MSPageHeader`, `MSSocialDivider`, `MSTeamSelector`, `MSUserProfileDropdown`. The bell is no longer here at all: it is `NotificationDropdown` from `magic_notifications`. The prefix is what ends the `package:flutter/material.dart` collision, so no `hide` clause is needed either way.
 
 | Family | Components |
 |:-------|:-----------|
@@ -403,7 +410,7 @@ Published files go to `lib/resources/views/starter/` (views) or `lib/resources/l
 | Page geometry | `MSPageContainer`, `MSPageScaffold` |
 | Settings surface | `MSSettingsSection`, `MSSettingsRow`, `MSSettingsNavRow` |
 | Billing surface | `MSUsageMeter`, `MSUpgradeDialog`, `MSUpgradeNudge` |
-| App chrome | `MSNotificationDropdown`, `MSUserProfileDropdown`, `MSTeamSelector` |
+| App chrome | `MSUserProfileDropdown`, `MSTeamSelector` |
 
 `MSButton`, `MSInput` and `MSTextarea` take `bool fullWidth = false`, which wraps the rendered widget in a `SizedBox(width: double.infinity)` rather than adding a className token (Material widgets ignore cross-axis stretch).
 
@@ -507,6 +514,8 @@ Two guards ship ready to register as the `auth` and `guest` aliases in the app's
 
 Both override `redirectTarget` (a pre-build synchronous redirect) rather than `handle` (a post-build remount), so a guarded page never mounts for someone who is about to be sent away. Each one guards its own destination so the redirect cannot loop, which matters because go_router raises after more than five successive redirects.
 
+`EnsureAuthenticated` also records the requested location with `MagicRouter.setIntendedUrl` before bouncing (alpha.27), and the `NavigatesRoutes.navigateHome()` every post-auth path calls reads it back with `pullIntendedUrl`, falling back to `MagicStarterConfig.homeRoute()`. So a deep link that lands on a signed-out device survives the login bounce. Nothing is recorded for the guest-only auth routes themselves, and `redirectTarget` only sees `state.matchedLocation`, so a recorded intent loses the original query string.
+
 ## Plan upgrade wall
 
 A plan-gated refusal arrives as a `403` carrying an `upgrade.required_plan` marker. `PlanUpgradeRequirement.fromResponse` reads it and returns `null` for anything else, so a caller branches on "upgrade wall or real failure" without matching English prose.
@@ -535,16 +544,15 @@ The marker is REQUIRED on purpose: a `403` without it is an authorization denial
 
 Copy comes from the `common.upgrade`, `common.upgrade_available_on`, and `common.upgrade_dialog_not_now` lang keys, added to the published `en` stub. An app that installed an earlier stub adds those three keys itself.
 
-## Settings page width
+## Page geometry
 
-`MagicStarter.manager.settingsMaxWidthClassName` (default `MagicStarterManager.defaultSettingsMaxWidth`, `max-w-7xl`) is the width cap the settings scaffold centres its content column at. Set it from the same constant the host's own page container uses, or the two columns centre inside the same content region at different widths:
+`MagicStarter.manager.pageContainerClassName` carries the WHOLE geometry `MSPageContainer` applies: width cap, horizontal edge margins, vertical rhythm. It defaults to `MagicStarterManager.defaultPageContainerClassName` (`'max-w-7xl px-4 lg:px-8 pt-6 sm:pt-8 pb-16'`). Set it once, from the same string the host's own pages use, or starter pages and host pages centre at different widths inside the same shell:
 
 ```dart
-MagicStarter.manager.settingsMaxWidthClassName = PageContainer.maxWidthClassName;
+MagicStarter.manager.pageContainerClassName = PageContainer.className;
 ```
 
-> [!NOTE]
-> The next release renames this to `pageContainerClassName` and widens it to carry the whole geometry (cap plus edge margins plus vertical rhythm). Passing a bare cap stays valid, so the one-value call above survives the rename.
+It carries all of it in one string on purpose: a cap that agrees while the padding does not still reads as two different pages. The pre-alpha.25 name `settingsMaxWidthClassName` is gone, with no alias.
 
 ## Controllers
 
@@ -557,8 +565,8 @@ All controllers use the `Magic.findOrPut(ControllerClass.new)` singleton pattern
 | `MagicStarterOtpController` | `.instance` | Phone OTP verification |
 | `MagicStarterProfileController` | `.instance` | Profile info, password change, sessions, account deletion |
 | `MagicStarterTeamController` | `.instance` | Team create, settings, member management, team switching |
-| `MagicStarterNotificationController` | `.instance` | Notification preferences matrix, per-channel toggles |
 | `MagicStarterNewsletterController` | `.instance` | Newsletter subscription management |
+| `MagicStarterBillingController` | constructed, not `.instance` | Plans, usage meters, the web and store rails. It takes `usageCopy` and `formatNumber` as required arguments (and optional `storeFundedTeamReader` / `isOwnerReader`), so the host registers its own instance with `Magic.put`. |
 
 ### Auth Controller Key Methods
 
@@ -589,27 +597,7 @@ await MagicStarterAuthController.instance.doTwoFactorChallenge(
 await MagicStarterAuthController.instance.logout();
 ```
 
-### Notification Controller Key Methods
-
-```dart
-// Fetch preference matrix from GET /notification-preferences
-await MagicStarterNotificationController.instance.fetchPreferences();
-
-// Toggle a channel preference (optimistic update, rolls back on failure)
-await MagicStarterNotificationController.instance.updateTypePreference(
-  'monitor_down',  // notification type key
-  'email',         // channel name
-  true,            // enabled
-);
-
-// Reactive matrix access
-ValueListenableBuilder(
-  valueListenable: MagicStarterNotificationController.instance.matrixNotifier,
-  builder: (context, matrix, _) { /* ... */ },
-);
-```
-
-Matrix structure from backend: `{ "type_key": { "label": "...", "channels": { "channel": { "enabled": bool, "locked": bool } } } }`
+The preference matrix is `NotificationPreferencesController` in `magic_notifications` now; see `plugin-notifications.md`.
 
 ## Layouts & Notification Integration
 
@@ -617,9 +605,10 @@ The app layout (`layout.app`) auto-manages notification polling:
 
 - `initState` calls `Notify.startPolling()` when `features.notifications` is enabled
 - `dispose` calls `Notify.stopPolling()` as a safety net
-- `AuthRestored` event triggers `Magic.reload()` to refresh team-scoped data
+- The header bell is `NotificationDropdown` from `magic_notifications`, wired to `Notify.notifications()`, `markAsRead`, `markAllAsRead`, the row's `actionUrl`, and the notifications route
+- `MagicStarterServiceProvider` registers an `AuthRestored` listener that calls `Magic.reload()` to refresh team-scoped data
 
-For the `Notify` facade API (polling interval, badge counts, push token registration, `logoutPush`), see `plugin-notifications.md`.
+Realtime is NOT wired here: the layout arms the poller only. Call `Notify.startRealtime(channel: ...)` from your own auth wiring if the backend broadcasts; `startPolling()` is a no-op while it is live. See `plugin-notifications.md`.
 
 ## Gate Abilities
 
@@ -643,10 +632,11 @@ For the `Notify` facade API (polling interval, badge counts, push token registra
 |:--------|:----|
 | `features.teams` enabled but no `useTeamResolver()` call | `MagicStarter.isReady` returns `false`; a warning is logged at boot. Call `useTeamResolver()` in `AppServiceProvider.boot()`. |
 | `useUserModel()` not called | Starter falls back to `MagicStarterAuthUser`. Always register before `MagicStarterServiceProvider` boots. |
-| View key not registered | `MagicStarter.view.make(key)` throws `StateError`. Conditional views (`two_factor`, `phone_otp`, notifications) are only registered when their feature flag is `true`. |
+| View key not registered | `MagicStarter.view.make(key)` throws `StateError`. Conditional views (`two_factor`, `phone_otp`, `billing`, teams) are only registered when their feature flag is `true`. |
+| Overriding a notification screen on the wrong registry | `notifications.list` and `notifications.preferences` live on `Notify.view`, not `MagicStarter.view`. Registering on the starter's registry mounts nothing. |
 | `features.social_login` enabled but no `useSocialLogin()` builder | The feature flag gates the UI section; without a builder, the social login area renders nothing. |
 | Custom logout without stopping Notify polling | If you override `useLogout()`, call `Notify.logoutPush()` and `Notify.stopPolling()` manually. See `plugin-notifications.md`. |
-| `MagicStarterServiceProvider` registered before `AppServiceProvider` | Order: `AppServiceProvider` first, then `MagicStarterServiceProvider`. |
+| A `Gate.define()` override silently lost | The starter defines its nine abilities in `boot()`, and a same-key define is replaced by whichever provider boots last. Override AFTER `MagicStarterServiceProvider`. View defaults are register-if-absent, so they are not order-sensitive. |
 | `two_factor` view key missing at runtime | The view is only registered when `MagicStarterConfig.hasTwoFactorFeatures()` is `true` at boot time. Feature flags must be set before `Magic.init()`. |
 | Theme sub-theme ordering | `useTheme()` sets all 7 sub-themes at once; individual `useFormTheme()` etc. can override after. Call unified first if using both. |
 | Slot not rendering | `MagicStarter.view.slot(viewKey, slotName, builder)` must be called before the view is built. Views call `buildSlot()` at build time. |
@@ -657,3 +647,4 @@ For the `Notify` facade API (polling interval, badge counts, push token registra
 | Navigation theme not affecting UI | `MagicStarter.useNavigationTheme()` must be called before the app layout is first painted. |
 | Bottom nav visible on fullscreen routes | Wrap route widget with `MagicStarterHideBottomNav(child: widget)` to hide mobile bottom nav. |
 | Published view not auto-wired | `dart run magic:artisan starter:doctor` detects published but unregistered views. Re-run publish or manually add `MagicStarter.view.register()`. |
+| A raw key rendering in a tab title or a dialog | The catalogue is the CONSUMER's; `trans()` answers a missing key with the key. An app upgrading past alpha.24 merges the 20 `magic_starter.titles.*` keys from `assets/stubs/install/en.stub`, and past alpha.26 adds `common.delete`, `notifications.delete_confirm_title` and `notifications.delete_confirm_message`. A fresh `starter:install` already ships them. |

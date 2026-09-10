@@ -510,10 +510,10 @@ Standalone facade; no container registration needed.
 | `Pick.media({double? maxWidth, double? maxHeight, int? imageQuality})` | `Future<MagicFile?>` | Pick image or video from gallery. |
 | `Pick.video({Duration? maxDuration})` | `Future<MagicFile?>` | Single video from gallery. |
 | `Pick.recordVideo({CameraDevice preferredCamera, Duration? maxDuration, bool fallbackToGallery, void Function(Object)? onError})` | `Future<MagicFile?>` | Record video with camera. |
-| `Pick.file({List<String>? extensions, bool withData = true})` | `Future<MagicFile?>` | Single file with optional extension filter. |
-| `Pick.files({List<String>? extensions, bool withData = true})` | `Future<List<MagicFile>>` | Multiple files with optional extension filter. |
+| `Pick.file({List<String>? extensions})` | `Future<MagicFile?>` | Single file with optional extension filter. Bytes read lazily via `MagicFile.readAsBytes()`. |
+| `Pick.files({List<String>? extensions})` | `Future<List<MagicFile>>` | Multiple files with optional extension filter; empty list if cancelled. |
 | `Pick.directory()` | `Future<String?>` | Pick a directory path (not supported on Web). |
-| `Pick.saveFile({String? dialogTitle, String? fileName, Uint8List? bytes})` | `Future<String?>` | Open save-file dialog; returns chosen path. |
+| `Pick.saveFile({required String fileName, required Uint8List bytes, String? mimeType, String? dialogTitle})` | `Future<Uri?>` | Open save-file dialog. Returns the written `Uri`; scheme may be `file`, `content` or `blob`. MIME type derived from `fileName` when omitted. |
 
 ```dart
 import 'package:magic/magic.dart';
@@ -678,6 +678,30 @@ final stored = await Vault.get('refresh_token');
 await Vault.delete('refresh_token');
 await Vault.flush(); // Danger: clears all secure data
 ```
+
+**macOS has two keychains and you may have to choose.** The default is the data protection keychain, which requires the restricted `keychain-access-groups` entitlement and therefore a build signed with an App ID: on an unsigned or ad-hoc build every `Vault.put` fails with `PlatformException(-34018, errSecMissingEntitlement)`. One config key moves the items to the legacy login keychain, which needs no entitlement:
+
+```dart
+// lib/config/security.dart, only consulted on macOS
+final securityConfig = <String, dynamic>{
+  // Domain-keyed like every config map here: init merges each entry verbatim
+  // and derives no name, and the provider reads the dotted path
+  // `security.vault.macos_data_protection_keychain`. A bare `false`, never
+  // `'false'`: `Config.get<bool>` returns its default on a type mismatch as
+  // well as on a missing key.
+  'security': <String, dynamic>{
+    'vault': <String, dynamic>{'macos_data_protection_keychain': false},
+  },
+};
+```
+
+The file does nothing until `Magic.init` is given it:
+
+```dart
+await Magic.init(configFactories: [() => appConfig, () => securityConfig]);
+```
+
+There is **no migration between the two keychains in either direction**, and a miss reads as "never stored" rather than as an error, so flipping it after the app has stored anything silently orphans every existing item: `Crypt.encryptWithDeviceKey` generates a fresh device key on the null read and everything encrypted under the old one becomes unreadable, and `BaseGuard` loses its token and logs the user out. Set it once, before first storage.
 
 ---
 

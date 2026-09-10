@@ -14,6 +14,7 @@ Laravel-inspired UI architecture. Controllers manage state and business logic; V
 - [MagicStatefulView\<T\>](#magicstatefulviewt)
 - [MagicResponsiveView\<T\>](#magicresponsiveviewt)
 - [MagicBuilder\<T\>](#magicbuildert)
+- [MagicSelector\<C, T\>](#magicselectorc-t)
 - [Complete Lifecycle Example](#complete-lifecycle-example)
 - [Gotchas](#gotchas)
 
@@ -397,6 +398,39 @@ MagicBuilder<bool>(
 ```
 
 Use `ValueListenableBuilder` directly when you need `BuildContext` or the `child` optimisation inside the builder.
+
+
+## MagicSelector\<C, T\>
+
+Rebuilds one subtree when one part of a controller changes. Use it when the thing to watch is a plain field on a `MagicController` rather than a `ValueListenable`, which is where `MagicBuilder` cannot help.
+
+```dart
+class MagicSelector<C extends MagicController, T> extends StatefulWidget {
+  const MagicSelector({
+    super.key,
+    required C controller,
+    required T Function(C controller) selector,
+    required Widget Function(T value) builder,
+  });
+}
+```
+
+```dart
+MagicSelector<GuideController, String>(
+  controller: controller,
+  selector: (c) => c.countLabel,
+  builder: (label) => WText(label),
+)
+```
+
+It caches the widget the builder returned and, while the selected value compares equal, returns that same INSTANCE. `Element.updateChild` short circuits on `child.widget == newWidget`, so the subtree is never visited. That is what makes it survive a parent that rebuilds anyway, which is every `MagicStatefulView` under `refreshUI()`.
+
+Two rules follow from the caching:
+
+- `builder` must be a pure function of the selected value. A captured variable that changes without the value changing goes stale. Select a record to watch several fields: `selector: (c) => (c.count, c.total)`.
+- Equality is plain `==`. A selector returning a freshly built `List` or `Map` never matches its own cache (Dart gives collections identity equality) and rebuilds every notification. Deep comparison is deliberately not used: walking a ten thousand element list per keystroke costs more than the rebuild it prevents.
+
+Reading an `InheritedWidget` inside the cached subtree is fine and needs no selection; dependent elements are rebuilt directly rather than through their parent.
 
 
 ## Complete Lifecycle Example

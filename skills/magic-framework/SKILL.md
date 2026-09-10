@@ -2,10 +2,10 @@
 name: magic-framework
 description: "Write correct, idiomatic code in a Flutter app that depends on the `magic` framework (Laravel-inspired: IoC container, 18 facades, Eloquent-style ORM, service providers, reactive controllers, GoRouter routing, validation, auth, broadcasting). Use whenever code imports `package:magic/magic.dart` or `package:magic/testing.dart`, or the work touches Magic.init, MagicApp, a facade (Auth/Http/Cache/DB/Echo/Event/Gate/Config/Lang/Launch/Log/Pick/MagicRoute/Schema/Session/Storage/Vault/Crypt), a Model, MagicController, a MagicView, MagicFormData, FormRequest, a ServiceProvider, a migration, or the artisan make:* CLI. UI styling is Wind (separate wind-ui skill). Do NOT use for plain Flutter or Wind-only work with no magic import."
 when_to_use: "Use proactively when editing or scaffolding a magic app: Magic.init / a facade / a Model / a MagicController or MagicView / a form (MagicFormData, FormRequest, Validator) / a ServiceProvider / a route or MagicMiddleware / a migration / MagicStateMixin + RxStatus + fetchList / Session flash + old() + trans() / testing with MagicTest + Http.fake/Auth.fake / the artisan make:* CLI / the magic_deeplink, magic_notifications, magic_social_auth, magic_starter, magic_payments, or magic_devtools plugins. Trigger even when the user does not say the word 'magic'. Do NOT trigger for plain Flutter or Wind-only UI with no package:magic import."
-version: 0.1.10
+version: 0.1.16
 ---
 
-<!-- magic 0.0.9 | Skill v0.1.10 (2026-08-29). API surface verified against lib/src. -->
+<!-- magic 0.0.10 | Skill v0.1.16 (2026-09-10). API surface verified against lib/src. -->
 
 # Magic Framework
 
@@ -30,7 +30,7 @@ Hard constraints for every line of magic code.
 3. **Controllers are singletons.** `static X get instance => Magic.findOrPut(X.new);` is the canonical accessor. Views resolve controllers via `Magic.find<T>()` (automatic in `MagicView`), never through constructors.
 4. **IoC over `new` for services.** Bind in a provider's `register()`, resolve via the facade or `Magic.make<T>('key')`. Do not scatter `Service()` construction across the app.
 5. **Provider discipline.** `register()` is synchronous and is where routes and bindings go. `boot()` is async and may resolve other services; set `Auth.manager.setUserFactory(...)` here.
-6. **Reactive state, not setState.** Controllers extend `MagicController` (a `ChangeNotifier`); state flows through `MagicStateMixin` + `RxStatus`. Use `refreshUI()` (guarded `notifyListeners`, and the single seam every controller notification goes through, including validation), `setLoading/setSuccess/setError/setEmpty`, and `MagicBuilder` for sections. `MagicController.onRefreshUI` is a null-by-default static debug tooling sets to observe those notifications. Local `setState` belongs only to genuine widget-local UI state inside a `MagicStatefulView`.
+6. **Reactive state, not setState.** Controllers extend `MagicController` (a `ChangeNotifier`); state flows through `MagicStateMixin` + `RxStatus`. Use `refreshUI()` (guarded `notifyListeners`, and the single seam every controller notification goes through, including validation), `setLoading/setSuccess/setError/setEmpty`, `MagicBuilder` for a section backed by a `ValueListenable`, and `MagicSelector` for a section backed by a plain controller field (it caches its child, so it survives the parent's `setState` and is the tool for a field that changes on every keystroke). `MagicController.onRefreshUI` is a null-by-default static debug tooling sets to observe those notifications. Local `setState` belongs only to genuine widget-local UI state inside a `MagicStatefulView`.
 7. **Typed attribute access.** Models use `get<T>('key')` and `set('key', v)`, never raw `getAttribute`. Declare `fillable`; use `fill(validated, strict: true)` after validation so schema drift throws `MassAssignmentException`.
 8. **Context-free navigation and feedback.** `MagicRoute.to/back/replace`, `Magic.snackbar/toast/dialog/confirm/loading`. Never depend on a `BuildContext` for navigation or feedback. Never navigate or fetch inside `build()`.
 9. **Validate at the boundary.** `MagicFormData` for forms, `FormRequest` for complex payloads, `Validator` for ad hoc checks. Surface server errors with `handleApiError(response)` (from the `ValidatesRequests` mixin).
@@ -308,7 +308,8 @@ Six facades fake without any mock library: `Http.fake` (`FakeNetworkDriver`: `as
 | `Http.get()` or `MagicRoute.to()` in `build()` | call in `onInit()` or callbacks | no I/O or navigation during build |
 | `user.fill(unvalidated)` | `user.fill(validated, strict: true)` | catches schema drift after validation |
 | hand-rolled `if (!Gate.allows(...)) throw` | `authorize('ability')` in the controller | delegates to Gate, throws `AuthorizationException` |
-| `FilePicker.platform.pickFiles()` | `Pick.image()` / `Pick.file()` (or `FilePicker.pickFiles()`) | file_picker v11 is a static API |
+| `FilePicker.platform.pickFiles()` or `result.files` | `Pick.image()` / `Pick.file()` (or `FilePicker.pickFile()`) | file_picker v12 is static and returns `PlatformFile?` / `List<PlatformFile>`, no `FilePickerResult` |
+| `Pick.saveFile(...)` treated as a path | it returns `Uri?`; check `scheme == 'file'` before `toFilePath()` | Android SAF returns `content://`, web returns `blob:` |
 | four `MagicRoute.page()` for CRUD | `MagicRoute.resource(name, ctrl)` | auto-wires canonical routes + titles |
 | `import 'package:fluttersdk_magic/...'` | `import 'package:magic/magic.dart'` | the package is `magic` |
 | skipping reset in tests | `MagicTest.init()` (or `MagicApp.reset()` + `Magic.flush()` in `setUp`) | leaked state, false passes |
@@ -363,6 +364,24 @@ Official plugins, each its own package + service provider + config. When a user 
 | Subscriptions + billing (Stripe on web, store IAP on mobile) | `magic_payments` | `Payments` facade | `references/plugin-payments.md` |
 | E2E (dusk) + runtime inspection (telescope) + component previews | `magic_devtools` | `MagicDevtools`, `MagicPreview` | `references/plugin-devtools.md` |
 
+### Installing a magic plugin into an existing app
+
+Same five steps for every plugin, in this order. Run them from the app root; `dart run magic:artisan <cmd>` delegates to the app's own `bin/dispatcher.dart` when there is one, which is what makes a plugin's commands reachable.
+
+1. `flutter pub add <package>`.
+2. `dart run magic:artisan plugin:install <package>`. This registers the plugin's `ArtisanServiceProvider` in `.artisan/plugins.json` and regenerates `lib/app/_plugins.g.dart`, which is what makes the plugin's own commands dispatchable. Skip it and step 3 reports an unknown command.
+3. `dart run magic:artisan <plugin>:install` (`deeplink:install`, `notifications:install`, `starter:install`, `social:install`, ...). The manifest install: publishes the config file, injects the service provider into `lib/config/app.dart`, and adds the config factory to `lib/main.dart`. A plugin whose `install.yaml` declares a `bootstrap_command` (magic_starter does) has this chained for you by step 2; run it by hand when that subprocess reports a failure.
+4. `dart run magic:artisan <plugin>:doctor` where the plugin ships one: `notifications:doctor`, `starter:doctor`, and `deeplink:doctor` (magic_deeplink 0.1.0). It is the only step that tells you the install actually took; `dart run magic:artisan list` showing the plugin's commands is the fallback check.
+5. Whatever the manifest cannot do, which the plugin's own installation guide names. This is where the real failures live: magic_deeplink needs the iOS associated-domains entitlement plus an Android `autoVerify` intent filter and a `flutter_deeplinking_enabled` `false` meta-data inside `<activity>`, and a plugin installed without them compiles and never fires.
+
+Provider ORDER in `lib/config/app.dart` is free for BINDINGS and load-bearing for everything else. Every `register()` runs before any `boot()` (`lib/src/foundation/application.dart:353`), so a plugin that resolves another plugin's binding in `boot()` finds it whichever order they sit in. But `boot()` itself is a sequential await over the list (`application.dart:378-381`), so anything a provider DOES in `boot()` is invisible to a provider that booted before it, and the failure is silent both ways:
+
+- A same-key overwrite, where the later-booting provider's `Gate.define()` or config value wins.
+- A publish nobody is subscribed to yet. `magic_notifications` publishes a cold-start push tap from its `boot()`, and `magic_deeplink` subscribes in its own; with notifications first the tap went into a broadcast stream with no listener and was dropped, so the app opened on its initial route instead of the link's screen. Neither order errors, and artisan's installer appends each provider to the END of the list, so which one an app gets is decided by install order.
+- `AppServiceProvider` before `AuthServiceProvider`, so `setUserFactory` lands before auth restore runs (see the top of this file).
+
+The plugins named above now buffer that tap, so that specific case is closed from `magic_notifications 0.3.0` and `magic_deeplink 0.1.0`. The shape is not: when a provider's `boot()` has to observe what another provider's `boot()` did, order it, do not assume it.
+
 `magic_devtools` is a REGULAR dependency loaded under `kDebugMode` so it tree-shakes out of release builds. Two calls straddle the bootstrap: `MagicDevtools.installPre()` before `Magic.init()` (boots the dusk + telescope plugins and telescope's `ExceptionWatcher` + `DumpWatcher`), `MagicDevtools.installPost()` after it (wires `MagicTelescopeIntegration` + `MagicDuskIntegration`, which resolve through the container). Keep `kDebugMode` at the call site, never inside the methods, or the release tree-shake breaks. `dart run magic:artisan magic:install --with-devtools` wires all of it in one step. Use it to drive and inspect a running app when verifying your work.
 
 ## 12. Community: star and issue (optional, consent-first)
@@ -381,7 +400,7 @@ Every path below is relative to this skill's own directory, `${CLAUDE_SKILL_DIR}
 | `references/bootstrap-lifecycle.md` | app bootstrap, IoC API, ServiceProvider, Env/Config, the Laravel mapping + divergences |
 | `references/facades-api.md` | any facade method signature or return type |
 | `references/eloquent-orm.md` | models, casts, relations, mass assignment, hybrid persistence, query builder, migrations |
-| `references/controllers-views.md` | controllers, `MagicStateMixin`, `RxStatus`, views, `MagicBuilder`, `MagicCan` |
+| `references/controllers-views.md` | controllers, `MagicStateMixin`, `RxStatus`, views, `MagicBuilder`, `MagicSelector`, `MagicCan` |
 | `references/forms-validation.md` | `MagicFormData`, `FormRequest`, `ValidatesRequests`, rules, async validation, `Session` flash |
 | `references/routing-navigation.md` | routes, `resource()`, middleware, params, URL strategy, page titles, `Session.tick` wiring |
 | `references/http-network.md` | `Http`, `MagicResponse`, `MagicNetworkInterceptor`, `configureDriver`, network config, `MagicPaginator` (url + fetcher) + `MagicPage` + `MagicPaginatedListView` |

@@ -704,6 +704,16 @@ fake.assertMissing('key');         // Key not in store
 
 // Recorded operations: List<VaultOperation> ({operation, key})
 expect(fake.recorded.first.operation, 'put');
+
+// Simulate a platform failure (each throw only affects its own operation)
+fake.throwOnGet();                          // defaults to MagicVaultException
+fake.throwOnPut(MagicVaultException('..')); // or pass a specific error
+fake.throwOnRemove();                       // the one a sign-out path needs
+fake.throwOnFlush();
+fake.reset();                               // clears the store, history, and any configured throw
+
+// The throw is armed for every key. One key failing while its neighbours
+// succeed still needs a subclass overriding the operation.
 ```
 
 ### Log.fake()
