@@ -78,6 +78,13 @@ responses with `isError: true` text.
   window, default 90. The MCP schema exposes no timeout parameter, so a boot
   that legitimately takes longer than 90s (a cold web build, a slow emulator)
   has to go through Bash: `./bin/fsa start -d chrome --timeout=180`.
+- **CLI-only flag**: `--flutter-arg=<arg>` forwards an argument verbatim to
+  `flutter run`, repeatable, and is the only way to reach a `flutter run` flag
+  `start` has no option of its own for. The MCP schema exposes no equivalent,
+  so a compile-time define goes through Bash:
+  `./bin/fsa start -d chrome --flutter-arg=--dart-define=KEY=VALUE`. The values
+  land in `state.json` as `flutterArgs` and `restart` replays them, so an agent
+  that restarts a session does not silently change its build configuration.
 - **Handler**: `lib/src/commands/start_command.dart:197`
 - **MCP descriptor**: `lib/src/mcp/mcp_server.dart` (description block in
   `_mcpDescriptionFor`, input schema in `_commandInputSchema`)
