@@ -1,22 +1,25 @@
 {
-    "$schema": "https://static.modelcontextprotocol.io/schemas/2025-07-09/server.schema.json",
+    "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
     "name": "io.github.fluttersdk/ai",
-    "description": "FlutterSDK Docs MCP server — search Wind UI, Magic, Dusk, Telescope, Artisan docs from any MCP-compatible client",
+    "title": "FlutterSDK Docs",
+    "description": "Search Wind UI, Magic, Dusk, Telescope and Artisan documentation. Hosted, public, no auth.",
+    "version": "1.1.3",
     "repository": {
         "url": "https://github.com/fluttersdk/ai",
         "source": "github"
     },
+    "websiteUrl": "https://fluttersdk.com/wind/ai",
     "remotes": [
         {
-            "transport_type": "streamable-http",
+            "type": "streamable-http",
             "url": "https://mcp.fluttersdk.com/"
         }
     ],
     "packages": [
         {
-            "registry": "npm",
-            "name": "@fluttersdk/mcp",
-            "version": "1.1.0",
+            "registryType": "npm",
+            "identifier": "@fluttersdk/mcp",
+            "version": "1.1.3",
             "transport": {
                 "type": "stdio"
             }

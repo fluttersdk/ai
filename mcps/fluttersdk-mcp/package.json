@@ -1,7 +1,8 @@
 {
   "name": "@fluttersdk/mcp",
-  "version": "1.1.2",
-  "description": "HTTP↔stdio bridge for the FlutterSDK Docs MCP server (mcp.fluttersdk.com)",
+  "version": "1.1.3",
+  "mcpName": "io.github.fluttersdk/ai",
+  "description": "HTTP to stdio bridge for the FlutterSDK Docs MCP server (mcp.fluttersdk.com)",
   "author": "Anilcan Cakir <anilcan.cakir@gmail.com>",
   "license": "MIT",
   "type": "module",
