@@ -1,8 +1,8 @@
-<!-- magic_starter v0.0.28 | Updated: 2026-09-16 -->
+<!-- magic_starter v0.0.29 | Updated: 2026-09-17 -->
 
 # magic_starter Plugin
 
-Full-stack Flutter starter kit for Magic Framework: pre-built auth flows, team management, profile settings, billing, and responsive app/guest layouts with an opt-in feature flag system. The notification UI moved to `magic_notifications` in alpha.25; this package mounts it and requires `magic_notifications ^0.3.2`. It also declares `fluttersdk_wind ^1.6.0` DIRECTLY, rather than taking wind through `magic`, so a floor exists to raise when this package calls a new Wind API: 0.0.28 passes `WSelect.onOpen`, which 1.6.0 adds.
+Full-stack Flutter starter kit for Magic Framework: pre-built auth flows, team management, profile settings, billing, and responsive app/guest layouts with an opt-in feature flag system. The notification UI moved to `magic_notifications` in alpha.25; this package mounts it and requires `magic_notifications ^0.3.2`. It also declares `fluttersdk_wind ^1.6.0` DIRECTLY, rather than taking wind through `magic`, so a floor exists to raise when this package calls a new Wind API: 0.0.28 passes `WSelect.onOpen`, which 1.6.0 adds. The `magic` floor is `^0.0.12` from 0.0.29, and it carries two requirements rather than one: `RouteDefinition.stacked()` exists in no release below it, and 0.0.12 is also where a routed page stopped being transparent, which is the defect stacking a route would otherwise expose.
 
 Versions left the alpha rail at 0.0.27: `0.0.1-alpha.26` is followed by `0.0.27`, carrying the counter rather than resetting it. An existing `^0.0.1-alpha.N` pin already covers it, since a caret on a zero major ends at `0.1.0`, and `flutter pub add magic_starter` now takes the current release without a prerelease pin.
 
@@ -323,6 +323,14 @@ MagicStarter.view.registerLayout('layout.app', (child) => CustomAppLayout(child:
 // Override a modal
 MagicStarter.view.registerModal('modal.confirm', () => CustomConfirmDialog());
 ```
+
+### Routes push, except where they deliberately do not (0.0.29+)
+
+Eleven routes are registered `.stacked()`, so they push and can be popped: the eight settings spokes, `teams/create`, `teams/settings`, and both notification screens. `MagicRoute.to()` otherwise calls `go()`, which replaces the Navigator's whole page list, and a settings app was then never more than one page deep: no iOS edge swipe, and on Android the embedder unregisters its own back callback at a stack depth of one, so the system back button LEFT THE APP from a sub-page.
+
+Three groups keep replacing, each for a reason: the settings hub (a host commonly points a nav destination at it, and a pushing destination grows the stack per tab tap), `/invitations/:token/accept` (an arrival from an emailed link, with nothing behind it), and the six auth routes.
+
+A stacked route names NO transition, which is the half a host controls. These routes used to pin `RouteTransition.none`, and magic reads an explicit value as opting out of `MagicRouter.defaultTransition`, so an app that asked for the platform animation app-wide got none of it here. The default is itself `none`, so an app that sets nothing sees what it saw before; set `MagicRouter.instance.defaultTransition = RouteTransition.platform` to get the operating system's own animation and the gestures that come with it.
 
 ### Built-in View Keys
 
