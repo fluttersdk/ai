@@ -10,6 +10,7 @@ Comprehensive guide to route registration, context-free navigation, middleware, 
 - [Resource Routes (ResourceController)](#resource-routes-resourcecontroller)
 - [Persistent Layouts (Shell Routes)](#persistent-layouts-shell-routes)
 - [Route Transitions](#route-transitions)
+- [Stacking and the Back Button](#stacking-and-the-back-button)
 - [Context-Free Navigation](#context-free-navigation)
 - [Path & Query Parameters](#path--query-parameters)
 - [Named Routes](#named-routes)
@@ -65,6 +66,8 @@ After calling `MagicRoute.page()`, chain these methods:
 | `.title(String)` | Set page title (document.title on web, app switcher on mobile) | `.title('Dashboard')` |
 | `.middleware(List<dynamic>)` | Attach middleware (aliases or factories) | `.middleware(['auth', 'admin'])` |
 | `.transition(RouteTransition)` | Set page transition animation | `.transition(RouteTransition.slideUp)` |
+| `.stacked([bool])` | Push instead of replacing the stack, so the route can be popped | `.stacked()` |
+| `.swipeBack(bool)` | Allow or refuse the platform back gesture on this route | `.swipeBack(false)` |
 
 ## Route Groups
 
@@ -208,13 +211,14 @@ Multiple layout groups with the same ID merge their routes under a single layout
 
 Built-in transition animations via the `RouteTransition` enum:
 
-| Value | Animation |
-|-------|-----------|
-| `RouteTransition.none` | No animation (instant page switch) |
-| `RouteTransition.fade` | Cross-fade effect |
-| `RouteTransition.slideRight` | Slide in from right, slide out to left |
-| `RouteTransition.slideUp` | Slide in from bottom |
-| `RouteTransition.scale` | Scale up with fade |
+| Value | Animation | Back gesture |
+|-------|-----------|--------------|
+| `RouteTransition.none` (default) | No animation (instant page switch) | no |
+| `RouteTransition.platform` | The running platform's own | yes |
+| `RouteTransition.fade` | Cross-fade effect | no |
+| `RouteTransition.slideRight` | Slide in from right, slide out to left | no |
+| `RouteTransition.slideUp` | Slide in from bottom | no |
+| `RouteTransition.scale` | Scale up with fade | no |
 
 ```dart
 MagicRoute.page('/modal', () => ModalPage())
@@ -223,6 +227,61 @@ MagicRoute.page('/modal', () => ModalPage())
 MagicRoute.page('/details', () => DetailsPage())
     .transition(RouteTransition.slideRight);
 ```
+
+Only `platform` carries a gesture. Flutter installs the iOS back-swipe detector inside `CupertinoPageTransition`, so a custom transition on a bare page route never reaches it; `platform` routes through `PageTransitionsTheme` instead and picks up the Cupertino slide plus its swipe on iOS and macOS, predictive back on Android, and the zoom on Windows and Linux.
+
+Override what `platform` looks like on `MagicApplication`, not per route:
+
+```dart
+MagicApplication(
+  pageTransitionsTheme: const PageTransitionsTheme(
+    builders: {
+      TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+      TargetPlatform.android: PredictiveBackPageTransitionsBuilder(),
+      TargetPlatform.macOS: FadeUpwardsPageTransitionsBuilder(),
+    },
+  ),
+)
+```
+
+Applied with `copyWith`, so the Wind theme is otherwise untouched, and null changes nothing. A per-route value cannot express the case this exists for: the transition is chosen once at registration, and what an app usually wants is the native animation on mobile and none on desktop or web.
+
+A partial map is a partial override. A platform left out of `builders` keeps its own default, so omitting `TargetPlatform.iOS` leaves the Cupertino slide and its swipe in place; what removes the gesture is naming iOS and giving it a different builder.
+
+## Stacking and the Back Button
+
+`MagicRoute.to()` calls `go()`, which REPLACES the Navigator's page list. With one page there is nothing to pop, so there is no swipe, and on Android there is no back button either: Flutter reports `canHandlePop: false` and the embedder unregisters its back callback, so the system back leaves the app.
+
+Mark the routes a reader drills INTO and leave the ones they switch BETWEEN alone, or a re-tapped nav destination grows the stack:
+
+```dart
+MagicRoute.page('/monitors', () => MonitorsPage());
+
+MagicRoute.page('/monitors/:id', (id) => MonitorPage(id))
+    .stacked()
+    .transition(RouteTransition.platform);
+```
+
+App-wide defaults, set before the router is built:
+
+```dart
+MagicRouter.instance.defaultStacked = true;
+MagicRouter.instance.defaultTransition = RouteTransition.platform;
+```
+
+Leave `defaultStacked` off on web: `go()` already gives a working browser Back.
+
+`back()` is unchanged and still prefers the native pop, so the history fallback keeps covering unstacked routes.
+
+`toNamed()` resolves the name to a location and hands it to `to()`, so a stacked route pushes whichever verb reaches it. The page type is `MagicPlatformPage`, exported for a type check and never constructed by hand.
+
+Navigating to the path you are already on turns on the query: naming none is a re-tapped destination and does nothing, and naming one swaps the top page while the stack under it survives.
+
+The swap REBUILDS the screen rather than remounting it, which is what a query change does everywhere in Magic: go_router keys a page on the matched path and the query is not part of it. So read the query in `build()`, never in `initState()`, and do not register the page as a `const` widget, or nothing rebuilds at all.
+
+`swipeBack(false)` refuses the gesture ALONE; the route is still popped by Android back, by your own chrome and by `back()`. Use `PopScope` when the route should not be left at all, which Flutter's gesture already honours.
+
+A drawer and the swipe do not fight over the left edge: the gesture is refused on a route with nothing under it, so the detector never enters the arena on the drawer's own screen.
 
 ## Context-Free Navigation
 
@@ -598,5 +657,5 @@ final title = MagicRoute.currentTitle; // without suffix
 - **Path Parameters:** Parameters are injected by position into the handler function. Ensure the function signature matches the number of parameters in the route.
 - **Named Routes:** Only use named navigation if the route was explicitly named with `.name()`.
 - **Replace vs. To:** `replace()` leaves history untouched — `back()` still returns to the route before the replaced one. Use for login redirects and splash screens where the replaced route should not appear in back navigation.
-- **back() across shells:** `MagicRoute.back()` works across shell (layout) routes. Magic tracks navigation history automatically via `to()` and `toNamed()`. Use `fallback:` for guaranteed behavior when history is empty: `MagicRoute.back(fallback: '/home')`.
+- **back() across shells:** `MagicRoute.back()` works across shell (layout) routes. Magic tracks navigation history automatically via `to()` and `toNamed()` on an unstacked route; a stacked one records nothing, because the pushed page IS the record and `back()` prefers the native pop. Use `fallback:` for guaranteed behavior when history is empty: `MagicRoute.back(fallback: '/home')`.
 - **Intended URL Cleanup:** `pullIntendedUrl()` is a one-time read that clears the stored URL. Call it only once per login flow.

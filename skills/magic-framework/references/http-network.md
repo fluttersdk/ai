@@ -53,7 +53,7 @@ Map<String, dynamic> defaultNetworkConfig = {
 Configuration options:
 - `base_url`: Root URL for all requests
 - `timeout`: Request timeout in milliseconds
-- `headers`: Default headers sent with every request
+- `headers`: Default headers sent with every request. A `User-Agent` of `<App Name> (Flutter; <platform>)` is added when you do not supply one (case-insensitively), read from `app.name` plus `defaultTargetPlatform`, and skipped on web where the browser sends its own. Dart's own default, `Dart/<sdk> (dart:io)`, is identical across every Flutter client, so a backend deriving anything from the agent answers wrongly rather than partially. The name is FOLDED to ASCII first (`Şirket Takip` goes out as `Sirket Takip`, `日本` falls back to the config default), because `dart:io` throws a `FormatException` on any header value above 127 and the app would lose every request. Every letter in Latin-1 Supplement and Latin Extended-A folds, checked by a test that walks both ranges; supply your own `User-Agent` if you need an exact string.
 - `interceptors`: List of interceptor class names to register on boot
 
 Outgoing header names keep their casing on mobile and desktop (`preserveHeaderCase: true` on the Dio driver), which is what a case-sensitive reader such as ExoPlayer needs. On the web they are still lowercased by the browser, so never build a web feature on a case-sensitive header. Response headers are the other direction: `MagicResponse.headers` keys are always lowercase, so read them with a lowercase key.

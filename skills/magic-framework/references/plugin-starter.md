@@ -1,10 +1,10 @@
-<!-- magic_starter v0.0.27 | Updated: 2026-09-11 -->
+<!-- magic_starter v0.0.28 | Updated: 2026-09-16 -->
 
 # magic_starter Plugin
 
-Full-stack Flutter starter kit for Magic Framework: pre-built auth flows, team management, profile settings, billing, and responsive app/guest layouts with an opt-in feature flag system. The notification UI moved to `magic_notifications` in alpha.25; this package mounts it and requires `magic_notifications ^0.3.0`.
+Full-stack Flutter starter kit for Magic Framework: pre-built auth flows, team management, profile settings, billing, and responsive app/guest layouts with an opt-in feature flag system. The notification UI moved to `magic_notifications` in alpha.25; this package mounts it and requires `magic_notifications ^0.3.2`. It also declares `fluttersdk_wind ^1.6.0` DIRECTLY, rather than taking wind through `magic`, so a floor exists to raise when this package calls a new Wind API: 0.0.28 passes `WSelect.onOpen`, which 1.6.0 adds.
 
-Versions leave the alpha rail at this release: `0.0.1-alpha.26` is followed by `0.0.27`, carrying the counter rather than resetting it. An existing `^0.0.1-alpha.N` pin already covers it, since a caret on a zero major ends at `0.1.0`, and `flutter pub add magic_starter` now takes the current release without a prerelease pin.
+Versions left the alpha rail at 0.0.27: `0.0.1-alpha.26` is followed by `0.0.27`, carrying the counter rather than resetting it. An existing `^0.0.1-alpha.N` pin already covers it, since a caret on a zero major ends at `0.1.0`, and `flutter pub add magic_starter` now takes the current release without a prerelease pin.
 
 ## Contents
 
@@ -223,7 +223,9 @@ Notify.view.slot(NotificationViewRegistry.typeIconSlotView, 'monitor_down',
     (context) => WIcon(Icons.error_outline, className: 'text-lg text-red-500'));
 ```
 
-What stays here: `registerMagicStarterNotificationRoutes()` mounts `/notifications` and `/settings/notifications` in the `layout.app` shell and re-registers both screens wrapped in `MSPageContainer`, so they inherit the host's page geometry. The delete row asks first, through this package's `MSConfirmDialog`. See `plugin-notifications.md` for the `Notify` facade API.
+What stays here: `registerMagicStarterNotificationRoutes()` mounts `/notifications` and `/settings/notifications` in the `layout.app` shell and re-registers both screens wrapped in `MSPageContainer`, so they inherit the host's page geometry. Both are handed `contentClassName: ''` (0.0.28+, needs `magic_notifications ^0.3.2`), because that package pads its own content column for a standalone mount and the two paddings otherwise apply to the same edge: measured on a phone, these two pages sat 32 logical pixels from the display against 16 everywhere else. The delete row asks first, through this package's `MSConfirmDialog`. See `plugin-notifications.md` for the `Notify` facade API.
+
+**One more key an upgrading app adds by hand, and it is a SESSIONS key rather than a notifications one: `profile.unknown_device` (0.0.28+).** It sits here because this is where the list of keys no package supplies lives, not because it belongs to the notification screens. A session row is titled from the agent the backend sends, `<platform> - <browser>` for a browser and `<platform> - <app>` for a native client (the `agent.app` `magic-starter-laravel` sends, read defensively so an older backend behaves as before). When every part is empty the row falls back to that key, where it used to echo the section heading and render a phone as "Browser Sessions" beside a mobile icon. Both screens that draw sessions use it, the settings one and the profile one. `starter:install` scaffolds it; an app with a hand-written catalogue sees the raw key until it adds one.
 
 Those screens read five `notifications.*` keys no package supplies: `bulk_title` and `bulk_description` (the bulk channel card, `magic_notifications` 0.3.0), `delete` (the row's delete glyph, which a screen reader otherwise announces as "button"), `delete_failed`, and `channel_sms`. `starter:install` scaffolds all five into `en.stub`; an app upgrading with a hand-written catalogue adds them itself, or `Translator.get` renders each key as its own text.
 
@@ -340,7 +342,7 @@ MagicStarter.view.registerModal('modal.confirm', () => CustomConfirmDialog());
 | `settings.timezone` | `features.timezones` | `MagicStarterTimezoneView` |
 | `settings.newsletter` | `features.newsletter` | `MagicStarterNewsletterView` |
 | `settings.security.two_factor` | `features.two_factor` | `MagicStarterTwoFactorView` |
-| `settings.security.sessions` | `features.sessions` | `MagicStarterSessionsView` |
+| `settings.security.sessions` | `features.sessions` | `MagicStarterSessionsView`. Reads `profile.unknown_device`, one of the keys no package supplies; see [Notifications](#notifications), where the rest of that list lives. |
 | `teams.create` | `features.teams` | `MagicStarterTeamCreateView` |
 | `teams.settings` | `features.teams` | `MagicStarterTeamSettingsView` |
 | `teams.invitation_accept` | `features.teams` | `MagicStarterTeamInvitationAcceptView` |
@@ -414,7 +416,7 @@ Published files go to `lib/resources/views/starter/` (views) or `lib/resources/l
 
 ## Design-system components
 
-38 atomic components, all `MS`-prefixed, exported from `package:magic_starter/magic_starter.dart`. Each lives in a 4-file folder under `lib/src/ui/components/` (`<name>.dart`, `<name>.recipe.dart`, `<name>.preview.dart`, `index.dart`) and styles through a `WindRecipe` that reads `MagicStarterTokens.defaultAliases`, so a consumer's theme drives them.
+39 atomic components, all `MS`-prefixed, exported from `package:magic_starter/magic_starter.dart`. Each lives in a 4-file folder under `lib/src/ui/components/` (`<name>.dart`, `<name>.recipe.dart`, `<name>.preview.dart`, `index.dart`) and styles through a `WindRecipe` that reads `MagicStarterTokens.defaultAliases`, so a consumer's theme drives them.
 
 > [!IMPORTANT]
 > The `MS` prefix is not optional and there is no compat shim. The pre-`MS` component names (`Button`, `Dialog`, `Switch`, ...) were removed in alpha.19, and so were the six `MagicStarter*` alias widgets (`MagicStarterCard`, `MagicStarterPageHeader`, `MagicStarterSocialDivider`, `MagicStarterNotificationDropdown`, `MagicStarterTeamSelector`, `MagicStarterUserProfileDropdown`). Write `MSCard`, `MSPageHeader`, `MSSocialDivider`, `MSTeamSelector`, `MSUserProfileDropdown`. The bell is no longer here at all: it is `NotificationDropdown` from `magic_notifications`. The prefix is what ends the `package:flutter/material.dart` collision, so no `hide` clause is needed either way.
@@ -429,9 +431,21 @@ Published files go to `lib/resources/views/starter/` (views) or `lib/resources/l
 | Page geometry | `MSPageContainer`, `MSPageScaffold` |
 | Settings surface | `MSSettingsSection`, `MSSettingsRow`, `MSSettingsNavRow` |
 | Billing surface | `MSUsageMeter`, `MSUpgradeDialog`, `MSUpgradeNudge` |
-| App chrome | `MSUserProfileDropdown`, `MSTeamSelector` |
+| App chrome | `MSUserProfileDropdown`, `MSTeamSelector`, `MSAvatar` |
 
 `MSButton`, `MSInput` and `MSTextarea` take `bool fullWidth = false`, which wraps the rendered widget in a `SizedBox(width: double.infinity)` rather than adding a className token (Material widgets ignore cross-axis stretch).
+
+`MSAvatar` (0.0.28+) is the one answer to "show this person's photo, and something sensible when there is not one". It owns exactly two things, clipping the photo to the box and choosing between the photo and the fallback, and it owns no size, no shape and no colour: those differ per surface and arrive as `className`. The fallback is a WIDGET rather than a string, because the initials rule is not shared (this package takes one letter, a host app commonly takes two). A photo that fails to load falls back too, so an expired signed link shows the initial rather than a grey box.
+
+```dart
+MSAvatar(
+  photoUrl: user.profilePhotoUrl,
+  className: 'w-8 h-8 rounded-full bg-primary',
+  fallback: WText(initials, className: 'text-sm font-bold text-on-primary'),
+)
+```
+
+Do not put a `flex` on that className. Inside a wind flex a child asking for `w-full` gets the SCREEN width and `h-full` collapses, so the photo lays out as a wide band and the clip shows one slice of it; the component centres its fallback inside the fallback branch for exactly this reason.
 
 `MSDataTable` (alpha.22+) has two constructors, and the choice is about the collection rather than the styling. The default renders every row, which is right for a short and complete list. `MSDataTable.paginated` hands the body to magic's `MagicPaginatedListView` inside a box bounded by `bodyHeight`, so a long collection costs the viewport instead of the whole result and reaching the tail asks the paginator for its next page. The header stays outside the scrolling body either way. Column labels and `loadingLabel` are ALREADY TRANSLATED strings, not keys: several callers render a label that is not a key at all (a currency code, a region name).
 
@@ -477,7 +491,7 @@ The starter-specific widgets, exported from the same barrel. These are not desig
 |:-------|:--------|
 | `MagicStarterTwoFactorModal` | Multi-step 2FA wizard (QR setup, OTP confirm, recovery codes) |
 | `MagicStarterPasswordConfirmDialog` | Password-confirm dialog with inline error display, `ConfirmDialogVariant` support |
-| `MagicStarterTimezoneSelect` | Searchable timezone dropdown backed by `GET /timezones` (async search, never local data) |
+| `MagicStarterTimezoneSelect` | Searchable timezone dropdown backed by `GET /timezones` (async search, never local data). Pages through the endpoint since 0.0.28: it asks for the next page on scroll, resets its cursor through `WSelect.onOpen` when the menu reopens, and drops any response whose list epoch has moved. |
 | `MagicStarterAuthFormCard` | Centered card wrapper for auth-adjacent screens |
 | `MagicStarterHideBottomNav` | `InheritedWidget` that signals `MagicStarterAppLayout` to hide the mobile bottom nav for fullscreen routes |
 | `MagicStarterConfirmDialog` | Thin alias of `MSConfirmDialog`, kept for existing callers. New code writes `MSConfirmDialog`. |
