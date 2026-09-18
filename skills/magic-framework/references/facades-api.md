@@ -544,7 +544,7 @@ The facade class is `MagicRoute`. Resolves `MagicRouter.instance`.
 | `MagicRoute.resource(String name, ResourceController controller, {List<String>? only, List<String>? except})` | `List<RouteDefinition>` | Auto-wire canonical GET routes (index/create/show/edit) to a `ResourceController` mixin. Each definition gets a `{slug}.{method}` name + title. Throws `ArgumentError` for unknown method names in `only`/`except`. |
 | `MagicRoute.to(String path, {Map<String, String>? query})` | `void` | Navigate to path — no BuildContext needed. |
 | `MagicRoute.toNamed(String name, {Map<String, String> params, Map<String, String> query})` | `void` | Navigate by named route. |
-| `MagicRoute.push(String path)` | `void` | Push path onto the navigation stack. |
+| `MagicRoute.push(String path)` | `void` | Push path onto the navigation stack. Before the `Router` widget has parsed a location (a cold-start deeplink) it replaces instead: there is no stack to push onto yet, and pushing leaves an empty location behind that `currentLocation`, `pathParameter` and `queryParameter` all read. `to()` on a `.stacked()` route answers the same way. Throws `StateError` when the router is not initialised. |
 | `MagicRoute.back({String? fallback})` | `void` | Pop the current route. Works across shell routes via history tracking. Uses `fallback` path when history is empty. |
 | `MagicRoute.replace(String path)` | `void` | Replace current route in history. |
 | `MagicRoute.config` | `GoRouter` | **Getter.** Pass to `MaterialApp.router(routerConfig:)`. |

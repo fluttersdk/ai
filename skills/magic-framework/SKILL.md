@@ -2,10 +2,10 @@
 name: magic-framework
 description: "Write correct, idiomatic code in a Flutter app that depends on the `magic` framework (Laravel-inspired: IoC container, 18 facades, Eloquent-style ORM, service providers, reactive controllers, GoRouter routing, validation, auth, broadcasting). Use whenever code imports `package:magic/magic.dart` or `package:magic/testing.dart`, or the work touches Magic.init, MagicApp, a facade (Auth/Http/Cache/DB/Echo/Event/Gate/Config/Lang/Launch/Log/Pick/MagicRoute/Schema/Session/Storage/Vault/Crypt), a Model, MagicController, a MagicView, MagicFormData, FormRequest, a ServiceProvider, a migration, or the artisan make:* CLI. UI styling is Wind (separate wind-ui skill). Do NOT use for plain Flutter or Wind-only work with no magic import."
 when_to_use: "Use proactively when editing or scaffolding a magic app: Magic.init / a facade / a Model / a MagicController or MagicView / a form (MagicFormData, FormRequest, Validator) / a ServiceProvider / a route or MagicMiddleware / a migration / MagicStateMixin + RxStatus + fetchList / Session flash + old() + trans() / testing with MagicTest + Http.fake/Auth.fake / the artisan make:* CLI / the magic_deeplink, magic_notifications, magic_social_auth, magic_starter, magic_payments, or magic_devtools plugins. Trigger even when the user does not say the word 'magic'. Do NOT trigger for plain Flutter or Wind-only UI with no package:magic import."
-version: 0.1.26
+version: 0.1.31
 ---
 
-<!-- magic 0.0.13 | Skill v0.1.26 (2026-09-17). API surface verified against lib/src. -->
+<!-- magic 0.0.14 | Skill v0.1.31 (2026-09-19). API surface verified against lib/src. -->
 
 # Magic Framework
 
@@ -254,7 +254,7 @@ MagicRoute.resource('users', UserRoutes());                 // index/create/show
 MagicRoute.resource('posts', PostRoutes(), only: ['index', 'show']);
 ```
 
-`ResourceController` supplies `index()`, `create()`, `show(id)`, `edit(id)`; `resource()` wires `GET /name`, `/name/create`, `/name/:id`, `/name/:id/edit` with auto names `{name}.{method}`. Middleware extends `MagicMiddleware` (`handle(next)`, call `next()` to allow), registered with `Kernel.register('name', () => Mw())`. Read path/query params via `Request.route('id')` / `Request.query('q')`.
+`ResourceController` supplies `index()`, `create()`, `show(id)`, `edit(id)`; `resource()` wires `GET /name`, `/name/create`, `/name/:id`, `/name/:id/edit` with auto names `{name}.{method}`. Middleware extends `MagicMiddleware` (`handle(next)`, call `next()` to allow), registered with `Kernel.register('name', () => Mw())` from a provider's `register()` or `boot()`, both of which run before the router pre-builds; an alias nothing registered throws a `StateError` out of `Magic.init` naming every offending route, rather than leaving the route ungated. Read path/query params via `Request.route('id')` / `Request.query('q')`.
 
 Session flash survives one navigation but `Session.tick()` is NOT automatic: wire it once at bootstrap on a router-delegate listener gated to actual location changes (see `${CLAUDE_SKILL_DIR}/references/routing-navigation.md`).
 

@@ -229,8 +229,8 @@ Multi-language translation system with JSON-based message files and runtime loca
 
 | Method | Parameters | Return Type | Description |
 |:-------|:-----------|:------------|:------------|
-| `Lang.get(key, [replace])` | `String key`, `Map<String, dynamic>? replace` | `String` | Get a translated string with optional `:placeholder` replacements. |
-| `Lang.has(key)` | `String key` | `bool` | Check if a translation key exists. |
+| `Lang.get(key, [replace])` | `String key`, `Map<String, dynamic>? replace` | `String` | Get a translated string with optional `:placeholder` replacements. Falls back PER KEY to `fallback_locale`, so a key missing from the current catalogue is served from the fallback's rather than rendering as its own dotted path. Answers the key itself only when neither defines it. |
+| `Lang.has(key)` | `String key` | `bool` | Check if a translation key exists in the current catalogue OR the fallback's, since both are merged at load. |
 | `Lang.setLocale(locale, {reload})` | `Locale locale`, `bool reload` | `Future<void>` | Switch app locale at runtime (reload rebuilds widgets). |
 | `Lang.detectLocale()` | — | `Locale` | Detect best-matching locale from device/browser settings. |
 | `Lang.detectAndSetLocale()` | — | `Future<Locale>` | Detect and apply the best-matching locale. |

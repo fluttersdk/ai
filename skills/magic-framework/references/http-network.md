@@ -610,7 +610,7 @@ Registers a fake driver in the IoC container and returns it for assertion.
 
 - No args — all requests return 200 with `null` data.
 - `Map<String, MagicResponse>` — URL pattern to response mapping (`*` wildcard supported).
-- `FakeRequestHandler` — callback receiving `MagicRequest`, returning `MagicResponse`.
+- `FakeRequestHandler` — callback receiving `MagicRequest`, returning `MagicResponse` or `Future<MagicResponse>`. An `async` handler lets a test hold a request open while the caller acts, which is the only way to script a concurrency case.
 
 ```dart
 setUp(() {

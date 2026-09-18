@@ -300,7 +300,10 @@ MagicRoute.to('/search', query: {'q': 'flutter'});
 // Navigate to a named route
 MagicRoute.toNamed('users.show', params: {'id': '42'});
 
-// Push onto stack (preserves history)
+// Push onto stack (preserves history). Before the router has mounted, this
+// replaces instead: a cold-start deeplink has no stack to push onto, and
+// pushing there leaves an empty location every later read answers from.
+// `to()` on a `.stacked()` route behaves the same way.
 MagicRoute.push('/details');
 
 // Go back (works across shell routes — history-based fallback automatic)

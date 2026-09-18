@@ -1,4 +1,4 @@
-<!-- magic_payments v0.0.1 | Updated: 2026-08-29 -->
+<!-- magic_payments v0.0.2 | Updated: 2026-09-19 -->
 
 # magic_payments Plugin
 

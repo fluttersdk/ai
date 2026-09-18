@@ -1,4 +1,4 @@
-<!-- magic_starter v0.0.29 | Updated: 2026-09-17 -->
+<!-- magic_starter v0.0.30 | Updated: 2026-09-19 -->
 
 # magic_starter Plugin
 
