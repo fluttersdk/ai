@@ -5,7 +5,7 @@ version: 0.0.6
 when_to_use: "Any task that reads runtime state from a running Flutter app via telescope: calling `telescope_*` MCP tools to inspect HTTP / logs / exceptions / events / gates / dumps / queries / caches, invoking `./bin/fsa telescope:*` from a shell, pairing with dusk to verify side effects after a gesture, filtering logs by minimum level (FINE/INFO/WARNING/SEVERE/SHOUT), or clearing buffers before a repro."
 ---
 
-<!-- fluttersdk_telescope v0.0.4 | Skill updated: 2026-06-17 -->
+<!-- fluttersdk_telescope v0.0.6 | Skill updated: 2026-09-19 -->
 
 # fluttersdk_telescope
 
