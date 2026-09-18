@@ -4,6 +4,15 @@ The two parts of dusk that matter most for agent recovery: the gate that
 guards every gesture, and the ref token system that lets the agent
 target widgets across UI mutations.
 
+## Contents
+
+- [The 6-step gate, in detail](#the-6-step-gate-in-detail)
+- [The error envelope shape](#the-error-envelope-shape)
+- [Ref token lifecycles](#ref-token-lifecycles)
+- [Choosing between snap and observe](#choosing-between-snap-and-observe)
+- [When the gate is wrong](#when-the-gate-is-wrong)
+- [`--semanticsLabel` exact-match and over-match](#--semanticslabel-exact-match-and-over-match)
+
 ## The 6-step gate, in detail
 
 Every `dusk_tap`, `dusk_hover`, `dusk_drag`, `dusk_dblclick`,
@@ -105,6 +114,34 @@ target element (or any descendant) must appear in the hit path. Fails
 with `"obscured by other widget (top=<runtimeType>)"` where
 `<runtimeType>` is the unqualified class name of the topmost hit-test
 target.
+
+**Three outcomes, not two, and only one of them is silent.** The
+hit-test can also fail to ANSWER: on Flutter Web's debug build that is
+routine, because DWDS pipes hit-tests through a snapshot view that does
+not mirror the live element subtree, so the path comes back carrying only
+the root render view. Breaking every valid tap on that artifact is the
+worse failure, so the gate proceeds, and the response says so:
+
+```json
+"checks": {
+  "receivesEvents": "indeterminate",
+  "why": "hit-test returned only the root render view",
+  "overlapCandidates": ["RenderPhysicalShape@0,712,390x88"],
+  "hint": "... may have landed on something else ..."
+}
+```
+
+| Value | Meaning |
+|---|---|
+| key absent | Confirmed. The hit-test reached the target. |
+| `indeterminate` | The check could not answer. The action fired anyway. |
+| `skipped` | You passed `checkReceivesEvents: false`. |
+
+`overlapCandidates` is a rect scan run only on the indeterminate path
+(render objects overlapping the target that paint after it, capped at
+five). Advisory: an overlap is not proof of occlusion, which is why the
+hit-test exists in the first place. Pair it with the `effect` block; that
+is the pair that tells a landed gesture from a swallowed one.
 
 **Why it fails.** Another widget is in front of the target:
 
