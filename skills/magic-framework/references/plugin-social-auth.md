@@ -1,4 +1,4 @@
-<!-- magic_social_auth v0.0.3 | Updated: 2026-08-29 -->
+<!-- magic_social_auth v0.0.4 | Updated: 2026-09-21 -->
 
 # magic_social_auth Plugin
 

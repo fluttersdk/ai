@@ -185,7 +185,7 @@ Resolves `Magic.make<DatabaseManager>('db')`.
 | `DB.beginTransaction()` | `void` | Begin a manual transaction. |
 | `DB.commit()` | `void` | Commit the current transaction. |
 | `DB.rollback()` | `void` | Roll back the current transaction. |
-| `DB.transaction<T>(Future<T> Function() callback)` | `Future<T>` | Auto-commit on success, auto-rollback on error. |
+| `DB.transaction<T>(Future<T> Function() callback)` | `Future<T>` | Commits on success, rolls back on error. The callback must NOT call `DB.commit` / `DB.rollback` itself: on success that throws a `StateError` (the writes after it were not in the transaction), and on failure the rollback is skipped so the callback's own error still reaches you. |
 
 ```dart
 import 'package:magic/magic.dart';
@@ -361,6 +361,7 @@ Resolves `Translator.instance`.
 | Signature | Return Type | Notes |
 |-----------|-------------|-------|
 | `Lang.get(String key, [Map<String, dynamic>? replace])` | `String` | Translate key with optional `:placeholder` replacements. |
+| `Lang.choice(String key, int number, [Map<String, dynamic>? replace])` | `String` | Pluralize a pipe-separated line by the CURRENT locale's rules, not English's. `:count` is filled from `number`. |
 | `Lang.has(String key)` | `bool` | Check if translation key exists. |
 | `Lang.setLocale(Locale locale, {bool reload = true})` | `Future<void>` | Change active locale; triggers `Magic.reload()` by default. |
 | `Lang.detectLocale()` | `Locale` | Best-match from device locale without changing active locale. |

@@ -253,6 +253,7 @@ if (response.isValidationError) {
 |------|-------------|-----------|
 | `Required` | `Required()` | Not null; non-empty string/list/map; `true` for bools |
 | `Email` | `Email()` | Valid email format (`local@domain.tld`) |
+| `Url` | `Url({List<String> schemes = const ['http', 'https']})` | A scheme from `schemes` plus a non-empty host. Rejects whitespace, a bare `example.com`, and `javascript:` / `file:`. Reaches no network. |
 | `Min` | `Min(num n)` | String length >= n, num value >= n, or list size >= n |
 | `Max` | `Max(num n)` | String length <= n, num value <= n, or list size <= n |
 | `Confirmed` | `Confirmed()` | Value matches `{field}_confirmation` key in data |
@@ -260,6 +261,23 @@ if (response.isValidationError) {
 | `Accepted` | `Accepted()` | Value is `true`, `1`, `'1'`, `'yes'`, `'on'`, or `'true'` (case-insensitive) |
 | `In<T>` | `In<T>(List<T> values)` | Value appears in the primitive whitelist; type mismatch fails explicitly |
 | `InList<T extends Enum>` | `InList(List<T> values, {bool caseInsensitive, String Function(T)? wire})` | Value matches an enum by instance or by `.name` / `wire` mapping |
+
+**Custom messages per call site:**
+
+A rule's message is generic by design (`validation.required` is `The :attribute field is required.` app-wide). Pass `messages` when one screen wants its own wording, keyed by rule name:
+
+```dart
+FormValidator.rules(
+  [Required(), Url()],
+  field: 'address',
+  messages: {
+    'required': 'provider.error.address_required',
+    'url': 'provider.error.address_scheme',
+  },
+)
+```
+
+The value is a catalogue KEY, not a sentence, so the override stays localised. Rule parameters still reach it (`:attribute`, `:schemes`). The map key is `Rule.name`, derived from the message key rather than `runtimeType`, which is not dependable in a release build (dart2js minifies class names; Flutter's own `objectRuntimeType` avoids it outside asserts).
 
 **Same with valueGetter (recommended for Flutter forms):**
 

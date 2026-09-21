@@ -1,4 +1,4 @@
-<!-- magic_notifications v0.3.2 | Updated: 2026-09-16 -->
+<!-- magic_notifications v0.3.3 | Updated: 2026-09-21 -->
 
 # magic_notifications Plugin
 
@@ -34,7 +34,7 @@ dart run magic:artisan notifications:install
 dart run magic:artisan notifications:doctor
 ```
 
-Requires `magic ^0.0.6` (for `Echo.connection`, the accessor the realtime path needs to tell an open connection from a closed one) and, since 0.3.1, `fluttersdk_artisan ^0.0.15` (for `XcodeProjectEditor.setEntitlementsPaths`, which the iOS install below cannot do without).
+From 0.3.3 the floors are `magic ^0.0.15`, `fluttersdk_artisan ^0.0.16` and `fluttersdk_wind ^1.6.2`, the newest of each at that release. The requirements underneath them are older: `magic` 0.0.6 for `Echo.connection`, the accessor the realtime path needs to tell an open connection from a closed one, and `fluttersdk_artisan` 0.0.15 for `XcodeProjectEditor.setEntitlementsPaths`, which the iOS install below cannot do without.
 
 ### The APNs entitlement install writes, and why there are two files
 

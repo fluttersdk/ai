@@ -2,10 +2,10 @@
 name: magic-framework
 description: "Write correct, idiomatic code in a Flutter app that depends on the `magic` framework (Laravel-inspired: IoC container, 18 facades, Eloquent-style ORM, service providers, reactive controllers, GoRouter routing, validation, auth, broadcasting). Use whenever code imports `package:magic/magic.dart` or `package:magic/testing.dart`, or the work touches Magic.init, MagicApp, a facade (Auth/Http/Cache/DB/Echo/Event/Gate/Config/Lang/Launch/Log/Pick/MagicRoute/Schema/Session/Storage/Vault/Crypt), a Model, MagicController, a MagicView, MagicFormData, FormRequest, a ServiceProvider, a migration, or the artisan make:* CLI. UI styling is Wind (separate wind-ui skill). Do NOT use for plain Flutter or Wind-only work with no magic import."
 when_to_use: "Use proactively when editing or scaffolding a magic app: Magic.init / a facade / a Model / a MagicController or MagicView / a form (MagicFormData, FormRequest, Validator) / a ServiceProvider / a route or MagicMiddleware / a migration / MagicStateMixin + RxStatus + fetchList / Session flash + old() + trans() / testing with MagicTest + Http.fake/Auth.fake / the artisan make:* CLI / the magic_deeplink, magic_notifications, magic_social_auth, magic_starter, magic_payments, or magic_devtools plugins. Trigger even when the user does not say the word 'magic'. Do NOT trigger for plain Flutter or Wind-only UI with no package:magic import."
-version: 0.1.31
+version: 0.1.35
 ---
 
-<!-- magic 0.0.14 | Skill v0.1.31 (2026-09-19). API surface verified against lib/src. -->
+<!-- magic 0.0.15 | Skill v0.1.35 (2026-09-21). API surface verified against lib/src. -->
 
 # Magic Framework
 
@@ -114,7 +114,7 @@ The five assumptions a Laravel developer gets wrong most: (1) the container auto
 | `Crypt` | `encrypter` | `encrypt`, `decrypt`, `encryptWithDeviceKey`, `decryptWithDeviceKey`, `hasDeviceKey`, `generateDeviceKey`, `clearDeviceKey` |
 | `Launch` | `launch` | `url(u, {mode})`, `email`, `phone`, `sms`, `canLaunch` |
 
-Global helper functions exist and are idiomatic: `env<T>(key, [default])`, `trans(key, [replace])`, `old(field, [fallback])`, `error(field)`, `carbonNow()`, `carbonToday()`, `carbonParse(s)`. Full per-facade signatures: `${CLAUDE_SKILL_DIR}/references/facades-api.md`.
+Global helper functions exist and are idiomatic: `env<T>(key, [default])`, `trans(key, [replace])`, `transChoice(key, count, [replace])`, `old(field, [fallback])`, `error(field)`, `carbonNow()`, `carbonToday()`, `carbonParse(s)`. Full per-facade signatures: `${CLAUDE_SKILL_DIR}/references/facades-api.md`.
 
 ## 5. Canonical patterns
 

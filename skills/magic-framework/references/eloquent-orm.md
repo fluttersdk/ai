@@ -332,7 +332,20 @@ class CreateMonitorsTable extends Migration {
 }
 ```
 
-`up()` and `down()` are synchronous `void`. Register migrations via `Migrator().run([...])`.
+`up()` and `down()` are synchronous `void`, and that is load-bearing rather than incidental: `Migrator.run` cannot await a `void`, so writing `void up() async` compiles and is recorded complete the moment the body reaches its first suspension. Use `DB.statement` and `DB.select`; `DatabaseManager().getColumns` and `hasColumn` answer futures and must not be called from a migration. A migration with no honest rollback throws `UnsupportedError` from `down()` rather than doing nothing, or `rollback()` deletes the ledger row for a migration that is still applied.
+
+Register migrations via `Migrator().run([...])`. The whole run is one unit: if any migration throws, all of them roll back and the ledger records none, so the retry starts from a clean schema. It is a SAVEPOINT rather than a BEGIN, so it nests inside a transaction you opened yourself. A migration must NOT call `DB.beginTransaction`, `DB.commit` or `DB.rollback`; the run is already one unit and closing it from inside throws.
+
+A migration that changes a table an earlier version already created has to sense the schema rather than trust the ledger, because a baseline migration records both shapes identically:
+
+```dart
+final bool present = DB.select('PRAGMA table_info(users)')
+    .any((Map<String, dynamic> row) => row['name'] == 'avatar');
+if (present) return;
+DB.statement("ALTER TABLE users ADD COLUMN avatar TEXT NOT NULL DEFAULT ''");
+```
+
+`ADD COLUMN ... NOT NULL` with no default succeeds on an empty table and throws on one with rows, so omitting the default passes in development and fails on exactly the install it exists to repair.
 
 ### Blueprint Column Methods
 

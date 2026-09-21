@@ -245,7 +245,25 @@ Multi-language translation system with JSON-based message files and runtime loca
 
 ```dart
 String trans(String key, [Map<String, dynamic>? replace]) => Lang.get(key, replace);
+String transChoice(String key, int number, [Map<String, dynamic>? replace]) => Lang.choice(key, number, replace);
 ```
+
+### Pluralization
+
+A sentence carrying a number needs `transChoice`, never `trans`: `trans` is a lookup plus a replacement, so one wording renders at every count.
+
+```json
+{ "apples": "There is one apple|There are :count apples" }
+```
+
+```dart
+transChoice('apples', 1);  // "There is one apple"
+transChoice('apples', 4);  // "There are 4 apples"
+```
+
+Inline conditions are supported and win over the positional segments: `"{0} Nothing here|[1,19] :count messages|[20,*] Lots"`. Write a line that is all conditions or none, because a stripped condition shifts the positional segments behind it.
+
+**The index is the current locale's, not English's.** Turkish, Japanese, Korean, Chinese and eleven more have one form, so their second segment is unreachable. French counts zero as singular. Russian has three forms and Arabic six. A two-segment line looks correct for as long as only a one-form language is rendered, which is why this defect survives review in an app whose first locale is Turkish.
 
 ### Usage
 
@@ -1103,7 +1121,7 @@ BroadcastManager.extend('pusher', (config) => PusherBroadcastDriver(config));
 - **Cache**: `remember<T>()` returns cached value directly (not awaited) if it exists; only awaits callback on miss.
 - **Events**: Listeners run sequentially. If one throws, others still execute. Errors are logged, not re-thrown.
 - **Logging**: `Log.channel(name)` returns a `LoggerDriver` resolved via `LogManager.driver(name)`, enabling per-channel logging.
-- **Lang**: `trans()` helper is a shorthand for `Lang.get()`. Translations must be loaded before first use.
+- **Lang**: `trans()` is a shorthand for `Lang.get()` and `transChoice()` for `Lang.choice()`. Translations must be loaded before first use. A sentence with a number needs `transChoice`; the plural index is the current locale's, and fifteen languages have only one form.
 - **Storage**: `put()` returns the path, `get()` returns raw bytes. Use `getFile()` for metadata.
 - **Crypt**: App key must be exactly 32 characters. Device keys are auto-generated on first `encryptWithDeviceKey()` call.
 - **Vault**: Async operations. May fail if hardware keystore is locked (e.g., on first boot before PIN unlock).
