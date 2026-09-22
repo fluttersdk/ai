@@ -1,8 +1,8 @@
-<!-- magic_starter v0.0.31 | Updated: 2026-09-21 -->
+<!-- magic_starter v0.0.35 | Updated: 2026-09-22 -->
 
 # magic_starter Plugin
 
-Full-stack Flutter starter kit for Magic Framework: pre-built auth flows, team management, profile settings, billing, and responsive app/guest layouts with an opt-in feature flag system. The notification UI moved to `magic_notifications` in alpha.25; this package mounts it. From 0.0.31 every sibling floor names the newest release at that point: `magic ^0.0.15`, `magic_notifications ^0.3.3`, `magic_payments ^0.0.3`, `fluttersdk_wind ^1.6.2` and `fluttersdk_artisan ^0.0.16`. Two of them carry a requirement older than the batch that set them. Wind is declared DIRECTLY, rather than taken through `magic`, so a floor exists to raise when this package calls a new Wind API: 0.0.28 passes `WSelect.onOpen`, which 1.6.0 adds. And `magic` has needed 0.0.12 since 0.0.29, for two reasons rather than one: `RouteDefinition.stacked()` exists in no release below it, and 0.0.12 is also where a routed page stopped being transparent, which is the defect stacking a route would otherwise expose.
+Full-stack Flutter starter kit for Magic Framework: pre-built auth flows, team management, profile settings, billing, and responsive app/guest layouts with an opt-in feature flag system. The notification UI moved to `magic_notifications` in alpha.25; this package mounts it. From 0.0.35 every sibling floor names the newest release at that point: `magic ^0.0.16`, `magic_notifications ^0.3.4`, `magic_payments ^0.0.4`, `fluttersdk_wind ^1.6.3` and `fluttersdk_artisan ^0.0.16`. Two of them carry a requirement older than the batch that set them. Wind is declared DIRECTLY, rather than taken through `magic`, so a floor exists to raise when this package calls a new Wind API: 0.0.28 passes `WSelect.onOpen`, which 1.6.0 adds. And `magic` has needed 0.0.12 since 0.0.29, for two reasons rather than one: `RouteDefinition.stacked()` exists in no release below it, and 0.0.12 is also where a routed page stopped being transparent, which is the defect stacking a route would otherwise expose.
 
 Versions left the alpha rail at 0.0.27: `0.0.1-alpha.26` is followed by `0.0.27`, carrying the counter rather than resetting it. An existing `^0.0.1-alpha.N` pin already covers it, since a caret on a zero major ends at `0.1.0`, and `flutter pub add magic_starter` now takes the current release without a prerelease pin.
 
@@ -180,6 +180,9 @@ MagicStarter.useTheme(
       sidebarWidth: 280,
       sidebarClassName: 'h-full flex flex-col bg-zinc-900 border-r border-zinc-700',
       drawerBackgroundLightShade: 0.3, // drawer background opacity
+      navigationBreakpoint: 'sm', // sidebar from 640px instead of the default 'lg'
+      sidebarExpandedBreakpoint: 'lg', // icons only between the two
+      sidebarCompactWidth: 80, // the compact rail's width
     ),
   ),
 );
@@ -502,6 +505,7 @@ The starter-specific widgets, exported from the same barrel. These are not desig
 | `MagicStarterTimezoneSelect` | Searchable timezone dropdown backed by `GET /timezones` (async search, never local data). Pages through the endpoint since 0.0.28: it asks for the next page on scroll, resets its cursor through `WSelect.onOpen` when the menu reopens, and drops any response whose list epoch has moved. |
 | `MagicStarterAuthFormCard` | Centered card wrapper for auth-adjacent screens |
 | `MagicStarterHideBottomNav` | `InheritedWidget` that signals `MagicStarterAppLayout` to hide the mobile bottom nav for fullscreen routes |
+| `MagicStarterHideChrome` | Since 0.0.32. The same shape for the WHOLE shell: no sidebar, no drawer, no header, no bottom bar, no safe-area inset and no scroll container. The layout stays mounted, so its notification polling, its auth listeners and its route key survive. For a media player or a map, which sizes itself and cannot use the scroll container's unbounded height. |
 | `MagicStarterConfirmDialog` | Thin alias of `MSConfirmDialog`, kept for existing callers. New code writes `MSConfirmDialog`. |
 | `MagicStarterDialogShell` | Thin alias of `MSDialog` (sticky header/footer, scrollable body). New code writes `MSDialog`. |
 
@@ -512,6 +516,44 @@ Wrap a route's widget to hide the mobile bottom navigation bar in `MagicStarterA
 ```dart
 MagicStarterHideBottomNav(child: FullscreenEditorView())
 ```
+
+### MagicStarterHideChrome
+
+Since 0.0.32. Wrap a route group's layout to give the window to the child and keep the shell mounted:
+
+```dart
+MagicRoute.group(
+  layout: (child) => MagicStarterHideChrome(
+    child: MagicStarter.view.makeLayout('layout.app', child: child),
+  ),
+  layoutId: 'app.immersive',
+  routes: () { /* the player route */ },
+);
+```
+
+### The rail, since 0.0.32
+
+`MagicStarterAppLayout` no longer hardcodes `lg` as the point where the sidebar replaces the drawer plus
+bottom bar, and it can render the sidebar as an icon rail:
+
+| Field | Default | What it decides |
+|---|---|---|
+| `MagicStarterLayoutTheme.navigationBreakpoint` | `'lg'` | From which Wind breakpoint the persistent sidebar replaces the drawer and the bottom bar. Lower it for a television or a small window. |
+| `MagicStarterLayoutTheme.sidebarExpandedBreakpoint` | `'lg'` | From which breakpoint the sidebar carries labels. Between the two it is compact: icons only, every text label dropped, brand and user name included, because a label at the compact width is clipped rather than shortened. Equal to `navigationBreakpoint`, which is the shipped pair, means never compact. |
+| `MagicStarterLayoutTheme.sidebarCompactWidth` | `80` | The compact width. 80 rather than 72 because `MSTeamSelector`'s compact trigger measures exactly 72 and the sidebar's `border-r` takes one more pixel. |
+| `MagicStarterLayoutTheme.contentClassName` | `'flex-1 overflow-y-auto'` | Since 0.0.33. The box the route child is handed. The default scrolls, which hands the child an UNBOUNDED height: a fill-shaped screen (an `h-full` column with a `flex-1` body that scrolls internally) then renders nothing, with wind asserting "h-full on a child inside a vertical scroll resolves to an unbounded height" in debug and `RenderPointerListener object was given an infinite size` in release. A host that owns its own scrolling sets `'flex-1 min-h-0'`. |
+| `MagicStarterLayoutTheme.contentScrollPrimary` | `true` | Since 0.0.33. Follows `contentClassName`: a content area that no longer scrolls must not claim the primary scroll position, and a horizontal one must not attach its viewport to the vertical primary controller. |
+| `MagicStarterNavigationTheme.focusItemClassName` | `''` | Applied to every sidebar, drawer and bottom-bar item, so a host driven by arrow keys or a remote can light the destination that holds focus. Tokens carry the `focus:` prefix. |
+| `MagicStarterLayoutTheme.sidebarCollapsible` | `false` | Since 0.0.34. A toggle above the user menu collapses the labelled sidebar to the compact form and back. Shown only at or above `sidebarExpandedBreakpoint`, where an expansion is possible. The choice is remembered through `Cache` under `magic_starter.sidebar_collapsed` (ten year TTL, since the cache has no `forever` and its default is an hour) when the host binds a cache, and in memory otherwise. |
+| `MagicStarterLayoutTheme.sidebarCollapsedByDefault` | `false` | Since 0.0.34. The state before the viewer has chosen; a remembered choice wins. Ignored unless `sidebarCollapsible` is set. |
+| `MagicStarterNavigationTheme.compactBrandBuilder` | `null` | Since 0.0.34. What the compact rail's brand bar shows, for a wordmark that does not fit 80 pixels. Unset, the rail shows `brandBuilder`. The rail's bar appends `justify-around` to `brandBarClassName`, which centres a lone brand on the icon line and keeps Wind's own child wrapping, so a brand wider than the rail stays bounded. A custom widget whose root is a `flex-1` `WDiv` is still wrapped and throws "Incorrect use of ParentDataWidget": give the brand no flex share at its root. |
+
+The toggle reads `nav.collapse_sidebar` and `nav.expand_sidebar`. Both ship in the install stub; a host
+installed before 0.0.34 adds them to its own language files, or the labelled toggle shows the raw key.
+
+Both breakpoint fields are Wind `screens` keys rather than pixel counts, and a name the theme does not
+carry throws a `StateError` naming the field and listing the valid keys. It used to answer false
+silently, which made `sidebarExpandedBreakpoint: 'large'` drop every label at every width.
 
 ## Session scope (cross-tenant leak guard)
 
@@ -551,7 +593,9 @@ Two guards ship ready to register as the `auth` and `guest` aliases in the app's
 | Middleware | Redirects | Destination |
 |:-----------|:----------|:------------|
 | `EnsureAuthenticated` | a visitor away from a protected page | `MagicStarterConfig.loginRoute()` |
-| `RedirectIfAuthenticated` | a signed-in user away from a guest page | `MagicStarterConfig.homeRoute()` |
+| `RedirectIfAuthenticated` | a signed-in account away from a guest page | `MagicStarterConfig.homeRoute()` |
+
+Since 0.0.34 `RedirectIfAuthenticated` lets a user whose `is_guest` is true through: a guest session is signed in, and the login and registration pages are where it becomes an account. From the same release a guest gets Sign in and Create account at the top of `MSUserProfileDropdown` (the menu reads `is_guest`) and a Sign in row under the settings hub's upgrade row. The hub shows both of its guest rows when `Gate.denies('starter.delete-account')`, which is how the hub tells a guest: that ability is granted only when `is_guest != true` (see Gate Abilities), so it is denied for a guest and the rows appear. All of this only ever meets a guest when `features.guest_auth` is on, since nothing else creates one; on a default install (the flag is `false`) no user carries `is_guest` and none of it shows. Create account opens the profile route's in-place upgrade, so the guest keeps its own rows. `MagicStarterGuestAuthController.doGuestLogin` goes home without a request when the user is already a guest, because a second `POST /auth/guest` revokes every token of a returning guest, including one a host keeps to claim the guest's data at sign-in.
 
 Both override `redirectTarget` (a pre-build synchronous redirect) rather than `handle` (a post-build remount), so a guarded page never mounts for someone who is about to be sent away. Each one guards its own destination so the redirect cannot loop, which matters because go_router raises after more than five successive redirects.
 

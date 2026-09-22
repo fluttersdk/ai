@@ -1,4 +1,4 @@
-<!-- magic_payments v0.0.3 | Updated: 2026-09-21 -->
+<!-- magic_payments v0.0.4 | Updated: 2026-09-22 -->
 
 # magic_payments Plugin
 
@@ -21,7 +21,7 @@ The backend half of the same contract lives in `magic-starter-laravel` (`api/v1/
 
 ```yaml
 dependencies:
-  magic_payments: ^0.0.3
+  magic_payments: ^0.0.4
 ```
 
 ```bash
