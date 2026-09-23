@@ -299,7 +299,7 @@ await Auth.login({
 
 The `login()` method extracts tokens from the data map and persists them securely. On subsequent API calls, the `AuthInterceptor` automatically injects the token into request headers.
 
-A custom `BaseGuard` implements `login()` with `await startSession(user, token: ..., refreshToken: ...)`, not `storeToken` then `setUser`: `startSession` moves the in-memory token and the user in one step, so a boot sync answering mid-sign-in never sees the new token under the previous account.
+A custom `BaseGuard` implements `login()` with `await startSession(user, token: ..., refreshToken: ...)`, not `storeToken` then `setUser`: `startSession` marks the session as opened before its first await, so a boot sync answering mid-sign-in ignores its answer instead of applying the previous account or logging out the new token.
 
 ### Token Refresh
 
