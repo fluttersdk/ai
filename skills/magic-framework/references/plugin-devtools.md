@@ -1,4 +1,4 @@
-<!-- magic_devtools v0.0.6 | Updated: 2026-09-22 -->
+<!-- magic_devtools v0.0.6 | Updated: 2026-09-23 -->
 
 # magic_devtools Plugin
 
@@ -21,11 +21,11 @@ The manual path, when the app is already installed and only the tooling is being
 ```yaml
 dependencies:
   magic_devtools: ^0.0.6
-  fluttersdk_dusk: ^0.0.15       # add if you use dusk
+  fluttersdk_dusk: ^0.0.16       # add if you use dusk
   fluttersdk_telescope: ^0.0.7   # add if you use telescope
 ```
 
-Those two floors are the ones `magic_devtools` itself declares from 0.0.6, beside `magic ^0.0.16` and `fluttersdk_wind ^1.6.3`: the newest of each sibling at that release. The perf data path alone needs less, and those minimums are why the floors matter at all: `perf_readers.dart` (dusk 0.0.12), `FramePerfWatcher` / `TelescopeStore.recentFramePerf` (telescope 0.0.5), `MagicController.onRefreshUI` (magic 0.0.7) and `WindPerfCounters` (wind 1.5.0). A caret range resolves to the newest, so a fresh graph always worked; an app whose own constraints hold one sibling back gets a satisfiable graph that then fails on undefined symbols.
+`magic_devtools` 0.0.6 declares `fluttersdk_dusk ^0.0.15` and `fluttersdk_telescope ^0.0.7`, beside `magic ^0.0.16` and `fluttersdk_wind ^1.6.3`: the newest of each sibling at that release. The dusk line above names 0.0.16, the newest dusk since magic 0.0.20, which the devtools range admits. The perf data path alone needs less, and those minimums are why the floors matter at all: `perf_readers.dart` (dusk 0.0.12), `FramePerfWatcher` / `TelescopeStore.recentFramePerf` (telescope 0.0.5), `MagicController.onRefreshUI` (magic 0.0.7) and `WindPerfCounters` (wind 1.5.0). A caret range resolves to the newest, so a fresh graph always worked; an app whose own constraints hold one sibling back gets a satisfiable graph that then fails on undefined symbols.
 
 These are regular `dependencies`, not `dev_dependencies`: `lib/main.dart` imports them, so a `dev_dependencies` entry trips the `depend_on_referenced_packages` lint. The `kDebugMode` guard is what keeps them out of a release build, not the dependency section.
 
