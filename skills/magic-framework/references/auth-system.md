@@ -303,10 +303,12 @@ The `login()` method extracts tokens from the data map and persists them securel
 
 The `AuthInterceptor` automatically handles token refresh on 401:
 
-1. Guard returns 401 from API
+1. Guard returns 401 from API, **on a request that presented the token**
 2. Interceptor calls `Auth.refreshToken()`
 3. If successful, retries the original request once
 4. If refresh fails, calls `Auth.logout()` and user is redirected to login
+
+A 401 on a request that carried no auth header, or a token other than the one the guard holds now, does none of this. A call dispatched before a sign-in completed goes out anonymous and its refusal lands after the session exists, so reading it as a rejection logs out a session the server never saw. Only a credential the server was actually shown can end one.
 
 Manual refresh:
 

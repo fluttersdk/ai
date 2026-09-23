@@ -1,4 +1,4 @@
-<!-- magic_starter v0.0.35 | Updated: 2026-09-22 -->
+<!-- magic_starter v0.0.36 | Updated: 2026-09-23 -->
 
 # magic_starter Plugin
 
@@ -152,7 +152,7 @@ The manager holds 7 sub-theme objects. Set all at once via `useTheme()` or indiv
 |:------------------|:----------|:------------|
 | `useTheme(theme)` | `void` | Set all 7 sub-themes at once via `MagicStarterTheme`. |
 | `theme` | `MagicStarterTheme` | Get unified theme (constructs from individual fields). |
-| `useNavigationTheme(theme)` | `void` | Override active nav items, brand, bottom nav, avatar colors. |
+| `useNavigationTheme(theme)` | `void` | Override active nav items, brand, bottom nav, avatar colors (the dropdown trigger's initial and glyph via `dropdownAvatarTextClassName`, 0.0.36+). |
 | `useModalTheme(theme)` | `void` | Override modal container, buttons, inputs, typography tokens. |
 | `useFormTheme(theme)` | `void` | Override form input, label, button, link tokens across all forms. |
 | `useAuthTheme(theme)` | `void` | Override auth card, title, error banner, social divider tokens. |
@@ -457,6 +457,10 @@ MSAvatar(
 ```
 
 Do not put a `flex` on that className. Inside a wind flex a child asking for `w-full` gets the SCREEN width and `h-full` collapses, so the photo lays out as a wide band and the clip shows one slice of it; the component centres its fallback inside the fallback branch for exactly this reason.
+
+`photoUrl` may be `null` and usually is: from `magic-starter-laravel` 0.0.11 `profile_photo_url` is `null` for a user or team with no upload, where earlier backends sent a generated ui-avatars.com image. So `null` is what "no photo" looks like on the wire, and a host reading `profile_photo_url` itself handles it rather than treating the field as always a string. Against a backend on 0.0.10 or earlier, every avatar that passes the field through (the expanded sidebar does from 0.0.36) draws that generated image instead of the themed initial.
+
+Since 0.0.36 both forms of the sidebar avatar draw a person glyph (`Icons.person_outline`, on the text classes the initial would have used) when there is no name to take a letter from, which covers the frames before a session is known as well as an account with no name; there is no "U" from `common.user` any more. `MSUserProfileDropdown`'s trigger listens to `Auth.stateNotifier` itself, because the shell mounts it const and a const child is not rebuilt with its parent, so a guest session opened after the first frame shows on the next one. A custom `triggerBuilder` is re-run on the same notification, which follows the session only when the builder reads `Auth.user()` as it runs: one that closes over a name its enclosing `build` computed replays that stale value until the enclosing widget rebuilds. The expanded sidebar draws the account's photo through `MSAvatar` too, and its initial and glyph take `MagicStarterNavigationTheme.avatarTextClassName` on `avatarClassName`. The trigger's initial and glyph take `MagicStarterNavigationTheme.dropdownAvatarTextClassName` (default `text-sm font-bold text-white`, the string that was hard-coded before), and `MagicStarterTheme.fromWind` (so `useWindTheme`) derives it from the theme's `text-on-primary` role, since the trigger's background starts at the primary colour.
 
 `MSDataTable` (alpha.22+) has two constructors, and the choice is about the collection rather than the styling. The default renders every row, which is right for a short and complete list. `MSDataTable.paginated` hands the body to magic's `MagicPaginatedListView` inside a box bounded by `bodyHeight`, so a long collection costs the viewport instead of the whole result and reaching the tail asks the paginator for its next page. The header stays outside the scrolling body either way. Column labels and `loadingLabel` are ALREADY TRANSLATED strings, not keys: several callers render a label that is not a key at all (a currency code, a region name).
 
