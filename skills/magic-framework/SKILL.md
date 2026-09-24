@@ -2,10 +2,10 @@
 name: magic-framework
 description: "Write correct, idiomatic code in a Flutter app that depends on the `magic` framework (Laravel-inspired: IoC container, 18 facades, Eloquent-style ORM, service providers, reactive controllers, GoRouter routing, validation, auth, broadcasting). Use whenever code imports `package:magic/magic.dart` or `package:magic/testing.dart`, or the work touches Magic.init, MagicApp, a facade (Auth/Http/Cache/DB/Echo/Event/Gate/Config/Lang/Launch/Log/Pick/MagicRoute/Schema/Session/Storage/Vault/Crypt), a Model, MagicController, a MagicView, MagicFormData, FormRequest, a ServiceProvider, a migration, or the artisan make:* CLI. UI styling is Wind (separate wind-ui skill). Do NOT use for plain Flutter or Wind-only work with no magic import."
 when_to_use: "Use proactively when editing or scaffolding a magic app: Magic.init / a facade / a Model / a MagicController or MagicView / a form (MagicFormData, FormRequest, Validator) / a ServiceProvider / a route or MagicMiddleware / a migration / MagicStateMixin + RxStatus + fetchList / Session flash + old() + trans() / testing with MagicTest + Http.fake/Auth.fake / the artisan make:* CLI / the magic_deeplink, magic_notifications, magic_social_auth, magic_starter, magic_payments, or magic_devtools plugins. Trigger even when the user does not say the word 'magic'. Do NOT trigger for plain Flutter or Wind-only UI with no package:magic import."
-version: 0.1.43
+version: 0.1.44
 ---
 
-<!-- magic 0.0.20 | Skill v0.1.43 (2026-09-23). API surface verified against lib/src. -->
+<!-- magic 0.0.21 | Skill v0.1.44 (2026-09-24). API surface verified against lib/src. -->
 
 # Magic Framework
 
@@ -56,7 +56,7 @@ void main() async {
 
 Real lifecycle (from `lib/src/foundation/magic.dart`): `Env.load()` then `configFactories` evaluate, then `MagicApp.init` (config merge), then the web URL strategy is applied if `routing.url_strategy == 'path'`, then core bindings, then providers `register()` (sync), then `await boot()` (async), then the router pre-builds, then ready.
 
-Use `configFactories` (not `configs`) whenever a config value reads `Env.get()`: `configs` is evaluated before Env is loaded. `MagicApplication` accepts `title`, `titleSuffix`, `windTheme`, `themeMode`, `locale`, `localizationsDelegates`, `onThemeChanged`, `onInit`, `initialRoute`.
+Use `configFactories` (not `configs`) whenever a config value reads `Env.get()`: `configs` is evaluated before Env is loaded. `MagicApplication` accepts `title`, `titleSuffix`, `windTheme`, `themeMode`, `locale`, `localizationsDelegates`, `onThemeChanged`, `onInit`, `initialRoute`, and `builder`, which wraps the router like `MaterialApp.builder` so a layer above every page (a floating player) survives each navigation.
 
 ## 3. Mental model: Laravel to magic (and where it diverges)
 

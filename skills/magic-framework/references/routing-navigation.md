@@ -207,6 +207,23 @@ MagicRoute.layout(
 
 Multiple layout groups with the same ID merge their routes under a single layout shell.
 
+### Above Every Route: `MagicApplication.builder`
+
+A layout belongs to its routes, so a `to()` to an unstacked route outside the group disposes it. For a widget that must survive every navigation (a floating video player whose platform view must never be remounted, a global banner), wrap the router instead:
+
+```dart
+MagicApplication(
+  builder: (context, child) => Stack(
+    children: [
+      child!,
+      const FloatingPlayer(),
+    ],
+  ),
+)
+```
+
+Passed straight to `MaterialApp.builder`: the builder runs inside `Theme`, localizations, `Directionality` and `MediaQuery`, `child` is the `Router` (which builds the root Navigator), and the layer's State survives every `to()`, push and `back()`. From the layer's own context `Navigator.of` and `Overlay.of` find nothing: navigate with `MagicRoute`, open dialogs with `Magic.dialog()`, and put an `Overlay` inside the layer around any `Tooltip`, `WPopover` or `WSelect`, which throw without one. `Magic.reload()` (and `Lang.setLocale()` without `reload: false`) remounts the layer with a new State. The loading and failure screens before init are not wrapped; null wraps nothing.
+
 ## Route Transitions
 
 Built-in transition animations via the `RouteTransition` enum:
