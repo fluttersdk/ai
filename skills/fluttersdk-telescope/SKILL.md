@@ -1,11 +1,11 @@
 ---
 name: fluttersdk-telescope
-description: "fluttersdk_telescope: passive runtime inspector for Flutter apps. Lets an LLM agent read what the app captured (HTTP traffic, structured logs, uncaught exceptions, debug dumps, in-app events, gate checks, DB queries, Magic Cache ops) by calling 10 MCP tools (`telescope_*`) or 7 CLI commands (`./bin/fsa telescope:*`). Records land in 10 in-memory ring buffers with FIFO eviction (500 entries each, except the frame-perf buffer at 3600, about a minute at 60fps) backed by `ext.telescope.*` VM Service extensions. Pairs with fluttersdk_dusk: dusk drives the app, telescope reads the side effects. TRIGGER when: any `telescope_*` MCP tool call, any `telescope:*` CLI command, the user asks the agent to inspect HTTP / logs / exceptions / events / queries / cache / dump output from a running Flutter app, the user mentions ring buffer / TelescopeStore / ext.telescope, or the conversation pairs with dusk for state verification after a gesture. DO NOT TRIGGER when: only authoring flutter_test widget tests, only driving the UI without reading captured state (use fluttersdk-dusk), or only modifying Dart source without running it."
-version: 0.0.6
+description: "fluttersdk_telescope: passive runtime inspector for Flutter apps. Lets an LLM agent read what the app captured (HTTP traffic, structured logs, uncaught exceptions, debug dumps, in-app events, gate checks, DB queries, Magic Cache ops) by calling 10 MCP tools (`telescope_*`) or 10 CLI commands (`./bin/fsa telescope:*`). Records land in 10 in-memory ring buffers with FIFO eviction (500 entries each, except the frame-perf buffer at 3600, about a minute at 60fps) backed by `ext.telescope.*` VM Service extensions. Pairs with fluttersdk_dusk: dusk drives the app, telescope reads the side effects. TRIGGER when: any `telescope_*` MCP tool call, any `telescope:*` CLI command, the user asks the agent to inspect HTTP / logs / exceptions / events / queries / cache / dump output from a running Flutter app, the user mentions ring buffer / TelescopeStore / ext.telescope, or the conversation pairs with dusk for state verification after a gesture. DO NOT TRIGGER when: only authoring flutter_test widget tests, only driving the UI without reading captured state (use fluttersdk-dusk), or only modifying Dart source without running it."
+version: 0.0.8
 when_to_use: "Any task that reads runtime state from a running Flutter app via telescope: calling `telescope_*` MCP tools to inspect HTTP / logs / exceptions / events / gates / dumps / queries / caches, invoking `./bin/fsa telescope:*` from a shell, pairing with dusk to verify side effects after a gesture, filtering logs by minimum level (FINE/INFO/WARNING/SEVERE/SHOUT), or clearing buffers before a repro."
 ---
 
-<!-- fluttersdk_telescope v0.0.7 | Skill updated: 2026-09-19 -->
+<!-- fluttersdk_telescope v0.0.8 | Skill updated: 2026-09-28 -->
 
 # fluttersdk_telescope
 
@@ -109,16 +109,16 @@ restart, and verify with `./bin/fsa telescope:tail`.
      A swallowed `try / catch` is invisible; pair with `telescope_tail`
      to catch the breadcrumb the swallower logged.
 
-## 2. Tool surface (10 MCP tools, 7 CLI commands)
+## 2. Tool surface (10 MCP tools, 10 CLI commands)
 
 | Family | MCP tool | CLI command | Captures |
 |---|---|---|---|
 | HTTP | `telescope_requests` | `telescope:requests` | Outbound HTTP via any installed `TelescopeHttpAdapter` (Magic's `MagicHttpFacadeAdapter`, vanilla `DioHttpAdapter`, custom). Raw `dart:io HttpClient` is invisible. |
 | Logs | `telescope_tail` | `telescope:tail` | Every `package:logging` Logger call. `LogWatcher` enables `hierarchicalLoggingEnabled = true` and sets `Logger.root.level = Level.ALL`, so nothing is filtered at capture. |
-| Exceptions | `telescope_exceptions` | (MCP only) | Uncaught exceptions only. Carries `exceptionType`, `message`, `time`, optional `stackTrace`, `isolate`. |
-| Dumps | `telescope_dumps` | (MCP only) | Every `debugPrint` call (global override, chain-preserves the previous handler). Plain Dart `print(...)` does NOT route through `debugPrint`, so `print("...")` is invisible here; callers must switch to `debugPrint(...)` to land in this buffer. `dart:io stdout.write` is also invisible. |
-| Events | `telescope_events` | (MCP only) | Events dispatched through Magic's `Event` facade. Raw `ChangeNotifier.notifyListeners` is invisible. |
-| Gates | `telescope_gates` | (MCP only) | Every `Gate.allows` / `Gate.denies` call (via `MagicGateWatcher`). Carries `ability`, `result` (bool), `arguments`, `userId`. |
+| Exceptions | `telescope_exceptions` | (MCP only; `dusk:exceptions` reads the same buffer) | Uncaught exceptions only. Carries `exceptionType`, `message`, `time`, optional `stackTrace`, `isolate`. |
+| Dumps | `telescope_dumps` | `telescope:dumps` | Every `debugPrint` call (global override, chain-preserves the previous handler). Plain Dart `print(...)` does NOT route through `debugPrint`, so `print("...")` is invisible here; callers must switch to `debugPrint(...)` to land in this buffer. `dart:io stdout.write` is also invisible. |
+| Events | `telescope_events` | `telescope:events` | Events dispatched through Magic's `Event` facade. Raw `ChangeNotifier.notifyListeners` is invisible. |
+| Gates | `telescope_gates` | `telescope:gates` | Every `Gate.allows` / `Gate.denies` call (via `MagicGateWatcher`). Carries `ability`, `result` (bool), `arguments`, `userId`. |
 | Queries | `telescope_queries` | `telescope:queries` | DB queries through Magic's QueryBuilder via the `QueryExecuted` event. Raw `sqlite3` / `drift` bypasses this. |
 | Cache | `telescope_caches` | `telescope:caches` | Magic Cache ops (placeholder, see Law 7). |
 | Frames | `telescope_frames` | `telescope:frames` | Per-frame build/raster/vsync micros plus a block-attribution map, joined from `SchedulerBinding` timings and a `FlutterTimeline` drain. Opt-in: register `FramePerfWatcher` yourself. Every response also carries `livenessCounter`, a monotonic count of frames actually drawn, and it is on an empty response too: without it an empty result cannot distinguish a quiet app from a stalled engine. This buffer holds 3600, not 500. |

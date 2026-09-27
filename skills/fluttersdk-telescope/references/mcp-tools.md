@@ -170,8 +170,7 @@ in via `TelescopePlugin.registerWatcher(ExceptionWatcher())`).
 
 In-app events dispatched through Magic's `Event` facade.
 
-**VM extension:** `ext.telescope.events`. **MCP-only**, no CLI mirror
-in V1.
+**VM extension:** `ext.telescope.events`. CLI mirror: `telescope:events`.
 
 **Input:**
 
@@ -218,8 +217,7 @@ it the buffer stays empty.
 
 Gate authorization checks.
 
-**VM extension:** `ext.telescope.gates`. **MCP-only**, no CLI mirror
-in V1.
+**VM extension:** `ext.telescope.gates`. CLI mirror: `telescope:gates`.
 
 **Input:**
 
@@ -261,8 +259,7 @@ id at the time of the check (string-stringified), or absent for guest.
 
 `debugPrint` captures.
 
-**VM extension:** `ext.telescope.dumps`. **MCP-only**, no CLI mirror in
-V1.
+**VM extension:** `ext.telescope.dumps`. CLI mirror: `telescope:dumps`.
 
 **Input:**
 

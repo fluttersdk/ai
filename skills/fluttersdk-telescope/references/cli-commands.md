@@ -24,9 +24,12 @@ the agent needs structured data.
 - [telescope:requests](#telescoperequests)
 - [telescope:queries](#telescopequeries)
 - [telescope:caches](#telescopecaches)
+- [telescope:events](#telescopeevents)
+- [telescope:gates](#telescopegates)
+- [telescope:dumps](#telescopedumps)
 - [telescope:frames](#telescopeframes)
 - [telescope:clear](#telescopeclear)
-- [Why some buffers are MCP-only](#why-some-buffers-are-mcp-only)
+- [Why exceptions is MCP-only](#why-exceptions-is-mcp-only)
 - [Common output behaviour](#common-output-behaviour)
 
 ## Contents
@@ -36,9 +39,12 @@ the agent needs structured data.
 - [`telescope:requests`](#telescoperequests)
 - [`telescope:queries`](#telescopequeries)
 - [`telescope:caches`](#telescopecaches)
+- [`telescope:events`](#telescopeevents)
+- [`telescope:gates`](#telescopegates)
+- [`telescope:dumps`](#telescopedumps)
 - [`telescope:frames`](#telescopeframes)
 - [`telescope:clear`](#telescopeclear)
-- [Why some buffers are MCP-only](#why-some-buffers-are-mcp-only)
+- [Why exceptions is MCP-only](#why-exceptions-is-mcp-only)
 - [Common output behaviour](#common-output-behaviour)
 
 ---
@@ -239,6 +245,82 @@ Note: the buffer is currently a placeholder, see the cache section in
 
 ---
 
+## telescope:events
+
+Print recent in-app events dispatched through Magic's `Event` facade.
+
+**Flags:**
+
+| Flag | Default | Help |
+|---|---|---|
+| `--limit=<N>` | `50` | Max records to print. |
+
+**VM extension:** `ext.telescope.events`.
+
+**Output format:**
+
+```
+2026-09-28T10:00:00.000Z MonitorCreated {id: 7} listeners=2
+```
+
+`listeners=<N>` is omitted when the watcher did not record a count.
+
+**Empty-buffer hint:** `"No event records (register MagicEventWatcher)."`
+
+**Exit codes:** always `0`.
+
+---
+
+## telescope:gates
+
+Print recent Gate authorization checks.
+
+**Flags:**
+
+| Flag | Default | Help |
+|---|---|---|
+| `--limit=<N>` | `50` | Max records to print. |
+
+**VM extension:** `ext.telescope.gates`.
+
+**Output format:**
+
+```
+2026-09-28T10:00:00.000Z monitors.update denied user=3 arguments=[Monitor]
+```
+
+`user=<id>` is omitted when no user was authenticated at check time.
+
+**Empty-buffer hint:** `"No gate records (register MagicGateWatcher)."`
+
+**Exit codes:** always `0`.
+
+---
+
+## telescope:dumps
+
+Print recent `debugPrint` output.
+
+**Flags:**
+
+| Flag | Default | Help |
+|---|---|---|
+| `--limit=<N>` | `50` | Max records to print. |
+
+**VM extension:** `ext.telescope.dumps`.
+
+**Output format:**
+
+```
+2026-09-28T10:00:00.000Z poller tick 3
+```
+
+**Empty-buffer hint:** `"No dump records (install DumpWatcher in debug mode)."`
+
+**Exit codes:** always `0`.
+
+---
+
 ## telescope:clear
 
 Wipe all 10 ring buffers atomically.
@@ -257,18 +339,11 @@ Cleared telescope buffers.
 
 ---
 
-## Why some buffers are MCP-only
+## Why exceptions is MCP-only
 
-V1 ships 7 CLI commands and 10 MCP tools. The four buffers without a
-CLI mirror (`exceptions`, `events`, `gates`, `dumps`) are MCP-only by
-intent: their records are dense JSON objects (stack traces, payload
-maps, arguments lists) that do not pretty-print well into a single
-line, and the agent-driving use-case demanded structured access first.
-
-CLI parity for those four is V1.x backlog. To read them from a shell,
-use a Dart one-liner that calls the VM extension directly, or pipe the
-MCP server output through a client like
-`fluttersdk_artisan mcp:invoke`.
+V1 ships 10 CLI commands and 10 MCP tools. `exceptions` is the one buffer
+without a `telescope:*` mirror: its records carry full stack traces that do
+not fit a single line. From a shell, `dusk:exceptions` reads the same buffer.
 
 ---
 
