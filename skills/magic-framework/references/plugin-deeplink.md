@@ -1,4 +1,4 @@
-<!-- magic_deeplink v0.1.3 | Updated: 2026-09-22 -->
+<!-- magic_deeplink v0.1.4 | Updated: 2026-09-27 -->
 
 # magic_deeplink Plugin
 
@@ -11,6 +11,7 @@ Deep link handling plugin for Magic Framework: wraps `app_links` with a handler 
 - [DeeplinkManager API](#deeplinkmanager-api)
 - [Contracts](#contracts)
 - [Built-in Implementations](#built-in-implementations)
+- [Events](#events)
 - [Configuration](#configuration)
 - [ServiceProvider](#serviceprovider)
 - [CLI Commands](#cli-commands)
@@ -224,18 +225,59 @@ The provider registers it automatically when `deeplink.driver` is `'app_links'` 
 
 ### RouteDeeplinkHandler
 
-Maps URI path patterns to navigation. Constructor: `RouteDeeplinkHandler({required List<String> paths})`.
+Maps URI path patterns to navigation.
+
+```dart
+RouteDeeplinkHandler({
+  required List<String> paths,
+  List<String>? hosts,            // null: any host (the default)
+  bool caseSensitive = false,
+  TenantSwitchGate? tenantGate,   // null: never switches
+})
+```
 
 ```dart
 DeeplinkManager().registerHandler(
-  RouteDeeplinkHandler(paths: ['/products/:id', '/orders/*', '/promo/:code']),
+  RouteDeeplinkHandler(
+    paths: ['/products/:id', '/orders/*', '/promo/:code'],
+    hosts: ['example.com', 'www.example.com'],
+    caseSensitive: true,
+  ),
 );
 ```
 
-- `:param` matches one path segment; `*` matches anything (it compiles to `.*`).
-- Matching is case-insensitive, and a trailing slash is stripped before comparison.
-- On match it calls `MagicRoute.to(uri.path, query: uri.queryParameters)` and returns `true`.
-- It ignores `source` and `payload` deliberately: navigating to a path the consumer listed is safe whoever asked for it.
+- `:param` matches one path segment; `*` matches anything (it compiles to `.*`). A trailing slash is stripped before comparison.
+- `caseSensitive` defaults to `false`, so `/INCIDENTS/5` is claimed for `/incidents/:id` and then lands on go_router's not-found page, since go_router routes are case-sensitive. Set it to `true` to claim only the exact case. It covers paths only; `hosts` always compare case-insensitively.
+- `hosts: null` claims a matching path on any host. Set it, and a RELATIVE URI (a push payload path) is still always accepted, but an absolute URI is claimed only over `http`/`https`, with no explicit port and no userinfo, on a host equal to one entry. A blank entry is ignored rather than treated as a wildcard: `hosts: ['']` refuses every absolute URI.
+- On match it calls `MagicRoute.to(uri.path, query: uri.queryParameters)` and returns `true`. `handle` never throws: a router that is not built yet, or any other failure, is logged (when `log` is bound) and answered `false`. A direct `handle` call re-checks `canHandle` and answers `false` for a path it does not serve.
+- Routing ignores `source` and `payload`: navigating to a path the consumer listed is safe whoever asked for it. Only `tenantGate` reads them.
+
+#### Switching tenant from a push: TenantSwitchGate
+
+A multi-tenant backend resolves a page against the session's CURRENT tenant and answers 404 for another tenant's row, so a push about another team's incident lands on that 404. `tenantGate` switches first:
+
+```dart
+RouteDeeplinkHandler(
+  paths: ['/incidents/:id'],
+  tenantGate: TenantSwitchGate(
+    currentTenantId: MagicStarter.currentTeamId,
+    switchTenant: (String teamId) => MagicStarter.switchTeam(teamId),
+    payloadKey: 'team_id',                       // the default
+    onSwitched: () => Magic.success('Team', 'Switched team'),
+    onSwitchFailed: (String teamId) => Magic.error('Team', 'Could not switch'),
+  ),
+)
+```
+
+| Field | Type | Meaning |
+|:------|:-----|:--------|
+| `currentTenantId` | `String? Function()` | The session's tenant, or `null` while unresolved. |
+| `switchTenant` | `Future<bool> Function(String tenantId)` | Moves the session and answers whether it took. |
+| `payloadKey` | `String` | Push payload key naming the owning tenant. Default `'team_id'`. |
+| `onSwitched` | `void Function()?` | After a successful switch, before navigating. One that throws is logged and the link still opens: the session has already moved. |
+| `onSwitchFailed` | `void Function(String tenantId)?` | When `switchTenant` answered `false` or threw. The link is NOT opened. |
+
+The security rules live in the handler and no gate configuration loosens them: only `DeeplinkSource.push` may switch (an OS link naming another tenant navigates anyway and meets the 404); the tenant is read from the payload under `payloadKey`, never from the URI query; ids compare as trimmed strings (`5` and `'5'` are one tenant); an absent tenant, an unresolved session, or the same tenant navigates without switching. A switch that fails does not navigate, because the backend would still resolve the page against the old tenant. The two callbacks shown are `magic_starter`'s (0.0.37+: `MagicStarter.currentTeamId()` answers a `String?`, `MagicStarter.switchTeam(String)` a `Future<bool>`); an app without the starter passes its own.
 
 ### OneSignalDeeplinkHandler
 
@@ -255,6 +297,21 @@ Map<String, dynamic>? extractData(dynamic event)
 - Failures (a manager with no `onPushClicked`, an event with no readable `data`, a throwing handler) are reported at error level through `Log`, guarded by `Magic.bound('log')`.
 
 `NotificationManager.onPushClicked` arrives in `magic_notifications` 0.1.0. This package declares no dependency on it, so nothing enforces that floor: pair it with an older release and you get the error-level report instead of a routed link.
+
+## Events
+
+`RouteDeeplinkHandler` dispatches two magic events, both unawaited: a listener that fails, or a dispatch that cannot run, is logged and the link still opens.
+
+| Event | When | Fields | Breadcrumb category |
+|:------|:-----|:-------|:--------------------|
+| `DeeplinkOpened` | It starts opening a link it matched | `source` (`DeeplinkSource`), `route`, `namesTenant` (`bool`, the payload named a tenant under a gate) | `deeplink.open` |
+| `DeeplinkNavigating` | Immediately before `MagicRoute.to` | `route` | `deeplink.navigate` |
+
+`route` is the matched PATTERN (`/invitations/:token/accept`), never the concrete path, the query string or a payload value, since a link can carry a token in any of the three. Both implement magic's `ReportsBreadcrumb`, so a crash reporter listening through `Event.listenAny` (magic_sentry does) records them with no dependency on this package. That contract is why the `magic` floor is `^0.0.22`.
+
+```dart
+Event.listen<DeeplinkOpened>(() => AuditDeeplinkListener());   // your MagicListener
+```
 
 ## Configuration
 
@@ -349,7 +406,7 @@ dart run magic:artisan deeplink:doctor --verbose
 dart run magic:artisan deeplink:doctor --remote   # also fetch both files from the live domain
 ```
 
-Ships in 0.1.0, the release this file is stamped for. It reads `lib/config/deeplink.dart` (rejecting the scaffold placeholders `example.com`, `YOUR_TEAM_ID`, `com.example.app`, `YOUR_SHA256_FINGERPRINT`), then checks iOS (`applinks:` entitlement host, `FlutterDeepLinkingEnabled`), Android (the manifest's element TREE, so a `flutter_deeplinking_enabled` meta-data sitting on `<application>` instead of `<activity>` is caught where a grep cannot see it, plus the `autoVerify` filter's `http`/`https` schemes and host) and the two generated association files against the config. Everything is local and read-only without `--remote`. The one thing it cannot prove is that a real device matches an incoming link to this app, and the report says so.
+Ships since 0.1.0. It reads `lib/config/deeplink.dart` (rejecting the scaffold placeholders `example.com`, `YOUR_TEAM_ID`, `com.example.app`, `YOUR_SHA256_FINGERPRINT`), then checks iOS (`applinks:` entitlement host, `FlutterDeepLinkingEnabled`), Android (the manifest's element TREE, so a `flutter_deeplinking_enabled` meta-data sitting on `<application>` instead of `<activity>` is caught where a grep cannot see it, plus the `autoVerify` filter's `http`/`https` schemes and host) and the two generated association files against the config. Everything is local and read-only without `--remote`. The one thing it cannot prove is that a real device matches an incoming link to this app, and the report says so.
 
 ## Usage Patterns
 
@@ -432,3 +489,7 @@ Inject a fake driver to exercise the provider: `DeeplinkServiceProvider(app, dri
 | `reset()` skipped in tests | `DeeplinkManager` is a singleton that outlives the container; a stale cached initial link or handler leaks into the next test. |
 | `generate` produced only one file | It warns and continues: AASA needs `--team-id` plus `--bundle-id`, `assetlinks.json` needs `--package-name` plus `--sha256-fingerprints`. |
 | `:param` not matching a nested path | `:param` matches a single segment only. Use `*` for multi-segment patterns. |
+| `/INCIDENTS/5` claimed, then go_router's not-found page | Matching is case-insensitive by default and go_router is not. Pass `caseSensitive: true`. |
+| A path claimed on someone else's host | `hosts` is `null` by default, which claims any host. Name your domains in `hosts`; relative push paths still pass. |
+| Hand-writing a team-switching handler | `RouteDeeplinkHandler(tenantGate: TenantSwitchGate(...))` does it with the push-only and payload-only rules built in. A hand-written one has to re-derive them. |
+| Waiting on `handle` to throw when the router is not ready | Since 0.1.4 it logs and answers `false`. Check the return value or the log. |

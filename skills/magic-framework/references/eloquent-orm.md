@@ -382,12 +382,15 @@ DB.statement("ALTER TABLE users ADD COLUMN avatar TEXT NOT NULL DEFAULT ''");
 
 ### Factory
 
-Extend `Factory<T>` and implement both `definition()` and `newInstance()`.
+Extend `Factory<T>` and implement `definition()`, `newInstance()` and `newFactory()`.
 
 ```dart
 import 'package:magic/magic.dart';
 
 class MonitorFactory extends Factory<Monitor> {
+  @override
+  Factory<Monitor> newFactory() => MonitorFactory();
+
   @override
   Monitor newInstance() => Monitor();
 
@@ -399,22 +402,38 @@ class MonitorFactory extends Factory<Monitor> {
       };
 }
 
+extension MonitorFactoryStates on Factory<Monitor> {
+  Factory<Monitor> paused() => state({'status': 'paused'});
+}
+
 // Usage
 final monitor = (await MonitorFactory().create()).first;
 final monitors = await MonitorFactory().count(10).create();
-final admins = await MonitorFactory().state({'status': 'paused'}).count(3).create();
+final paused = await MonitorFactory().paused().count(3).create();
 final stubs = MonitorFactory().count(5).make(); // in-memory only, no save
+final payloads = MonitorFactory().count(3).raw(); // List<Map>, no model
 ```
+
+A factory fills its models unguarded, like Laravel: `id`, timestamps and any key
+missing from the model's `fillable` list are kept. `create()` sends every
+definition key to the persistence layer and throws a `StateError` when
+`save()` refuses the model.
 
 | Method | Signature | Returns | Purpose |
 | :--- | :--- | :--- | :--- |
 | `definition()` | `Map<String, dynamic> definition()` | `Map` | Default attribute values using `faker` |
 | `newInstance()` | `T newInstance()` | `T` | Returns empty model instance |
-| `count(n)` | `Factory<T> count(int count)` | `Factory<T>` | Set number of models |
-| `state(map)` | `Factory<T> state(Map<String, dynamic>)` | `Factory<T>` | Merge overrides with definition |
-| `create()` | `Future<List<T>> create()` | `Future<List<T>>` | Persist models via `save()` |
+| `newFactory()` | `Factory<T> newFactory()` | `Factory<T>` | Returns a fresh factory of the same subclass; backs the copy-on-write `state()`/`count()` |
+| `count(n)` | `Factory<T> count(int count)` | `Factory<T>` | Returns a copy set to build `count` models |
+| `state(map)` | `Factory<T> state(Map<String, dynamic>)` | `Factory<T>` | Returns a copy with `map` merged over its states |
+| `raw()` | `List<Map<String, dynamic>> raw()` | `List<Map>` | Merged attribute maps, no model built |
+| `create()` | `Future<List<T>> create()` | `Future<List<T>>` | Persist models via `save()`, guard restored first |
 | `make()` | `List<T> make()` | `List<T>` | Build in-memory only, no persistence |
 | `faker` | `Faker get faker` | `Faker` | Access to `package:faker` instance |
+
+Named states are written as an extension on `Factory<T>` rather than a method
+on the subclass, since `state()`/`count()` return `Factory<T>` and a subclass
+method would be unreachable after either call.
 
 ### Seeder
 

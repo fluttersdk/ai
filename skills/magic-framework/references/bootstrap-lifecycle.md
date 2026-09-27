@@ -200,7 +200,7 @@ UserController.instance.fetchUser();
 | `Magic.put<T>(controller)` | Register a controller instance by type `T`. |
 | `Magic.find<T>()` | Resolve a controller by type. Throws if not registered. |
 | `Magic.findOrPut<T>(T Function() builder)` | Resolve or create if missing. **Preferred pattern.** |
-| `Magic.delete<T>()` | Remove a controller from the registry. |
+| `Magic.delete<T>()` | Remove an instance from the registry, disposing it when it is a `ChangeNotifier` (every controller, and a plain notifier put there). |
 | `Magic.isRegistered<T>()` | Check if type `T` is registered. |
 
 ## ServiceProvider Lifecycle

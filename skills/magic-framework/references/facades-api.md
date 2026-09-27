@@ -241,7 +241,8 @@ Dispatches via `EventDispatcher.instance`. The `Event` facade only exposes `disp
 | Signature | Return Type | Notes |
 |-----------|-------------|-------|
 | `Event.dispatch(MagicEvent event)` | `Future<void>` | Trigger an event to all registered listeners. |
-| `EventDispatcher.instance.register(Type eventType, List<MagicListener Function()> factories)` | `void` | Register listener factories for an event type. Call in `ServiceProvider.boot()`. |
+| `Event.listen<T extends MagicEvent>(MagicListener Function() factory)` | `void` | Register a listener without an `AppEventServiceProvider.listen` mapping; `T` must be named explicitly. Call in `ServiceProvider.register()`, not `boot()` (a guard can dispatch `AuthLogin` during `AuthServiceProvider.boot`). |
+| `EventDispatcher.instance.register(Type eventType, List<MagicListener Function()> factories)` | `void` | Register listener factories for an event type directly (what `Event.listen` calls under the hood). |
 
 ```dart
 import 'package:magic/magic.dart';

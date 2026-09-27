@@ -670,6 +670,8 @@ fake.assertLoginAttempted();       // At least one login() call
 fake.assertLoginCount(2);          // Exactly 2 login() calls
 ```
 
+`login()`/`logout()` on the fake guard dispatch `AuthLogin`/`AuthLogout` through the real `Event` facade, same as `BaseGuard`, so an `Event.listen` listener under test observes a faked session exactly as it would a real one.
+
 ### Cache.fake()
 
 ```dart

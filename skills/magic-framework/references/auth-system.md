@@ -577,29 +577,33 @@ class User extends Model with Authenticatable {
 
 ## Auth Events
 
-The auth system dispatches events on state changes:
+`BaseGuard` (and `Auth.fake()`'s fake guard) dispatch these through `Event`:
 
 | Event | Fired | Data |
 |:------|:------|:-----|
-| `AuthRestored` | After successful session restore | `user` |
-| `AuthLoginAttempted` | When login is attempted | (none) |
-| `AuthLogoutAttempted` | When logout is requested | (none) |
+| `AuthLogin` | End of a successful `startSession` (token persisted, user set + cached). Not fired on a restore. Skipped when the session ended or was replaced while the user was being cached. | `user`, `guard` |
+| `AuthLogout` | Every `logout()`, guest included, after the `stateNotifier` bump and before a rethrown Vault failure. Means "the in-memory session ended", not "the credentials are gone"; gate server-side release on `Auth.hasToken()`. | `user` (nullable for a guest), `guard` |
+| `AuthRestored` | API-confirmed sync only (`BaseGuard`'s background `/user` fetch inside `restore()`), never the cache-only step. | `user`, `guard` |
 | `GateAbilityDefined` | When ability is registered | `ability` |
 | `GateAccessChecked` | After every Gate check | `ability`, `arguments`, `allowed`, `user` |
 | `GateAccessDenied` | When access is denied | `ability`, `arguments`, `user` |
 
-Register listeners in a ServiceProvider:
+`AuthFailed` is defined (`credentials`, `guard`), not dispatched by the guards above: no code path in `lib/` fires it. Dispatch it yourself from a failed login flow, e.g. `Event.dispatch(AuthFailed(credentials, guard: 'web'));` in the `catch` around your `Auth.login()` call.
+
+Register with `Event.listen<T>`, from a provider's `register()` (not `boot()`, since a guard can dispatch `AuthLogin` during `AuthServiceProvider.boot`):
 
 ```dart
-@override
-Future<void> boot() async {
-  EventDispatcher.instance.register(AuthRestored, [
-    () => MyAuthRestoredListener(),
-  ]);
+class LogAuthLogout extends MagicListener<AuthLogout> {
+  @override
+  Future<void> handle(AuthLogout event) async {
+    Log.info('Session ended for ${event.user?.authIdentifier ?? 'guest'}');
+  }
+}
 
-  EventDispatcher.instance.register(GateAccessDenied, [
-    () => MyAccessDeniedListener(),
-  ]);
+@override
+void register() {
+  Event.listen<AuthLogout>(() => LogAuthLogout());
+  Event.listen<GateAccessDenied>(() => MyAccessDeniedListener());
 }
 ```
 

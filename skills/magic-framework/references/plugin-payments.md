@@ -1,4 +1,4 @@
-<!-- magic_payments v0.0.4 | Updated: 2026-09-22 -->
+<!-- magic_payments v0.0.5 | Updated: 2026-09-27 -->
 
 # magic_payments Plugin
 
@@ -14,6 +14,7 @@ The backend half of the same contract lives in `magic-starter-laravel` (`api/v1/
 - [Models and enums](#models-and-enums)
 - [Configuration](#configuration)
 - [CLI commands and MCP tools](#cli-commands-and-mcp-tools)
+- [Keeping the store rail on the payer](#keeping-the-store-rail-on-the-payer)
 - [Swapping a rail](#swapping-a-rail)
 - [Gotchas](#gotchas)
 
@@ -21,8 +22,10 @@ The backend half of the same contract lives in `magic-starter-laravel` (`api/v1/
 
 ```yaml
 dependencies:
-  magic_payments: ^0.0.4
+  magic_payments: ^0.0.5
 ```
+
+0.0.5 pins `magic ^0.0.22`.
 
 ```bash
 # Register the plugin's artisan provider with the app dispatcher (once)
@@ -128,6 +131,31 @@ The rails are deliberately NOT configurable. A driver of your own is registered 
 
 Only `payments_doctor` is exposed as an MCP tool. `payments:install` and `payments:configure` mutate the consumer's project, and the MCP surface stays read-only.
 
+## Keeping the store rail on the payer
+
+The store rail bills whoever `Payments.store!.identify(appUserId)` last named, and nothing re-identifies it when the paying subject changes: sign in as another user, or switch the team that pays, and purchases keep landing on the previous subject. `StoreIdentitySync` (0.0.5+) is the static keeper:
+
+```dart
+// Once, from a provider: the consumer decides who pays (here, the user).
+StoreIdentitySync.billableId = () => Auth.id()?.toString();
+StoreIdentitySync.attach();
+
+// After switching the paying subject outside an auth change:
+await StoreIdentitySync.syncNow();
+
+// Stop following auth changes:
+StoreIdentitySync.detach();
+```
+
+| Member | Type | Behaviour |
+|:-------|:-----|:----------|
+| `billableId` | `static String? Function()?` | Resolves the subject's id (a team or a user). Unset: identifies nothing and logs once at debug level. |
+| `attach()` | `static void` | Syncs on every `Auth.stateNotifier` change. |
+| `syncNow()` | `static Future<void>` | Syncs on demand. |
+| `detach()` | `static void` | Stops following auth. |
+
+Syncs run one at a time in call order, and each reads `billableId` when its turn comes, so a switch landing mid-identify leaves the rail on the newer subject whatever order the vendor SDK finishes in. It skips a build with no store rail (`Payments.store == null`) and a session with no subject, identifies a repeated id once, identifies again after a sign-out, and logs a `BillingException` from the rail at error level instead of throwing, retrying that id on the next sync. `magic_starter` 0.0.37 sets `billableId` from its `magic_starter.billing.billable` key (`'user'` or `'team'`) in `register()` and calls `syncNow()` after a successful `MagicStarter.switchTeam()`; do not set the resolver again on top of it.
+
 ## Swapping a rail
 
 ```dart
@@ -150,5 +178,6 @@ Roles are `PaymentsManager.billingRole` (`'billing'`), `webRole` (`'web'`) and `
 | Dropping `nextCursor` from `getInvoices()` | The producer addresses its first page by sending NO cursor. Reusing a stored token on a reset fetches page two and renders it as the whole history. |
 | `payments.driver` set to a rail name | The only accepted value is `'platform'`. A rail is chosen by the build, not by config. |
 | Registering a rail in config | There is no key for it. Use `Payments.extend(role, factory)`. |
+| Calling `Payments.store!.identify` by hand on every switch | `StoreIdentitySync` does it on each auth change and orders overlapping syncs; hand-rolled calls can race, and the one that lands last wins. |
 
 The ready-made UI for all of this is `magic_starter`'s `teams.billing` view (gated on its own `features.billing` toggle); see `references/plugin-starter.md`.

@@ -417,6 +417,9 @@ import 'package:magic/magic.dart';
 
 class MonitorFactory extends Factory<Model> {
     @override
+    Factory<Model> newFactory() => MonitorFactory();
+
+    @override
     Model newInstance() => throw UnimplementedError(
         'Import your Monitor model and override newInstance()',
     );

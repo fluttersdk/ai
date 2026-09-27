@@ -1,8 +1,8 @@
-<!-- magic_starter v0.0.36 | Updated: 2026-09-23 -->
+<!-- magic_starter v0.0.37 | Updated: 2026-09-27 -->
 
 # magic_starter Plugin
 
-Full-stack Flutter starter kit for Magic Framework: pre-built auth flows, team management, profile settings, billing, and responsive app/guest layouts with an opt-in feature flag system. The notification UI moved to `magic_notifications` in alpha.25; this package mounts it. From 0.0.35 every sibling floor names the newest release at that point: `magic ^0.0.16`, `magic_notifications ^0.3.4`, `magic_payments ^0.0.4`, `fluttersdk_wind ^1.6.3` and `fluttersdk_artisan ^0.0.16`. Two of them carry a requirement older than the batch that set them. Wind is declared DIRECTLY, rather than taken through `magic`, so a floor exists to raise when this package calls a new Wind API: 0.0.28 passes `WSelect.onOpen`, which 1.6.0 adds. And `magic` has needed 0.0.12 since 0.0.29, for two reasons rather than one: `RouteDefinition.stacked()` exists in no release below it, and 0.0.12 is also where a routed page stopped being transparent, which is the defect stacking a route would otherwise expose.
+Full-stack Flutter starter kit for Magic Framework: pre-built auth flows, team management, profile settings, billing, and responsive app/guest layouts with an opt-in feature flag system. The notification UI moved to `magic_notifications` in alpha.25; this package mounts it. From 0.0.37 every sibling floor names the newest release at that point: `magic ^0.0.22`, `magic_notifications ^0.3.5`, `magic_payments ^0.0.5`, `fluttersdk_wind ^1.7.0` and `fluttersdk_artisan ^0.0.16`. The first three are real requirements, not only names: `SessionScope`, `SessionScoped`, the keyed `LatestRead` and `BaseGuard.cacheUser` arrive in magic 0.0.22, `Notify.pushState` in magic_notifications 0.3.5, and `StoreIdentitySync` in magic_payments 0.0.5. Two more carry a requirement older than the batch that set them. Wind is declared DIRECTLY, rather than taken through `magic`, so a floor exists to raise when this package calls a new Wind API: 0.0.28 passes `WSelect.onOpen`, which 1.6.0 adds. And `magic` has needed 0.0.12 since 0.0.29, for two reasons rather than one: `RouteDefinition.stacked()` exists in no release below it, and 0.0.12 is also where a routed page stopped being transparent, which is the defect stacking a route would otherwise expose.
 
 Versions left the alpha rail at 0.0.27: `0.0.1-alpha.26` is followed by `0.0.27`, carrying the counter rather than resetting it. An existing `^0.0.1-alpha.N` pin already covers it, since a caret on a zero major ends at `0.1.0`, and `flutter pub add magic_starter` now takes the current release without a prerelease pin.
 
@@ -19,6 +19,7 @@ Versions left the alpha rail at 0.0.27: `0.0.1-alpha.26` is followed by `0.0.27`
 - [Plan upgrade wall](#plan-upgrade-wall)
 - [Page geometry](#page-geometry)
 - [Controllers](#controllers)
+- [Guest Claim](#guest-claim)
 - [Layouts & Notification Integration](#layouts--notification-integration)
 - [Gate Abilities](#gate-abilities)
 - [Gotchas](#gotchas)
@@ -76,10 +77,11 @@ MagicStarter.bootstrap(
   userFactory: (data) => User.fromMap(data),
   onLogout: () => MagicStarterAuthController.instance.logout(),
   locales: const {'en': 'English', 'tr': 'Türkçe'},
+  onLogin: () async => Log.info('signed in as ${Auth.id()}'),  // optional, 0.0.37+
   // Teams (all three or none):
   currentTeam: () => Auth.user<User>()?.currentTeam?.toMagicStarterTeam(),
   allTeams: () => Auth.user<User>()?.allTeams.map((t) => t.toMagicStarterTeam()).toList() ?? [],
-  onSwitch: (teamId) => MagicStarterTeamController.instance.switchTeam(teamId),
+  onSwitch: (teamId) => MagicStarter.switchTeam('$teamId'),
 );
 ```
 
@@ -88,7 +90,9 @@ MagicStarter.bootstrap(
 | `userFactory` | yes | `UserModelFactory`. Skipping it used to leave `MagicStarterAuthUser.fromMap` in place, so every starter screen quietly read the starter's own user type instead of the app's. |
 | `onLogout` | yes | `Future<void> Function()`. |
 | `locales` | yes | `Map<String, String>` of code to label. |
-| `currentTeam` / `allTeams` / `onSwitch` | all three or none | Optional because `magic_starter.features.teams` defaults to `false`. |
+| `onLogin` | no | `Future<void> Function()`, 0.0.37+. Runs after a FRESH sign-in (password, two-factor, social, guest, phone OTP), off magic's `AuthLogin`, unawaited and logged on failure. Not on a cold-boot restore, not on a team switch. Also `MagicStarter.useLogin(callback)`. |
+| `onGuestClaimed` | no | `Future<void> Function(GuestClaimOutcome)`, 0.0.37+. See [Guest Claim](#guest-claim). |
+| `currentTeam` / `allTeams` / `onSwitch` | all three or none | Optional because `magic_starter.features.teams` defaults to `false`. Route `onSwitch` through `MagicStarter.switchTeam('$teamId')`, which is what `starter:install` generates: it also re-identifies the store rail. |
 
 Two throws to know: a PARTIAL team-callback set raises `ArgumentError` before any setter runs (so a rejected call leaves the manager untouched rather than half-configured), and enabling the teams feature without the callbacks raises `StateError`. The 16 optional theming setters are deliberately NOT part of `bootstrap()`; call them separately. Every individual setter below stays public for partial or advanced setup, and `starter:doctor` accepts either shape.
 
@@ -110,12 +114,14 @@ MagicStarter.useUserModel((data) => User.fromMap(data));
 | `useTeamResolver({currentTeam, allTeams, onSwitch})` | `void` | Register team accessor callbacks for the app layout. Required when `features.teams` is enabled. |
 | `teamResolver` | `MagicStarterTeamResolverConfig?` | Get registered config, or `null`. |
 | `hasTeamResolver` | `bool` | Whether a team resolver has been registered. |
+| `switchTeam(String teamId)` | `Future<bool>` | 0.0.37+. Switches through `MagicStarterTeamController.switchTeam()`, applies the fresh user the answer carries (only when its `data` is the signed-in user, same id; otherwise `Auth.restore()`), then, on success only, `StoreIdentitySync.syncNow()`. A store-rail error is logged and the switch still answers `true`, since the backend already accepted it. |
+| `currentTeamId()` | `String?` | 0.0.37+. The active team id as a string. |
 
 ```dart
 MagicStarter.useTeamResolver(
   currentTeam: () => Auth.user<User>()?.currentTeam?.toMagicStarterTeam(),
   allTeams: () => Auth.user<User>()?.allTeams.map((t) => t.toMagicStarterTeam()).toList() ?? [],
-  onSwitch: (id) => MagicStarterTeamController.instance.switchTeam(id),
+  onSwitch: (id) => MagicStarter.switchTeam('$id'),
 );
 ```
 
@@ -205,6 +211,9 @@ All sub-theme classes live in `lib/src/configuration/magic_starter_theme.dart`. 
 | Method / Property | Signature | Description |
 |:------------------|:----------|:------------|
 | `useLogout(callback)` | `void` | Override the default logout handler in the app layout. |
+| `beforeLogout(hook)` | `void` | 0.0.37+. `Future<void> Function()`. Both user sign-out paths (the profile dropdown and `MagicStarterAuthController.logout()`) await every hook in registration order BEFORE a custom `useLogout()` callback and before `Auth.logout()`, while the token is still valid. Each is isolated (a throw is logged) and bounded to five seconds. When `magic_notifications` is bound and push-state reporting is configured, the provider registers `Notify.pushState.release` as a default hook. Account deletion runs none (the server already revoked the tokens), and neither does the `AuthInterceptor` sign-out after a failed refresh. |
+| `useLogin(callback)` | `void` | 0.0.37+. The `onLogin` hook; see the bootstrap table. |
+| `useGuestClaimed(callback)` | `void` | 0.0.37+. See [Guest Claim](#guest-claim). |
 | `useHeader(builder)` | `void` | Replace the default app layout header. Builder receives `(context, isDesktop)`. |
 | `useSidebarFooter(builder)` | `void` | Add widget between navigation and user menu in sidebar/drawer. Builder receives `(context)`. |
 | `useSocialLogin(builder)` | `void` | Register custom social login buttons (requires `features.social_login`). Builder receives `(context, isLoading)`. |
@@ -282,6 +291,10 @@ Copy from `lib/config/magic_starter.dart` into your app config:
   },
   'billing': {
     'web_origin': null,   // REQUIRED once billing is on, and no default exists
+    'billable': 'user',   // 0.0.37+: 'user' or 'team'; must match magic-starter-laravel's own key
+  },
+  'localization': {
+    'apply_user_locale': true,  // 0.0.37+: apply the signed-in user's saved locale on sign-in and restore
   },
   'notifications': {
     'external_id_prefix': 'user_',  // must equal the backend's own prefix (0.0.27+)
@@ -294,6 +307,8 @@ Copy from `lib/config/magic_starter.dart` into your app config:
 ```
 
 All 14 features default to `false` in code. The template above has some enabled as a reasonable starting point.
+
+`billing.billable` (0.0.37+) picks who the store rail bills: the provider sets `StoreIdentitySync.billableId` from it in `register()`, and any value but `'user'` or `'team'` throws a `StateError`. `localization.apply_user_locale` cooperates with a profile save's own language switch, so one save still issues exactly one `Lang.setLocale()`.
 
 `billing.web_origin` carries no default on purpose, and its absence fails SILENTLY. The billing view
 concatenates it into Stripe's `successUrl`, `cancelUrl` and the portal `returnUrl`, Stripe rejects a
@@ -427,22 +442,24 @@ Published files go to `lib/resources/views/starter/` (views) or `lib/resources/l
 
 ## Design-system components
 
-39 atomic components, all `MS`-prefixed, exported from `package:magic_starter/magic_starter.dart`. Each lives in a 4-file folder under `lib/src/ui/components/` (`<name>.dart`, `<name>.recipe.dart`, `<name>.preview.dart`, `index.dart`) and styles through a `WindRecipe` that reads `MagicStarterTokens.defaultAliases`, so a consumer's theme drives them.
+44 atomic components (39 until 0.0.37), all `MS`-prefixed, exported from `package:magic_starter/magic_starter.dart`. Each lives in a 4-file folder under `lib/src/ui/components/` (`<name>.dart`, `<name>.recipe.dart`, `<name>.preview.dart`, `index.dart`) and styles through a `WindRecipe` that reads `MagicStarterTokens.defaultAliases`, so a consumer's theme drives them.
 
 > [!IMPORTANT]
 > The `MS` prefix is not optional and there is no compat shim. The pre-`MS` component names (`Button`, `Dialog`, `Switch`, ...) were removed in alpha.19, and so were the six `MagicStarter*` alias widgets (`MagicStarterCard`, `MagicStarterPageHeader`, `MagicStarterSocialDivider`, `MagicStarterNotificationDropdown`, `MagicStarterTeamSelector`, `MagicStarterUserProfileDropdown`). Write `MSCard`, `MSPageHeader`, `MSSocialDivider`, `MSTeamSelector`, `MSUserProfileDropdown`. The bell is no longer here at all: it is `NotificationDropdown` from `magic_notifications`. The prefix is what ends the `package:flutter/material.dart` collision, so no `hide` clause is needed either way.
 
 | Family | Components |
 |:-------|:-----------|
-| Form controls | `MSButton`, `MSInput`, `MSTextarea`, `MSCheckbox`, `MSSwitch`, `MSRadio`, `MSSelect`, `MSCombobox` |
+| Form controls | `MSButton`, `MSInput`, `MSTextarea`, `MSCheckbox`, `MSSwitch`, `MSSwitchRow`, `MSRadio`, `MSSelect`, `MSCombobox`, `MSKeyValueEditor`, `MSStringValueList` |
 | Display | `MSBadge`, `MSTypography`, `MSSkeleton`, `MSToast`, `MSTooltip`, `MSEmptyState`, `MSErrorState`, `MSDataTable` |
 | Selection / navigation | `MSSegmentedControl`, `MSTabs`, `MSAccordion`, `MSNavbar`, `MSDropdownMenu` |
 | Overlay | `MSDialog`, `MSBottomSheet`, `MSConfirmDialog` |
-| Composition | `MSFormField`, `MSCard`, `MSPageHeader`, `MSSocialDivider` |
+| Composition | `MSFormField`, `MSFormActions`, `MSCard`, `MSPageHeader`, `MSHeaderAction`, `MSSocialDivider` |
 | Page geometry | `MSPageContainer`, `MSPageScaffold` |
 | Settings surface | `MSSettingsSection`, `MSSettingsRow`, `MSSettingsNavRow` |
 | Billing surface | `MSUsageMeter`, `MSUpgradeDialog`, `MSUpgradeNudge` |
 | App chrome | `MSUserProfileDropdown`, `MSTeamSelector`, `MSAvatar` |
+
+The five added in 0.0.37 are `MSFormActions` (a cancel/submit footer row), `MSSwitchRow` (a labelled `MSSwitch`), `MSHeaderAction` (a page-header action that collapses to an icon below `lg`), `MSKeyValueEditor` (a controlled editor for a list of key/value pairs) and `MSStringValueList` (a controlled chip editor for distinct strings). Each takes every visible string as a required constructor parameter and reads no translation key of its own.
 
 `MSButton`, `MSInput` and `MSTextarea` take `bool fullWidth = false`, which wraps the rendered widget in a `SizedBox(width: double.infinity)` rather than adding a className token (Material widgets ignore cross-axis stretch).
 
@@ -545,8 +562,8 @@ bottom bar, and it can render the sidebar as an icon rail:
 | `MagicStarterLayoutTheme.navigationBreakpoint` | `'lg'` | From which Wind breakpoint the persistent sidebar replaces the drawer and the bottom bar. Lower it for a television or a small window. |
 | `MagicStarterLayoutTheme.sidebarExpandedBreakpoint` | `'lg'` | From which breakpoint the sidebar carries labels. Between the two it is compact: icons only, every text label dropped, brand and user name included, because a label at the compact width is clipped rather than shortened. Equal to `navigationBreakpoint`, which is the shipped pair, means never compact. |
 | `MagicStarterLayoutTheme.sidebarCompactWidth` | `80` | The compact width. 80 rather than 72 because `MSTeamSelector`'s compact trigger measures exactly 72 and the sidebar's `border-r` takes one more pixel. |
-| `MagicStarterLayoutTheme.contentClassName` | `'flex-1 overflow-y-auto'` | Since 0.0.33. The box the route child is handed. The default scrolls, which hands the child an UNBOUNDED height: a fill-shaped screen (an `h-full` column with a `flex-1` body that scrolls internally) then renders nothing, with wind asserting "h-full on a child inside a vertical scroll resolves to an unbounded height" in debug and `RenderPointerListener object was given an infinite size` in release. A host that owns its own scrolling sets `'flex-1 min-h-0'`. |
-| `MagicStarterLayoutTheme.contentScrollPrimary` | `true` | Since 0.0.33. Follows `contentClassName`: a content area that no longer scrolls must not claim the primary scroll position, and a horizontal one must not attach its viewport to the vertical primary controller. |
+| `MagicStarterLayoutTheme.contentClassName` | `'flex-1 min-h-0'` | Since 0.0.33; the default stopped scrolling in 0.0.37 (BREAKING, it was `'flex-1 overflow-y-auto'`). The box the route child is handed. In a go_router shell the route child is the nested Navigator, so a scrolling box laid its Overlay out under an unbounded height: a page left under a `.stacked()` route was never laid out again and failed `_debugRelayoutBoundaryAlreadyMarkedNeedsLayout` in debug. Every routed page now scrolls itself: through `MSPageScaffold`, or `SingleChildScrollView(primary: false)`. A page of your own that relied on the shell renders cut off at the window, and so does a `DashboardView` from a pre-0.0.37 install stub. |
+| `MagicStarterLayoutTheme.contentScrollPrimary` | `false` | Since 0.0.33 (was `true` until 0.0.37). Follows `contentClassName`. Setting the old pair back (`'flex-1 overflow-y-auto'`, `true`) through `useLayoutTheme` restores the old behaviour with the stacked-route hazard. Lost either way: tapping the iOS status bar no longer scrolls a shell page to the top. |
 | `MagicStarterNavigationTheme.focusItemClassName` | `''` | Applied to every sidebar, drawer and bottom-bar item, so a host driven by arrow keys or a remote can light the destination that holds focus. Tokens carry the `focus:` prefix. |
 | `MagicStarterLayoutTheme.sidebarCollapsible` | `false` | Since 0.0.34. A toggle above the user menu collapses the labelled sidebar to the compact form and back. Shown only at or above `sidebarExpandedBreakpoint`, where an expansion is possible. The choice is remembered through `Cache` under `magic_starter.sidebar_collapsed` (ten year TTL, since the cache has no `forever` and its default is an hour) when the host binds a cache, and in memory otherwise. |
 | `MagicStarterLayoutTheme.sidebarCollapsedByDefault` | `false` | Since 0.0.34. The state before the viewer has chosen; a remembered choice wins. Ignored unless `sidebarCollapsible` is set. |
@@ -563,10 +580,10 @@ silently, which made `sidebarExpandedBreakpoint: 'large'` drop every label at ev
 
 magic caches controllers as Type-keyed singletons and runs `onInit` once per instance lifetime. A logout followed by a login as a DIFFERENT user, or a team switch, therefore never re-runs the initial fetch, and the previous session's rows stay on screen. On a team-scoped product that is not staleness, it shows one tenant's data to another.
 
-Any controller that caches session-scoped or team-scoped data implements `SessionScopedController`, and the host attaches the sync once:
+**0.0.37 is BREAKING here: `SessionScopedController` and `SessionScopeSync` are removed, with no alias. magic core (0.0.22+) owns session scoping**; see `SKILL.md`'s "Actions, Repositories, SessionScope, BroadcastListeners" section for magic's side. Implement magic's `SessionScoped` (the same single `resetForSession()` member) and attach magic's `SessionScope` once:
 
 ```dart
-class MonitorController extends MagicController implements SessionScopedController {
+class MonitorController extends MagicController implements SessionScoped {
   @override
   Future<void> resetForSession() async {
     monitors.clear();          // CLEAR first, always
@@ -574,21 +591,24 @@ class MonitorController extends MagicController implements SessionScopedControll
   }
 }
 
-// AppServiceProvider.boot()
-SessionScopeSync.attach();     // drives every registered controller off Auth.stateNotifier
+// AppServiceProvider.boot(), AFTER MagicStarterServiceProvider, as the last Auth.stateNotifier listener:
+SessionScope.attach();
 ```
 
-| API | Signature | Notes |
-|:----|:----------|:------|
-| `SessionScopedController.resetForSession()` | `Future<void>` | Interface method. Must clear before it refetches. |
-| `SessionScopeSync.attach()` | `static void` | Subscribes to `Auth.stateNotifier`, keyed on `<userId>:<teamId>`, so a team switch counts as an identity change. |
-| `SessionScopeSync.detach()` | `static void` | Unsubscribes from the exact notifier instance `attach` used. Needed in tests, which re-bind the guard. |
+What the starter does, and does not:
+
+- `MagicStarterServiceProvider` sets `SessionScope.identity` to `<userId>:<teamId>` in `register()`, so a team switch by the same user counts as an identity change. It never attaches; that stays the app's call.
+- `MagicStarterTeamController` and `MagicStarterBillingController` implement `SessionScoped`. The team controller clears members and invitations and reloads only while team settings is mounted; the settings view re-seeds its name field from the new team.
+- A team switch no longer remounts the app (`Magic.reload()`), which used to discard a toast shown right after it. In an app that never calls `SessionScope.attach()`, the switch itself resets every `SessionScoped` controller registered with `Magic` (team, billing and the host's own), each isolated.
+- A non-controller holder (a repository) registers with `SessionScope.register(holder)`; controllers are found in `Magic.controllers` without registration.
 
 Three rules are load-bearing:
 
 1. **Clear before refetch.** An ordinary `reload()` is deliberately non-destructive so a transport blip does not blank a dashboard. Across an identity change that is exactly wrong: a failed refetch must leave the screen empty rather than populated with the previous tenant's rows.
 2. **Only a change to a NON-NULL identity resets.** Resetting on logout could only fire requests that 401 from the login screen.
 3. **Each controller's reset is isolated.** One failure logs and does not abort the others.
+
+A host implementing its own switch path applies the switch answer's user directly rather than always calling `Auth.restore()`, which would re-apply the CACHED user, still on the previous team. Full contract: `doc/basics/session-scope.md` (magic_starter's own doc).
 
 ## Route middleware
 
@@ -688,6 +708,26 @@ await MagicStarterAuthController.instance.logout();
 
 The preference matrix is `NotificationPreferencesController` in `magic_notifications` now; see `plugin-notifications.md`.
 
+## Guest Claim
+
+Since 0.0.37.
+
+With `features.guest_auth` on, `MagicStarterGuestClaim` moves what a guest accumulated onto the account they sign in to next, wired by `MagicStarterServiceProvider` to magic's auth events. `GuestClaimOutcome` is `none` (nothing settled: signed out, still the guest, no record, a keychain refusal, or an unreachable API; every one of these keeps the record for the next attempt), `claimed` (the server accepted the claim), `refused` (the server's 422, or a 404 from a backend without the claim route; final, no retry, so a backend lacking the route never receives the guest's live token again), or `promoted` (the signed-in account IS the recorded guest, promoted in place by registration; nothing to move).
+
+1. **Guest sign-in** (`AuthLogin` for a user whose `is_guest` is `true`): the guest's bearer token and user id are written to `Vault` under `MagicStarterGuestClaim.tokenKey` (`guest_claim_token`) and `MagicStarterGuestClaim.userKey` (`guest_claim_user`), awaited.
+2. **Sign-in or restore of a real account** (`AuthLogin` for a non-guest, or `AuthRestored`): `MagicStarterGuestClaim.instance.claimIfPending()` runs unawaited, posting `POST /auth/guest/claim` with `{'guest_token': ...}` authenticated as the target account. A claim already in flight hands every caller the same future.
+3. **Sign-out** (`AuthLogout`): `MagicStarterGuestClaim.forget()` deletes the record before `Auth.logout()` returns, so the next person on the device cannot claim the previous viewer's rows.
+
+Every outcome but `none` reaches the host through `onGuestClaimed`, set via `MagicStarter.bootstrap(onGuestClaimed:)` or `MagicStarter.useGuestClaimed(callback)`:
+
+```dart
+MagicStarter.useGuestClaimed((outcome) async {
+  if (outcome == GuestClaimOutcome.claimed) await Library.refresh();
+});
+```
+
+The claim does not ride the `Http` facade or its interceptors: it posts on a bare `DioNetworkDriver` built straight from `network.drivers.api`, since its body is the guest's still-live bearer token and the facade driver is what `magic_devtools` records request bodies from in debug/profile builds. Full contract: `doc/basics/authentication.md#guest-claim` (magic_starter's own doc).
+
 ## Layouts & Notification Integration
 
 The app layout (`layout.app`) auto-manages notification polling:
@@ -695,7 +735,7 @@ The app layout (`layout.app`) auto-manages notification polling:
 - `initState` calls `Notify.startPolling()` when `features.notifications` is enabled
 - `dispose` calls `Notify.stopPolling()` as a safety net
 - The header bell is `NotificationDropdown` from `magic_notifications`, wired to `Notify.notifications()`, `markAsRead`, `markAllAsRead`, the row's `actionUrl`, and the notifications route
-- `MagicStarterServiceProvider` registers an `AuthRestored` listener that calls `Magic.reload()` to refresh team-scoped data
+- `MagicStarterServiceProvider` registers an `AuthRestored` listener that calls `Magic.reload()` after a confirmed `Auth.restore()` sync. A team switch no longer goes through it (0.0.37); team-scoped screens reset through `SessionScope` instead
 
 Realtime is NOT wired here: the layout arms the poller only. Call `Notify.startRealtime(channel: ...)` from your own auth wiring if the backend broadcasts; `startPolling()` is a no-op while it is live. See `plugin-notifications.md`.
 
@@ -724,7 +764,10 @@ Realtime is NOT wired here: the layout arms the poller only. Call `Notify.startR
 | View key not registered | `MagicStarter.view.make(key)` throws `StateError`. Conditional views (`two_factor`, `phone_otp`, `billing`, teams) are only registered when their feature flag is `true`. |
 | Overriding a notification screen on the wrong registry | `notifications.list` and `notifications.preferences` live on `Notify.view`, not `MagicStarter.view`. Registering on the starter's registry mounts nothing. |
 | `features.social_login` enabled but no `useSocialLogin()` builder | The feature flag gates the UI section; without a builder, the social login area renders nothing. |
-| Custom logout without stopping Notify polling | If you override `useLogout()`, call `Notify.logoutPush()` and `Notify.stopPolling()` manually. See `plugin-notifications.md`. |
+| Custom logout without stopping Notify polling | If you override `useLogout()`, call `Notify.logoutPush()` and `Notify.stopPolling()` manually. See `plugin-notifications.md`. Before-logout hooks (the push-state release included) still run ahead of it from 0.0.37. |
+| `SessionScopedController` / `SessionScopeSync` not found | Removed in 0.0.37. Implement magic's `SessionScoped` and call magic's `SessionScope.attach()`. |
+| A page of your own cut off at the window after upgrading | 0.0.37's shell content box no longer scrolls. Wrap the page in `MSPageScaffold` or `SingleChildScrollView(primary: false)`. |
+| `onSwitch` calling `MagicStarterTeamController.instance.switchTeam` directly | Works, but skips the store-rail re-identify. Use `MagicStarter.switchTeam('$teamId')`. |
 | A `Gate.define()` override silently lost | The starter defines its nine abilities in `boot()`, and a same-key define is replaced by whichever provider boots last. Override AFTER `MagicStarterServiceProvider`. View defaults are register-if-absent, so they are not order-sensitive. |
 | `two_factor` view key missing at runtime | The view is only registered when `MagicStarterConfig.hasTwoFactorFeatures()` is `true` at boot time. Feature flags must be set before `Magic.init()`. |
 | Theme sub-theme ordering | `useTheme()` sets all 7 sub-themes at once; individual `useFormTheme()` etc. can override after. Call unified first if using both. |

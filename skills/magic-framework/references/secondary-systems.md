@@ -4,6 +4,8 @@ Complete reference for Magic framework utility systems: Cache, Events, Logging, 
 
 ## Contents
 
+- [Support Helpers (Number, Str, Arr, Cast)](#support-helpers)
+- [Environment Variables (Env)](#environment-variables-env)
 - [Cache System](#cache-system)
 - [Event Dispatcher](#event-dispatcher)
 - [Logging Manager](#logging-manager)
@@ -16,7 +18,80 @@ Complete reference for Magic framework utility systems: Cache, Events, Logging, 
 - [Launch (URL Launcher)](#launch-url-launcher)
 - [Pick (File & Image Selection)](#pick-file--image-selection)
 - [Broadcasting](#broadcasting)
+- [Sync](#sync)
 - [Key Gotchas](#key-gotchas)
+
+## Support Helpers (Number, Str, Arr, Cast)
+
+Four `abstract final class` static namespaces under `lib/src/support/`, no facade, no IoC binding, no shared base class between them. Full doc page with tr/en examples: `doc/digging-deeper/helpers.md`.
+
+### Number
+
+Locale-aware number formatting. Every method resolves `locale` (or `Lang.current` when omitted) through `Intl.verifiedLocale`, falling back to `'en'` for a locale intl has no data for.
+
+| Method | Description |
+|:-------|:------------|
+| `Number.format(value, {precision, maxPrecision, grouped, locale})` | Locale grouping/decimal marks. `grouped: false` drops the thousands separator. |
+| `Number.currency(amount, {code, precision, locale})` | Built on `simpleCurrency`, not `currency`: resolves the locale's symbol (`'₺1.234,50'`), not a bare ISO code. |
+| `Number.percentage(value, {precision, maxPrecision, locale})` | Takes a 0-100 input like Laravel, not intl's native 0-1 fraction. |
+| `Number.fileSize(bytes, {precision, maxPrecision, locale})` | Steps by 1024 (B/KB/MB/GB/TB/PB). |
+| `Number.abbreviate(value, {precision, maxPrecision, locale})` | Compacts with the locale's own unit letters (`Mn`/`B` tr, `M`/`K` en). |
+
+### Str
+
+Locale-aware casing. `String.toUpperCase()`/`toLowerCase()` get Turkish/Azerbaijani wrong (dotted `i` vs dotless `ı`); `Str.upper`/`Str.lower` correct for it, defaulting `locale` to `Lang.current.languageCode` and accepting a full tag (`tr_TR`, `tr-TR`).
+
+| Method | Description |
+|:-------|:------------|
+| `Str.upper(value, {locale})` / `Str.lower(value, {locale})` | Dotted-i aware casing. `İ` maps to a plain `i` in EVERY locale (not only tr/az) to avoid the web's combining-dot lowercase. |
+| `Str.initials(value, {limit, capitalize, locale})` | First letter of each whitespace-separated word; `limit` keeps only the first N words. |
+| `Str.unwrap(value, before, [after])` | Strips `before` from the start and `after` (default `before`) from the end, each checked/stripped independently (Laravel's `Str::unwrap`); a prefix-only match (`'"x'`) still loses the leading quote. |
+| `Str.ascii(value)` | Folds Latin-1 Supplement, Latin Extended-A, the Romanian comma-below letters, `ẞ`, and U+212B to their plain ASCII base, for a search key. A Latin letter outside that coverage (Vietnamese, ...) and every other script pass through untouched; combining marks (U+0300-U+036F) are always dropped. Diverging from Laravel's `Str::ascii`, which transliterates every script it has a table for. |
+| `Str.squish(value)` | Trims and collapses every run of whitespace to one space (Laravel's `Str::squish`), over Dart's `\s` class plus two Hangul filler code points. |
+
+### Arr
+
+Dot-path access into a nested `Map<String, dynamic>`, mirroring Laravel's `Arr::get`/`has`/`set`/`dot`. Carries NO typed accessors; compose with `Cast`.
+
+| Method | Description |
+|:-------|:------------|
+| `Arr.get(map, path, [fallback])` | An exact key wins over walking the path; a numeric segment indexes into a `List`. |
+| `Arr.has(map, path)` | True even for a reachable `null` leaf. |
+| `Arr.set(map, path, value)` | Creates intermediate maps for a missing or non-map segment. |
+| `Arr.dot(map, {prepend})` | Flattens to dotted-key leaves; an empty nested map is kept as its own leaf. |
+
+### Cast
+
+Total, throw-free readers for a loosely-typed wire value (a nested-map field, not a model attribute, which the ORM already coerces via `get<T>`).
+
+| Method | Numeric string? | Notes |
+|:-------|:-----------------|:------|
+| `Cast.stringOr(v, fallback)` / `stringOrNull(v)` | n/a | |
+| `Cast.intOr(v, fallback)` | **Parses** | The one reader that parses a numeric string (orders/durations: a silent fallback would misorder a list). |
+| `Cast.intOrNull(v)` / `numOrNull(v)` / `doubleOrNull(v)` | Does NOT parse | Checks `is num`, never `is double` (JSON `3` decodes as double on web, int on VM). |
+| `Cast.boolOr(v, fallback)` / `boolOrNull(v)` | n/a | |
+| `Cast.idOrNull(v)` | Stringifies a `num` | A pk can be uuid or bigint; reading an int id as null would corrupt a save-diff. |
+
+## Environment Variables (Env)
+
+`Env`/`env()` mimic Laravel's `env()` helper over `flutter_dotenv`. Full doc page: `doc/getting-started/configuration.md`.
+
+`Env.get<T>(key, [defaultValue])`/`env<T>(key, [defaultValue])` only fall back to `defaultValue` when `key` is entirely ABSENT; a key present but blank resolves to `''` (Laravel parity: `KEY=""`/`KEY=''` also resolve to `''`, not the two-character literal `flutter_dotenv`'s own parser would otherwise leave in place).
+
+| Method | Description |
+|:-------|:------------|
+| `Env.filled(key, fallback)` | Treats absent, blank, AND quote-only the same way, all resolving to `fallback`. Strips one wrapping quote pair + surrounding whitespace from a present value (an inner apostrophe survives). Use for anything that becomes a URL, a title, or a link. |
+| `Env.getOrFail(key)` | Throws `StateError` only when `key` is entirely absent; still returns `''` for a present-but-empty value. |
+
+### AppLifecycle
+
+`AppLifecycle.states()` (`lib/src/support/app_lifecycle.dart`) answers a `Stream<AppLifecycleState>`, for a reader constructed before a `WidgetsBinding` necessarily exists (a service provider's `register()`, for instance, where `WidgetsBinding.instance` throws). Each subscription adds its own observer on `listen` and removes it on `cancel`; nothing before the first `listen` touches the binding. Prefer Flutter's own `AppLifecycleListener` for a widget-lifetime reader.
+
+```dart
+final subscription = AppLifecycle.states().listen((state) {
+  if (state == AppLifecycleState.paused) Log.info('app paused');
+});
+```
 
 ## Cache System
 
@@ -83,6 +158,7 @@ A pub/sub system for decoupling business logic from side-effects. Dispatchers pu
 | Method | Parameters | Return Type | Description |
 |:-------|:-----------|:------------|:------------|
 | `Event.dispatch(event)` | `MagicEvent event` | `Future<void>` | Dispatch an event to all registered listeners. |
+| `Event.listen<T extends MagicEvent>(factory)` | `MagicListener Function() factory` | `void` | Register a listener without adding it to `AppEventServiceProvider.listen`; `T` must be named explicitly. Equivalent to `EventDispatcher.instance.register(T, [factory])`. Call from a provider's `register()`, not `boot()`. |
 
 ### EventDispatcher (Direct Access)
 
@@ -90,6 +166,10 @@ A pub/sub system for decoupling business logic from side-effects. Dispatchers pu
 |:-------|:-----------|:------------|:------------|
 | `EventDispatcher.instance.register(eventType, listeners)` | `Type eventType`, `List<MagicListener Function()> listeners` | `void` | Register listener factories for an event type. |
 | `EventDispatcher.instance.clear()` | — | `void` | Clear all registered listeners (testing only). |
+
+### Framework Auth Events
+
+`BaseGuard` (and `Auth.fake()`'s fake guard) dispatch `AuthLogin`/`AuthLogout` through `Event`: `AuthLogin` at the end of a successful `startSession` (not on a restore), `AuthLogout` on every `logout()` including a guest's (means "the in-memory session ended", not "the credentials are gone"; gate server-side release on `Auth.hasToken()`). `AuthRestored` fires only on an API-confirmed sync. Full firing conditions: `references/auth-system.md#auth-events`.
 
 ### Usage
 
@@ -605,6 +685,13 @@ Laravel-style fluent date wrapper around Jiffy for parsing, formatting, and mani
 | `Carbon.fromDateTime(dateTime)` | `DateTime dateTime` | `Carbon` | Wrap a DateTime. |
 | `Carbon.create({...})` | Year, month, day, hour, minute, second, millisecond | `Carbon` | Create from parts. |
 
+#### Testing
+
+| Method | Parameters | Return Type | Description |
+|:-------|:-----------|:------------|:------------|
+| `Carbon.setTestNow([testNow])` | `Carbon? testNow` | `void` | Freeze the clock to `testNow`; no argument (or `null`) clears the freeze. Covers `now()`, `isToday/isYesterday/isTomorrow`, `isFuture/isPast`, and argument-less `diffForHumans()`. Static: clear it in `tearDown`. |
+| `Carbon.hasTestNow()` | none | `bool` | Whether the clock is currently frozen. |
+
 #### Getters
 
 | Property | Type | Description |
@@ -667,6 +754,7 @@ Laravel-style fluent date wrapper around Jiffy for parsing, formatting, and mani
 | `toTimeString()` | — | `String` | HH:mm:ss. |
 | `toDateTimeString()` | — | `String` | yyyy-MM-dd HH:mm:ss. |
 | `diffForHumans([other])` | `Carbon? other` | `String` | Human-readable diff (e.g., "2 hours ago"). |
+| `shortDiffForHumans([other])` | `Carbon? other` | `String` | Compact ladder for dense tables/list rows: seconds through years (`'14m ago'`, `'1mo ago'` for a truncated 30-day month, `'5m from now'`, `'Just now'` under 1s). Each unit and wrapper resolves through `Lang` (`time.units_short.*`, `time.ago`, `time.from_now`, `time.just_now`) with an English literal fallback. |
 
 #### Comparison & Checking
 
@@ -958,7 +1046,7 @@ Laravel Echo-equivalent real-time channel system over WebSockets. Accessed via t
 | `Echo.join(name)` | `BroadcastPresenceChannel` | Join a presence channel (auth + member tracking) |
 | `Echo.listen(channel, event, callback)` | `BroadcastChannel` | Shorthand: subscribe + listen in one call |
 | `Echo.leave(name)` | `void` | Unsubscribe from a channel |
-| `Echo.connect()` | `Future<void>` | Establish the WebSocket connection |
+| `Echo.connect()` | `Future<void>` | Establish the WebSocket connection; idempotent, never opens a second socket |
 | `Echo.disconnect()` | `Future<void>` | Close the connection |
 | `Echo.connection` | `BroadcastDriver` | The resolved default driver instance |
 | `Echo.socketId` | `String?` | Server-assigned socket ID, or `null` when disconnected |
@@ -1056,6 +1144,26 @@ Auth failures in `_authenticateAndSubscribe()` are logged via `Log.error()` and 
 
 Silently drops all broadcast operations. Used for local development or when `broadcasting.default` is `'null'`. `BroadcastServiceProvider` skips `connect()` when the default connection is `null`.
 
+### AuthChannelSubscription
+
+Reconciles a single private channel subscription against a caller-supplied, re-read-on-every-call channel name: the seam behind a channel whose name depends on auth state (a team id, a user id).
+
+```dart
+late final subscription = AuthChannelSubscription(
+  channelName: () {
+    final teamId = Auth.user<User>()?.teamId;
+    return teamId == null ? null : 'teams.$teamId';
+  },
+  listeners: {'incident.opened': (event) => refetchIncidents()},
+  onReconnect: refetchIncidents,
+);
+
+Auth.stateNotifier.addListener(subscription.sync);
+subscription.sync(); // reconcile once at startup too
+```
+
+`sync()` is serialised (a call arriving mid-flight defers and re-runs once more) and a no-op when `channelName()` still answers the subscribed name, whatever the connection is doing (the Reverb driver recovers a drop on its own). A name change leaves the old channel by its prefixed name, calls `Echo.connect()` when the connection is not live, then subscribes and wires every `listeners` entry. That connect is safe mid-reconnect: `ReverbBroadcastDriver.connect()` is idempotent (returns when connected, joins an attempt in flight, supersedes an armed retry), so it never opens a second socket. `onReconnect` fires on both an `Echo.onReconnect` signal and a `connectionState` transition to `connected`. `dispose()` cancels only the reconnect-listening subscriptions, not the channel or connection. A `null` channel name disconnects the whole default connection, dropping any other channel the app subscribed elsewhere through `Echo`: deliberate, a signed-out app has no business staying on the socket. Full reference: `doc/digging-deeper/broadcasting.md#auth-scoped-subscriptions`.
+
 ### FakeBroadcastManager (Testing)
 
 ```dart
@@ -1115,6 +1223,36 @@ Echo.onReconnect.listen((_) {
 // Custom driver
 BroadcastManager.extend('pusher', (config) => PusherBroadcastDriver(config));
 ```
+
+## Sync
+
+`SyncFeed` (`lib/src/sync/sync_feed.dart`) runs a push-then-pull skeleton over one REST resource: push everything written locally since this device's own mark (`POST '$resource/sync'`, batched at `batchSize`, default 500), then pull every page past the server's own cursor (`GET resource`, up to `maxPages`, default 100), never throwing (an exception becomes `SyncReport.failure`, logged via `Log.error`).
+
+A subclass supplies `feed` (the ledger key), `resource`/`envelopeKey` (the wire endpoint), `pending({account, sinceMillis, scope})` (rows to push, oldest first), and `adoptRow({account, row})` (write one pulled row, answering whether it was newer). Use `Cast.intOrNull`/`doubleOrNull`/`boolOrNull` inside `adoptRow` for a numeric/boolean field whose wire type is not guaranteed (web's `int`/`double` share one float).
+
+```dart
+class ItemsSyncFeed extends SyncFeed {
+  @override String get feed => 'items';
+  @override String get resource => 'items';
+  @override String get envelopeKey => 'items';
+
+  @override
+  Future<List<SyncPushRow>> pending({required String account, required int sinceMillis, required String scope}) async {
+    // return locally-written rows newer than sinceMillis, oldest first
+  }
+
+  @override
+  Future<bool> adoptRow({required String account, required Map<String, dynamic> row}) async {
+    // write the row locally, return true when it was newer than what was held
+  }
+}
+
+final SyncReport report = await ItemsSyncFeed().run(scope: 'team-42', account: userId);
+```
+
+**Two clocks, only one advances locally.** The push mark is this device's own `updated_at` epoch millis; the pull cursor is the server's opaque text, read and rewritten unread. A row adopted from a pull carries the originating device's clock, so the push mark never advances to it; the row is simply re-sent once and rejected by the server's own `>=` check.
+
+`SyncLedger` (`lib/src/sync/sync_ledger.dart`) is the bookmark store behind `SyncFeed.run`: `read`/`write` over a `(scope, feed)` pair, upserted by delete-then-insert inside a `SAVEPOINT`/`RELEASE` (not `DB.transaction`, since `BEGIN` does not nest and a feed may already run inside a caller's own transaction; a savepoint does). `CreateSyncCursorsTable` (`lib/src/sync/create_sync_cursors_table.dart`) creates the `sync_cursors` table it reads; magic has no migration discovery, so list it in the app's own `Migrator().run([...])` call. Scope derivation, salt, and run scheduling stay app-side. Full reference: `doc/digging-deeper/sync.md`.
 
 ## Key Gotchas
 

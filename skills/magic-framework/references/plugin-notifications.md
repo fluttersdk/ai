@@ -1,4 +1,4 @@
-<!-- magic_notifications v0.3.4 | Updated: 2026-09-22 -->
+<!-- magic_notifications v0.3.5 | Updated: 2026-09-27 -->
 
 # magic_notifications Plugin
 
@@ -34,7 +34,7 @@ dart run magic:artisan notifications:install
 dart run magic:artisan notifications:doctor
 ```
 
-From 0.3.4 the floors are `magic ^0.0.16`, `fluttersdk_artisan ^0.0.16` and `fluttersdk_wind ^1.6.3`, the newest of each at that release. The requirements underneath them are older: `magic` 0.0.6 for `Echo.connection`, the accessor the realtime path needs to tell an open connection from a closed one, and `fluttersdk_artisan` 0.0.15 for `XcodeProjectEditor.setEntitlementsPaths`, which the iOS install below cannot do without.
+From 0.3.5 the floors are `magic ^0.0.22`, `fluttersdk_artisan ^0.0.16` and `fluttersdk_wind ^1.7.0`, the newest of each at that release. `magic` 0.0.22 is a real requirement, not only a name: `PushStateReporter` calls `Event.listenAny`, which that release introduces. The other requirements underneath are older: `magic` 0.0.6 for `Echo.connection`, the accessor the realtime path needs to tell an open connection from a closed one, and `fluttersdk_artisan` 0.0.15 for `XcodeProjectEditor.setEntitlementsPaths`, which the iOS install below cannot do without.
 
 ### The APNs entitlement install writes, and why there are two files
 
@@ -104,6 +104,31 @@ All methods are accessed via the static `Notify` facade after importing `package
 | `Notify.describePushUserUsing(resolver)` | `PushUserAttributesResolver?` | `void` | Register once how the app describes whoever signs in (email + tags). Nothing is sent until `notifications.push.share_user_attributes` is on, and it ships OFF. |
 | `Notify.extend(name, factory)` | `String`, `PushDriver Function()` | `void` | Register a push driver under a name; the config's `push.driver` picks one. |
 | `Notify.forgetDrivers()` | none | `void` | Drop every channel, registered driver and resolved instance. The test-isolation seam. |
+
+### Push state reporting (0.3.5+)
+
+OneSignal accepts a push for a subscription that cannot receive it without complaint, so only the device knows whether a page would actually ring. `Notify.pushState` (a `PushStateReporter`, also `Notify.manager.pushState`) tells the app's backend, and withdraws that on sign-out.
+
+| Member | Return Type | Description |
+|:-------|:------------|:------------|
+| `Notify.pushState.watch()` | `void` | Arm once from a provider's `boot()`. Posts `PushDeliverySnapshot.toMap()` (`external_id`, `subscription_id`, `reachability`, `captured_at`) to `report_path` after every `onPushIdentityReconciled` pass towards the signed-in person, whenever the driver's permission or subscription stream moves (a driver attached late is followed through `onPushDriverAttached`), and once as `unavailable` for a build with no driver. A memo of the last ACCEPTED state stops repeats; a refused post retries on the next event; the memo is forgotten on every `AuthLogout`. |
+| `Notify.pushState.release()` | `Future<void>` | Posts `{subscription_id}` for this device to `release_path` (the live read, falling back to the last accepted report's id). Run it BEFORE `Auth.logout()` drops the token. Joins a release already in flight and skips a subscription it already released, so calling it twice is safe. |
+| `Notify.pushState.isConfigured` | `bool` | True only when BOTH `report_path` and `release_path` are set. Lets a sign-out path skip the release. |
+| `Notify.pushState.forget()` | `void` | Clear the memo. |
+
+```dart
+// AppServiceProvider.boot()
+Notify.pushState.watch();
+
+// Sign-out, token still valid:
+if (Notify.pushState.isConfigured) await Notify.pushState.release();
+await Notify.logoutPush();
+await Auth.logout();
+```
+
+It is off by default with no default path: `notifications.push_state.report_path` and `release_path` are `null` in the install stub, so an app whose backend has no such route sends nothing. A report path WITHOUT a release path keeps the whole reporter off and logs why, since a device no sign-out can withdraw would keep vouching for whoever left it last. `notifications.push_state.external_id_prefix` (default `user_`) is how the reporter recognises a pass for the signed-in person, `<prefix><Auth.id()>`; it must match what the app passes to `Notify.initializePush`. `magic-starter-laravel` 0.0.12 serves both routes (`POST devices/push-state`, `POST devices/push-state/release`) while its `onesignal` and `notifications` features are on. `Notify.forgetDrivers()` resets the reporter too.
+
+`NotificationManager.onPushIdentityReconciled` is the stream it rides on, public for a host reporting per person itself: one `PushIdentityReconciled(intent, converged, error)` per reconcile pass that had a driver. `converged: false` with a `null` error means the SDK call ran and the read-back disagreed; a non-null `error` means the call failed. Nothing fires for a driver-less pass.
 
 ### Polling
 
@@ -394,6 +419,25 @@ Scaffolded to `lib/config/notifications.dart` by `notifications:install` and reg
 
 `Notify.manager.pushPromptAdvice({declinedAt})` answers whether the app's own reminder may be shown right now and what its button can accomplish; the package never stores the decline timestamp itself.
 
+`push_state` (0.3.5+) sits beside `push`, all three keys `null` by default: `'push_state': {'report_path': '/devices/push-state', 'release_path': '/devices/push-state/release', 'external_id_prefix': null}`. See [Push state reporting](#push-state-reporting-035).
+
+### The push soft prompt (0.3.5+)
+
+Three widgets under `lib/src/ui/components/push_prompt/`, exported from the barrel. None touches a platform API itself.
+
+| Widget | Required | What it does |
+|:-------|:---------|:-------------|
+| `PushPromptHost` | `declinedVaultKey` | Wires `PushPrompt` to `Notify.manager.pushPromptAdvice()`, re-reading on the driver's `onPermissionChanged` and `onIdentityChanged` and on `onPushDriverAttached`, so a grant landing out of band (the settings page, which is where a request on an already-denied device goes) still clears the row. |
+| `PushPrompt` | `reachability`, `action` | The presentational row: `unavailable`, `blocked` (with or without a settings route back), `off` (asking or already declined), `on`, from `reachability`/`action`/`declined`/`busy`, reporting `onEnable` and `onDecline`. |
+| `PushOffNotice` | `onOpenPreferences` | A quiet, tappable shell marker (`compact` for tight chrome), following the same device streams. |
+
+```dart
+const PushPromptHost(declinedVaultKey: 'myapp.push_prompt_declined_at');
+PushOffNotice(onOpenPreferences: () => MagicRoute.to('/settings/notifications'));
+```
+
+The vault key is the HOST's, required on purpose: the decline is the host's own UI event, and a fixed key would collide with what a host already stores. The widget reads an ISO-8601 instant back; a value an older build wrote in another shape is the host's migration to make before constructing it. No translation catalogue ships: the `notifications.push_prompt.*` keys and English copy are listed in the package's `doc/basics/preferences.md`.
+
 ## Service Provider Setup
 
 Register `NotificationServiceProvider` in `config/app.dart`. It is NOT auto-registered.
@@ -428,7 +472,8 @@ Notify.pausePolling();
 // On app foreground
 Notify.resumePolling();
 
-// On logout
+// On logout (release the push state first, while the token is still valid)
+if (Notify.pushState.isConfigured) await Notify.pushState.release();
 await Notify.logoutPush();
 Notify.stopRealtime();
 Notify.stopPolling();
@@ -507,6 +552,9 @@ Notify.manager.registerChannel(MyCustomChannel());
 | `via()` returns an unknown channel name | `NotificationManager.send()` logs a warning and skips that channel. A channel that THROWS no longer stops the others: the first error is rethrown after every channel has had its turn. |
 | `toDatabase()` returns `null` for the `'database'` channel | `DatabaseChannel` skips without error. It writes nothing either way: the row is created server-side. |
 | Waiting for `PushNotSupportedException` | Removed in 0.1.0. The platform factory throws `UnsupportedPlatformException` (a `NotificationException`) instead of silently handing back the wrong driver. |
-| Reaching for `PushPromptDialog` | Removed in 0.1.0; the package ships no prompt widget. Build your own and ask `Notify.manager.pushPromptAdvice(declinedAt: ...)` whether to show it. |
+| Reaching for `PushPromptDialog` | Removed in 0.1.0. From 0.3.5 the package ships `PushPromptHost` / `PushPrompt` / `PushOffNotice` (see [The push soft prompt](#the-push-soft-prompt-035)); a custom one still asks `Notify.manager.pushPromptAdvice(declinedAt: ...)` whether to show. |
+| `Notify.pushState.release()` after `Auth.logout()` | The release rides the session token, so after logout it is refused and the device keeps vouching for the person who left. Release first. |
+| Only `report_path` configured | The reporter stays off entirely and logs why; set `release_path` too. |
+| `external_id_prefix` not matching `initializePush` | The reporter recognises a pass as the signed-in person's by `<prefix><Auth.id()>`; a different prefix means no pass ever reports. |
 | `permissionState` read as a getter | It is `Future<PushPermissionState> permissionState()` since 0.1.0. A custom driver also has to implement `currentExternalId()`, `currentSubscriptionId()` and `onIdentityChanged`. |
 | A raw `notifications.*` key rendering on screen | The package ships no catalogue; the host supplies every key. 0.1.0+ added `notifications.delete_failed`, and `magic_starter` adds three delete-confirmation keys. |

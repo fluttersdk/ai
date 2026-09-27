@@ -246,6 +246,21 @@ if (response.isValidationError) {
 }
 ```
 
+### CollapsesIndexedErrorKeys
+
+Opt-in `ValidatesRequests.errorFieldFor` override: mix on top of `ValidatesRequests` to collapse a backend's indexed list-validation key (`items.0.name`) onto its field name (`name`), keeping the FIRST message when two indexed keys collapse onto the same field. A key addressing a distinct sub-key rather than a list element (`credentials.token`) is left whole.
+
+```dart
+class ItemsController extends MagicController
+    with ValidatesRequests, CollapsesIndexedErrorKeys {}
+```
+
+`CollapsesIndexedErrorKeys.collapse(wireKey)` (static) runs the same collapse for a controller that cannot mix in the class (it already extends a different base):
+
+```dart
+final field = CollapsesIndexedErrorKeys.collapse('items.0.name'); // 'name'
+```
+
 
 ## Built-in Rules
 
@@ -254,13 +269,15 @@ if (response.isValidationError) {
 | `Required` | `Required()` | Not null; non-empty string/list/map; `true` for bools |
 | `Email` | `Email()` | Valid email format (`local@domain.tld`) |
 | `Url` | `Url({List<String> schemes = const ['http', 'https']})` | A scheme from `schemes` plus a non-empty host. Rejects whitespace, a bare `example.com`, and `javascript:` / `file:`. Reaches no network. |
-| `Min` | `Min(num n)` | String length >= n, num value >= n, or list size >= n |
-| `Max` | `Max(num n)` | String length <= n, num value <= n, or list size <= n |
+| `Min` | `Min(num n)` | String length >= n, num value >= n, or list size >= n (a numeric string's value beside `Numeric`/`Integer`) |
+| `Max` | `Max(num n)` | String length <= n, num value <= n, or list size <= n (a numeric string's value beside `Numeric`/`Integer`) |
 | `Confirmed` | `Confirmed()` | Value matches `{field}_confirmation` key in data |
 | `Same` | `Same(String other, {String Function()? valueGetter})` | Value matches `other` field; use `valueGetter` for live Flutter controller values |
 | `Accepted` | `Accepted()` | Value is `true`, `1`, `'1'`, `'yes'`, `'on'`, or `'true'` (case-insensitive) |
 | `In<T>` | `In<T>(List<T> values)` | Value appears in the primitive whitelist; type mismatch fails explicitly |
 | `InList<T extends Enum>` | `InList(List<T> values, {bool caseInsensitive, String Function(T)? wire})` | Value matches an enum by instance or by `.name` / `wire` mapping |
+
+**Sizing a numeric string:** `Min`, `Max`, `Between` and `Gt`/`Gte`/`Lt`/`Lte` extend `SizeRule` and follow Laravel's `getSize`: form input is a string, measured by LENGTH unless the same field carries `Numeric()` or `Integer()`, which makes it a VALUE. `[Numeric(), Between(1, 100)]` refuses `"500"`; `[Between(8, 64)]` accepts the password `"12345678"`. `Validator` and `FormValidator` pass that answer through `passesSized`; a bare `passes()` call always measures length.
 
 **Custom messages per call site:**
 
