@@ -35,6 +35,7 @@
                 "references/plugin-devtools.md",
                 "references/plugin-notifications.md",
                 "references/plugin-payments.md",
+                "references/plugin-sentry.md",
                 "references/plugin-social-auth.md",
                 "references/plugin-starter.md",
                 "references/routing-navigation.md",
