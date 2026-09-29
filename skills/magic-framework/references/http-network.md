@@ -208,6 +208,7 @@ All `Http` methods return a `MagicResponse`, which wraps the HTTP response and p
 | `statusCode` | `int` | HTTP status code |
 | `headers` | `Map<String, dynamic>` | Response headers |
 | `message` | `String?` | Optional status message |
+| `id` | `int?` | The id `DioNetworkDriver` stamped on the request this answers; equal to `MagicRequest.id` and `MagicError.id` for the same request. Pairs concurrent requests regardless of completion order. `null` from `Http.fake` or a hand-built response. |
 | `operator[]` | `dynamic` | Shorthand for `data[key]` when data is a Map |
 
 ```dart

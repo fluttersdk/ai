@@ -583,7 +583,7 @@ class User extends Model with Authenticatable {
 |:------|:------|:-----|
 | `AuthLogin` | End of a successful `startSession` (token persisted, user set + cached). Not fired on a restore. Skipped when the session ended or was replaced while the user was being cached. | `user`, `guard` |
 | `AuthLogout` | Every `logout()`, guest included, after the `stateNotifier` bump and before a rethrown Vault failure. Means "the in-memory session ended", not "the credentials are gone"; gate server-side release on `Auth.hasToken()`. | `user` (nullable for a guest), `guard` |
-| `AuthRestored` | API-confirmed sync only (`BaseGuard`'s background `/user` fetch inside `restore()`), never the cache-only step. | `user`, `guard` |
+| `AuthRestored` | API-confirmed sync only (`BaseGuard`'s background `/user` fetch inside `restore()`), never the cache-only step. | `user`, `guard`, `changed` (`false` when the synced user's `toMap()` deep-equals the held one; `true` when it moved, when none was held, and by default) |
 | `GateAbilityDefined` | When ability is registered | `ability` |
 | `GateAccessChecked` | After every Gate check | `ability`, `arguments`, `allowed`, `user` |
 | `GateAccessDenied` | When access is denied | `ability`, `arguments`, `user` |

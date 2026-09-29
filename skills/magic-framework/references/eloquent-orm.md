@@ -44,7 +44,7 @@ class Monitor extends Model with HasTimestamps, InteractsWithPersistence {
       ];
 
   @override
-  Map<String, String> get casts => {
+  Map<String, String> get casts => const {
         'settings': 'json',
         'created_at': 'datetime',
         'updated_at': 'datetime',
@@ -86,7 +86,7 @@ class Monitor extends Model with HasTimestamps, InteractsWithPersistence {
 | `useRemote` | `bool` | `true` | Enable API calls |
 | `fillable` | `List<String>` | `[]` | Mass-assignable fields |
 | `guarded` | `List<String>` | `['*']` | Guarded fields (default blocks all) |
-| `casts` | `Map<String, dynamic>` | `{}` | Type casting map (string tokens or `CastsAttributes<T>` instances) |
+| `casts` | `Map<String, dynamic>` | `const {}` | Type casting map (string tokens or `CastsAttributes<T>` instances). Return a `const` literal: `getAttribute` reads it on every call, so a non-const literal allocates on every attribute read. |
 | `hidden` | `List<String>` | `[]` | Hidden from serialization |
 | `visible` | `List<String>` | `[]` | Whitelist for serialization |
 | `relations` | `Map<String, Model Function()>` | `{}` | Relation factories |
@@ -152,13 +152,13 @@ abstract class CastsAttributes<T> {
 // EnumCast — map a name-based string column to an enum.
 enum MonitorStatus { up, down, paused }
 
-@override Map<String, dynamic> get casts => {
+@override Map<String, dynamic> get casts => const {
   'status': EnumCast(MonitorStatus.values),                   // unknown values return null
   'strict_status': EnumCast(MonitorStatus.values, strict: true), // throws ArgumentError on unknown value
 };
 
 // ListCast — apply an inner cast element-by-element. Stored as JSON string.
-@override Map<String, dynamic> get casts => {
+@override Map<String, dynamic> get casts => const {
   'tags': ListCast(EnumCast(MonitorTag.values)),
 };
 ```

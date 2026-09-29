@@ -175,7 +175,7 @@ class Monitor extends Model with HasTimestamps, InteractsWithPersistence {
     @override String get table => 'monitors';
     @override String get resource => 'monitors';
     @override List<String> get fillable => [];
-    @override Map<String, String> get casts => {};
+    @override Map<String, String> get casts => const {};
 
     // Typed Accessors — add manually:
     //   String? get name => get<String>('name');

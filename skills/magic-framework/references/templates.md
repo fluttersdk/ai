@@ -32,7 +32,7 @@ class User extends Model with HasTimestamps, InteractsWithPersistence {
     ];
 
     @override
-    Map<String, String> get casts => {
+    Map<String, String> get casts => const {
         'settings': 'json',
         'is_active': 'bool',
         'created_at': 'datetime',

@@ -1,4 +1,4 @@
-<!-- magic_devtools v0.0.7 | Updated: 2026-09-27 -->
+<!-- magic_devtools v0.0.8 | Updated: 2026-09-29 -->
 
 # magic_devtools Plugin
 
@@ -14,20 +14,20 @@ The one-step path, from a project that already has magic installed:
 dart run magic:artisan magic:install --with-devtools
 ```
 
-That adds the three packages to `dependencies` and injects the `kDebugMode` blocks into `lib/main.dart`. It is idempotent, so a re-run never duplicates the wiring.
+That adds the three packages to `dependencies` and injects the guarded blocks into `lib/main.dart`. It is idempotent, so a re-run never duplicates the wiring. The installer still writes `kDebugMode`; from 0.0.8 the package documents `!kReleaseMode`, so a profile build (the only honest build to measure) carries the tooling. Change the two guards by hand when you measure performance.
 
 The manual path, when the app is already installed and only the tooling is being added:
 
 ```yaml
 dependencies:
-  magic_devtools: ^0.0.7
-  fluttersdk_dusk: ^0.0.16       # add if you use dusk
-  fluttersdk_telescope: ^0.0.7   # add if you use telescope
+  magic_devtools: ^0.0.8
+  fluttersdk_dusk: ^0.0.17       # add if you use dusk
+  fluttersdk_telescope: ^0.0.9   # add if you use telescope
 ```
 
-`magic_devtools` 0.0.7 declares `fluttersdk_dusk ^0.0.16` and `fluttersdk_telescope ^0.0.7`, beside `magic ^0.0.22` and `fluttersdk_wind ^1.7.0`: the newest of each sibling at that release, so the lines above match its own floors. The perf data path alone needs less, and those minimums are why the floors matter at all: `perf_readers.dart` (dusk 0.0.12), `FramePerfWatcher` / `TelescopeStore.recentFramePerf` (telescope 0.0.5), `MagicController.onRefreshUI` (magic 0.0.7) and `WindPerfCounters` (wind 1.5.0). A caret range resolves to the newest, so a fresh graph always worked; an app whose own constraints hold one sibling back gets a satisfiable graph that then fails on undefined symbols.
+`magic_devtools` 0.0.8 declares `fluttersdk_dusk ^0.0.17` and `fluttersdk_telescope ^0.0.9`, beside `magic ^0.0.24` and `fluttersdk_wind ^1.8.0`: the newest of each sibling at that release, so the lines above match its own floors. Three of them are real requirements: `MagicPerfHooks.sink` and the request ids arrive in magic 0.0.24, `PerfMode` and the interaction readers in dusk 0.0.17, and `TelescopeRedaction` plus the record link fields in telescope 0.0.9. The older minimums are `perf_readers.dart` (dusk 0.0.12), `FramePerfWatcher` / `TelescopeStore.recentFramePerf` (telescope 0.0.5) and `WindPerfCounters` (wind 1.5.0). magic 0.0.24 removed `MagicController.onRefreshUI`, which 0.0.7 assigned, so 0.0.7 does not compile against it: move both together. A caret range resolves to the newest, so a fresh graph always worked; an app whose own constraints hold one sibling back gets a satisfiable graph that then fails on undefined symbols.
 
-These are regular `dependencies`, not `dev_dependencies`: `lib/main.dart` imports them, so a `dev_dependencies` entry trips the `depend_on_referenced_packages` lint. The `kDebugMode` guard is what keeps them out of a release build, not the dependency section.
+These are regular `dependencies`, not `dev_dependencies`: `lib/main.dart` imports them, so a `dev_dependencies` entry trips the `depend_on_referenced_packages` lint. The `!kReleaseMode` guard is what keeps them out of a release build, not the dependency section.
 
 Then wire the CLI side of each tool:
 
@@ -45,11 +45,11 @@ dart run magic:artisan mcp:install          # surfaces the dusk_* / telescope_* 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  if (kDebugMode) MagicDevtools.installPre();
+  if (!kReleaseMode) MagicDevtools.installPre();
 
   await Magic.init(configFactories: [...]);
 
-  if (kDebugMode) MagicDevtools.installPost();
+  if (!kReleaseMode) MagicDevtools.installPost();
 
   runApp(const MyApp());
 }
@@ -63,7 +63,7 @@ void main() async {
 Both halves are idempotent, so a second call in the same isolate is safe. `installPre()` is NOT safe to call LATE, though, and that changed in 0.0.4: the perf integration registers a `NavigatorObserver`, and `MagicRouter.addObserver` throws a `StateError` once the router has been built. A host that installs behind a lazy debug toggle after `runApp` used to get harmless no-ops and now crashes. The throw is deliberate: a silently unregistered observer would produce a performance report with no route transitions and nothing to explain their absence.
 
 > [!WARNING]
-> Keep `kDebugMode` at the CALL SITE. Moving the guard inside `installPre` / `installPost` makes the call live in release, which defeats the tree-shake and pulls dusk plus telescope into the production bundle. That tree-shake is the entire reason this package exists separately from magic core.
+> Keep `!kReleaseMode` at the CALL SITE (`kDebugMode` before 0.0.8, which left a profile build without the perf path). Moving the guard inside `installPre` / `installPost` makes the call live in release, which defeats the tree-shake and pulls dusk plus telescope into the production bundle. That tree-shake is the entire reason this package exists separately from magic core.
 
 ## The four import barrels
 
@@ -77,24 +77,24 @@ Both halves are idempotent, so a second call in the same isolate is safe. `insta
 Single-tool wiring keeps the same pre/post split:
 
 ```dart
-if (kDebugMode) DuskPlugin.install();
+if (!kReleaseMode) DuskPlugin.install();
 await Magic.init(configFactories: [...]);
-if (kDebugMode) MagicDuskIntegration.install();
+if (!kReleaseMode) MagicDuskIntegration.install();
 ```
 
 ## MagicPerfIntegration: the performance data path (0.0.4+)
 
-The one assembly point for performance diagnostics, because it is the only place dusk, telescope, wind and magic are visible at once. Dusk's frozen dependency contract forbids it from importing any of the packages whose data it reports, so it declares four function pointers with no-op defaults and someone else has to assign them. That someone is this class.
+The one assembly point for performance diagnostics, because it is the only place dusk, telescope, wind and magic are visible at once. Dusk's frozen dependency contract forbids it from importing any of the packages whose data it reports, so it declares function pointers with no-op defaults and someone else has to assign them. That someone is this class.
 
 `MagicDevtools.installPre()` installs it. There is nothing else to wire.
 
 | What it touches | Package | Why |
 |:----------------|:--------|:----|
-| `MagicController.onRefreshUI` | magic | Counts `refreshUI()` per controller runtime type, so a report can name which controller rebuilds the screen. |
+| `MagicPerfHooks.sink` | magic | Set only for an attribution session: counts notifies by controller and cause, query reloads, actions, event dispatches, casts, timer ticks and broadcasts, each linked to the dusk interaction open at the time. |
 | `MagicRouter.addObserver` | magic | A `NavigatorObserver` that times each route push to the first post-frame callback after the new route builds. Last 200 transitions retained. |
 | `Wind.installPerfResolver()` | wind | Arms `WindPerfCounters` (parse-path and class-cache counts). Counting stays OFF until a session begins. |
 | `TelescopePlugin.registerWatcher(FramePerfWatcher())` | telescope | Frame timings into telescope's frame buffer. |
-| `framePerfReader`, `perfExtrasReader`, `perfSessionBeginHook`, `perfSessionEndHook` | dusk | The four pointers dusk reads all of the above through. |
+| `framePerfReader`, `perfExtrasReader`, `perfSessionBeginHook`, `perfSessionEndHook`, `perfTimelineReader`, `perfInsightContributors` | dusk | The pointers dusk reads all of the above through: frames, magic counters, session start (with its mode) and end, the trace rows, and the wind and magic insight rules. |
 
 | API | Signature | Notes |
 |:----|:----------|:------|
@@ -139,12 +139,12 @@ Two rules decide whether the catalog appears at all:
 
 | Mistake | Consequence | Fix |
 |:--------|:------------|:----|
-| `kDebugMode` moved inside `installPre` / `installPost` | Dusk and telescope ship in the release bundle | Guard at the call site |
+| `!kReleaseMode` moved inside `installPre` / `installPost` | Dusk and telescope ship in the release bundle | Guard at the call site |
 | `installPost()` called before `Magic.init()` | Enrichers and the HTTP adapter cannot resolve through the container | Keep the two calls on either side of `init` |
 | `installPre()` behind a lazy debug toggle, after `runApp` | `StateError` from `MagicRouter.addObserver`: the router locks its observers once built (0.0.4+) | Call it at boot, before `Magic.init()`, and nowhere else |
 | A perf report full of zeros | A pointer was never assigned; every dusk default is a structurally-complete no-op, so it reports zeros instead of failing | Check `MagicDevtools.installPre()` actually ran (it is what installs `MagicPerfIntegration`) |
 | `MagicPreview.registerRoutes()` from anywhere but a provider `boot()` | Router already locked, `/preview` missing or `StateError` | Move it into `boot()` |
 | Preview entries held in a top-level `const` list | Widget references survive the release tree-shake (dart-lang/sdk#33920) | Return them from `previewEntries()`, which is what the codegen already does |
-| `magic_devtools` in `dev_dependencies` | `depend_on_referenced_packages` lint | Regular `dependencies`, guarded by `kDebugMode` |
+| `magic_devtools` in `dev_dependencies` | `depend_on_referenced_packages` lint | Regular `dependencies`, guarded by `!kReleaseMode` |
 
 For the tool surfaces themselves (the `dusk_*` and `telescope_*` MCP tools, the CLI verbs, the ring buffers), load the `fluttersdk-dusk` and `fluttersdk-telescope` skills. This file covers only the Magic adapter layer.

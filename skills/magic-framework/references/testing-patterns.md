@@ -178,7 +178,7 @@ class User extends Model with HasTimestamps, InteractsWithPersistence {
   List<String> get fillable => ['name', 'email', 'born_at'];
 
   @override
-  Map<String, String> get casts => {
+  Map<String, String> get casts => const {
     'born_at': 'datetime',
   };
 

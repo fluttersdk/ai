@@ -31,7 +31,7 @@ abstract class MagicController extends ChangeNotifier
 | `onInit()` | `void` | Called on first creation. Override to fetch data or init resources. `@mustCallSuper`. |
 | `onClose()` | `void` | Called before dispose. Override to clean up timers, streams, etc. `@mustCallSuper`. |
 | `refreshUI()` | `void` | Calls `notifyListeners()` safely (no-op if disposed). Every controller notification goes through it, including `ValidatesRequests`. |
-| `MagicController.onRefreshUI` | `void Function(MagicController)?` | Static, null by default. Debug tooling sets it to observe every notification; a hook that throws is contained and cannot stop the repaint. |
+| `MagicPerfHooks.sink` | `void Function(MagicPerfEvent)?` | Static, null by default. Tooling sets it to observe every notification as a `ControllerNotified(controller, cause)`, plus repository, query, action, event, cast, timer and broadcast activity; a sink that throws is contained and cannot stop the repaint. See `doc/digging-deeper/perf-hooks.md`. |
 | `initialized` | `bool` | Whether `onInit()` has been called. |
 | `isDisposed` | `bool` | Whether the controller has been disposed. |
 
@@ -249,7 +249,9 @@ abstract class MagicStatefulViewState<T extends MagicController,
     V extends MagicStatefulView<T>> extends State<V>
 ```
 
-`MagicStatefulViewState` wires `_controller.addListener(_rebuild)` in `initState` and removes it in `dispose`. On init it also silently clears any stale validation errors and `RxStatus.error` state (mimicking Laravel's per-request error clearing).
+`MagicStatefulViewState` wires `_controller.addListener(_onControllerChanged)` in `initState` and removes it in `dispose`. On init it also silently clears any stale validation errors and `RxStatus.error` state (mimicking Laravel's per-request error clearing).
+
+A notification rebuilds the view only while its `TickerMode` is enabled. Under an opaque route (a detail page pushed over a list) or in an inactive go_router shell branch the tickers are disabled, so the notification is remembered and the view rebuilds once when it is uncovered, and not at all if nothing notified. A view under a dialog, bottom sheet or popover stays enabled and rebuilds as before. The signal is the ticker mode, not visibility: a painted view wrapped in `TickerMode(enabled: false)` also stops rebuilding until tickers return; a `MagicSelector` or `ListenableBuilder` inside the view listens for itself and is not deferred. Do not add a manual `ModalRoute.isCurrent` check to skip work under a cover: a page under a dialog is not current but is still painted.
 
 | Member | Type | Purpose |
 | :--- | :--- | :--- |
