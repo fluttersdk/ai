@@ -75,7 +75,7 @@ responses with `isError: true` text.
 - **Maps to CLI**: `start`
 - **Boot mode**: `none`
 - **CLI-only flag**: `--timeout=<seconds>` raises the VM Service URI scrape
-  window, default 90. The MCP schema exposes no timeout parameter, so a boot
+  window (and, with `--cdp-port`, the web-server readiness wait), default 90. The MCP schema exposes no timeout parameter, so a boot
   that legitimately takes longer than 90s (a cold web build, a slow emulator)
   has to go through Bash: `./bin/fsa start -d chrome --timeout=180`.
 - **CLI-only flag**: `--flutter-arg=<arg>` forwards an argument verbatim to
@@ -132,7 +132,7 @@ responses with `isError: true` text.
     "port":              { "type": "string",  "description": "Web port for the chrome device. Default 3100. Ignored for non-web." },
     "vm-service-port":   { "type": "string",  "description": "Host VM Service port. Default 8181." },
     "dds":               { "type": "boolean", "description": "Enable Dart Development Service proxy. Default false." },
-    "profile-static":    { "type": "boolean", "description": "Run flutter in --profile mode (no hot reload). Default false." }
+    "profile-static":    { "type": "boolean", "description": "Device only: flutter run --profile (no hot reload); a label on chrome. Default false." }
   }
 }
 ```
@@ -181,15 +181,23 @@ artisan_start { device: "chrome", port: "3200" }    # alt web port
 
 > Stop the currently-running Flutter app and clear its state file.
 >
-> Sends SIGTERM to the `flutter run` process recorded in
-> the session, then deletes it. Safe to call when
-> no app is running (returns success, no-op).
+> Sends SIGTERM to the process group of the `flutter run`
+> recorded in the session (frontend_server and the other children
+> included), waits up to 5s, SIGKILLs the group if a member is left
+> and waits up to 5s again, then waits up to 5s for a web session's
+> port; Chrome gets the same on a CDP session. Returns only once it
+> is gone (about 15s at worst, 30s with Chrome), then deletes the
+> session. Safe to call when no app is
+> running (returns success, no-op).
 >
 > Usage:
 > - Call after development is done OR before `artisan_start` if the
->   previous app process is stale.
+>   previous app process is stale. A start straight after it does
+>   not need a wait of its own.
 > - No-op when this project has no session; never errors on
 >   missing state.
+> - Fails with "still alive after SIGKILL" and keeps the state when
+>   the app cannot be stopped; call it again.
 
 **Input schema**: `{ "type": "object", "properties": {} }`
 
@@ -197,7 +205,7 @@ artisan_start { device: "chrome", port: "3200" }    # alt web port
 
 ```
 # `artisan stop` exit 0
-Sent SIGTERM to pid=12345.
+Sent SIGTERM to process group 12340 (flutter run pid=12345).
 state.json removed.
 ```
 
@@ -210,9 +218,22 @@ No state file; nothing to stop.
 
 **Notes**:
 
-- Idempotent: always exit 0 except for catastrophic file-system errors.
+- Idempotent: exit 0 unless the app outlives SIGKILL (exit 1, session
+  kept so a second call can retry).
+- The group is read from the live pid with `ps -o pgid=` (through the
+  FIFO holder when the tool is gone); a pid in the caller's own group is
+  signalled alone, and a pid whose process started after the session's
+  `startedAt` (a reused number) is not signalled at all. Zombies do not
+  count as live. Each wait (after SIGTERM, after SIGKILL, for the ports)
+  is bounded at 5s, so a stuck app costs at most about 15s, 30s with
+  Chrome. A port still bound after that is a warning naming the port and
+  never triggers SIGKILL.
 - Also SIGTERMs the FIFO holder pid, deletes the FIFO file, and (on the
-  CDP path) reaps the Chrome process with a 2s grace period before SIGKILL.
+  CDP path) reaps Chrome's process group the same way, waiting for the
+  CDP port.
+- On an Android device serial it also runs `adb -s <serial> shell am
+  force-stop <applicationId>` (id from `android/app/build.gradle*`); a
+  failure is a warning.
 - Errors mid-cleanup are logged as warnings and swallowed; the command
   still returns exit 0.
 
@@ -359,7 +380,7 @@ Log file not found at ~/.artisan/flutter-dev.log. Run `artisan start` first.
 
 ```
 # `artisan restart` exit 0
-Sent SIGTERM to pid=12345.
+Sent SIGTERM to process group 12340 (flutter run pid=12345).
 state.json removed.
 Spawned flutter run (pid=67890).
 VM Service: ws://127.0.0.1:8181/<new-token>/ws

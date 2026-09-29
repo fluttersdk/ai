@@ -74,7 +74,7 @@ and the recovery loop for every common failure substring.
 | `flutterArgs` | list / absent | `start --flutter-arg` | the extra `flutter run` arguments this session was started with; absent when there were none |
 | `booting` | bool / absent | `start` | present and true only between the spawn and the URI landing; says the record is incomplete rather than wrong |
 
-`restart` preserves `cdpPort` across the stop+start cycle: it reads the value from `state.json` before `stop` deletes the file, then forwards it into `start`, so a CDP-enabled session survives a restart. An explicit `--cdp-port` on the `restart` invocation wins over the preserved value. `flutterArgs` is carried the same way and matters more: a dropped port refuses to bind and says so, while a dropped `--dart-define` compiles clean and the app just behaves differently.
+`restart` preserves `cdpPort` across the stop+start cycle: it reads the value from `state.json` before `stop` deletes the file, then forwards it into `start`, so a CDP-enabled session survives a restart. An explicit `--cdp-port` on the `restart` invocation wins over the preserved value. `flutterArgs` is carried the same way and matters more: a dropped port refuses to bind and says so, while a dropped `--dart-define` compiles clean and the app just behaves differently. The build mode is carried too: a `profile: static` session restarts as a profile build unless `restart --no-profile-static` says otherwise, so two measurements either side of a restart measure the same build.
 
 The agent reads state.json via `artisan_status`. Direct file reads via
 `Read` tool are also valid for debugging but `artisan_status` adds the
@@ -96,8 +96,9 @@ The agent reads state.json via `artisan_status`. Direct file reads via
   `artisan_hot_restart` writes `R\n`. Both use shell redirection:
   `printf %s 'r\n' > <fifo>`. Dart's `File.open` rejects FIFOs because
   the implementation calls `lseek` (illegal on FIFO).
-- **Cleanup**: `artisan_stop` deletes the FIFO file and SIGTERMs the
-  HOLDER pid. POSIX semantics: unlinking a FIFO invalidates the inode
+- **Cleanup**: `artisan_stop` stops the flutter tool's process group
+  (the HOLDER shares it), deletes the FIFO file and SIGTERMs the HOLDER
+  pid. POSIX semantics: unlinking a FIFO invalidates the inode
   but open file descriptors remain valid until closed.
 
 **Race: FIFO missing while state.json exists.** If the user hard-kills
@@ -135,13 +136,16 @@ needs_build() {
 .artisan/cli-bundle`, writes the stamp atomically, exec's the binary).
 Typical rebuild: ~5s on a warm machine.
 
-**Lock staleness recovery**: if a previous `./bin/fsa` crashed
-(SIGKILL bypasses trap), `.artisan/.fsa.lock/` survives. The next
-invocation reads the lock's stored PID and probes via `kill -0`. If the
-owner is dead, `rm -rf .artisan/.fsa.lock` and retry the `mkdir`.
-Symptom of the race never clearing: `fsa: waiting for another fsa
-invocation to finish...` Recovery: `rm -rf .artisan/.fsa.lock` +
-retry.
+**Lock lifetime**: the lock is held only while building, and released
+before the wrapper `exec`s the binary, so a long-lived process such as
+`mcp:serve` never holds it. If a previous `./bin/fsa` was killed mid-build
+(SIGKILL bypasses the trap), `.artisan/.fsa.lock/` survives; the next
+invocation reads the stored PID, probes it with `kill -0`, and reclaims the
+lock when the owner is dead. A live owner is waited on for at most
+`FSA_LOCK_TIMEOUT` seconds (default 600), after which the call fails and
+names the owner's pid. A build compiles into `.artisan/cli-bundle.build.<pid>`
+and is swapped in by rename; leftovers from a killed build are removed by the
+next build.
 
 **When to manually invalidate the AOT**: after editing
 `.artisan/plugins.json` by hand, or after a `plugins:refresh` /
@@ -403,16 +407,18 @@ kill <squatter pid>                 # or pass --port=<N> to artisan_start
 
 ### `fsa: waiting for another fsa invocation to finish...` (does not clear)
 
-Cause: stale `.artisan/.fsa.lock/` directory after a hard kill of a
-prior fsa run.
+Cause: another invocation is building right now, or a wrapper generated
+before 0.0.17 exec'd into a long-lived process (`mcp:serve`) while still
+holding the lock. The first clears within a build (~5s); the wait gives up
+after `FSA_LOCK_TIMEOUT` seconds (default 600) and names the owner's pid. The
+second is fixed by regenerating the wrapper:
 
 ```bash
-rm -rf .artisan/.fsa.lock
-./bin/fsa <cmd>
+dart run fluttersdk_artisan make:fast-cli --force
 ```
 
-The PID-aware lock probe should reclaim automatically; manual cleanup
-is the fallback when it does not.
+A dead owner's lock is reclaimed automatically through the PID probe;
+`rm -rf .artisan/.fsa.lock` is the fallback when it is not.
 
 ### Plugin tool returns "No tool registered with the name <X>"
 

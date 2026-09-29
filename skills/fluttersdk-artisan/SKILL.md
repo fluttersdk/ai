@@ -1,11 +1,11 @@
 ---
 name: fluttersdk-artisan
 description: "fluttersdk_artisan: Dart CLI framework + stdio MCP server that lets an LLM agent boot, inspect, hot-reload, and evaluate a running Flutter app via 10 substrate MCP tools (`artisan_*`) and 22 builtin CLI commands (`./bin/fsa`). `~/.artisan/state.json` under `~/.artisan/sessions/<hash>/` carries the running app's pid + VM Service URI + FIFO pipe; lazy-reconnect picks it up after `artisan_start`. Plugin tools (`dusk_*`, `telescope_*`) surface ONLY via `./bin/fsa mcp:serve` (dispatcher path), not `dart run fluttersdk_artisan:mcp` (substrate-only). TRIGGER when: any `artisan_*` MCP call, `./bin/fsa` or `dart run artisan` invocation, `.artisan/state.json` / `bin/dispatcher.dart` / `_plugins.g.dart` mention, or the user asks to start / stop / restart / reload / hot-restart / inspect / tinker a Flutter app. DO NOT TRIGGER on plugin authoring (install.yaml / PluginInstaller DSL) or pure `dart test` without driving the app."
-version: 0.0.6
+version: 0.0.7
 when_to_use: "Any task where the agent boots, restarts, inspects, or evaluates a running Flutter app via artisan: calling `artisan_*` MCP tools (start, status, doctor, tinker, hot-restart) in sequence, invoking `./bin/fsa <cmd>` from Bash, recovering from missing state.json or stale PID, picking substrate vs dispatcher MCP wiring, choosing between `artisan_tinker` (VM Service evaluate) and `dusk_evaluate` (E2E driver) for an inspect-or-mutate flow."
 ---
 
-<!-- fluttersdk_artisan v0.0.16 | Skill updated: 2026-09-19 | Source: https://github.com/fluttersdk/artisan -->
+<!-- fluttersdk_artisan v0.0.17 | Skill updated: 2026-09-29 | Source: https://github.com/fluttersdk/artisan -->
 
 # fluttersdk_artisan
 
@@ -114,9 +114,11 @@ by `dart run fluttersdk_artisan install` once from the app root, then
    missing, `.artisan/build.stamp` is empty or missing, the stamp's
    `pubspec.lock hash : dart --version` key mismatches, or
    `pubspec.yaml` is newer than `pubspec.lock` (un-run `pub get`).
-   When `./bin/fsa` says `waiting for another fsa invocation`, the
-   PID-aware lock probe should reclaim a stale lock dir automatically;
-   if it does not, `rm -rf .artisan/.fsa.lock` + retry.
+   The build lock is released before the wrapper execs the binary, a dead
+   owner's lock is reclaimed through a PID probe, and a live owner is waited
+   on for at most `FSA_LOCK_TIMEOUT` seconds (default 600). A wrapper that
+   hangs on `waiting for another fsa invocation` while `mcp:serve` runs predates
+   that fix: regenerate it with `make:fast-cli --force`.
 
 ## 2. Tool surface (10 substrate tools, +N plugin tools when dispatcher-wired)
 
@@ -245,7 +247,7 @@ substring, not the full message:
 | `Isolate sentinel (kind: ...)` | VM Service evaluate saw a stale isolate id | Auto-recovered on the next call; if it persists, `artisan_hot_restart` then retry. |
 | `mkfifo failed (Windows not yet supported; V1 is POSIX-only)` | `artisan_start` on Windows | V1 limitation; stop and surface to the user. |
 | `Chrome failed to open debug port <port>` | `--cdp-port` with a port already in use, or Chrome missing | Pick a free port via `--cdp-port=<N>`, confirm Chrome is installed. |
-| `fsa: waiting for another fsa invocation...` does not clear | Stale `.artisan/.fsa.lock` directory after a hard kill | `rm -rf .artisan/.fsa.lock` + retry. |
+| `fsa: waiting for another fsa invocation...` does not clear | A pre-0.0.17 wrapper exec'd into `mcp:serve` holding the lock, or a stale lock after a hard kill | `make:fast-cli --force` to regenerate the wrapper; `rm -rf .artisan/.fsa.lock` as the fallback. |
 | `another app is recorded` from `artisan_start` | state.json already has a running pid | Call `artisan_stop` first, then `artisan_start`. |
 
 When `artisan_list` is missing an expected plugin namespace (`dusk:` /
