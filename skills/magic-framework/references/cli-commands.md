@@ -672,7 +672,7 @@ dart run magic:artisan make:action Monitors/PauseMonitor --test       # + matchi
 | `--model=Name` | The model this action writes; required alongside `--kind` |
 | `--test` | Also scaffold `test/app/actions/<name>_test.dart` |
 
-The kinds: `create` fills and saves a new model; `update` takes `({String id, Map<String, dynamic> fields})`, saves, and writes the row into `<Model>Repository` via `upsertFromShow`; `delete` deletes and evicts the row. A refused save throws `ActionRequestFailed.refusalOf(...)`.
+The kinds: `create` fills and saves a new model; `update` takes `({String id, Map<String, dynamic> fields})`, saves, and writes the row into `<Model>Repository` via `upsertFromShow`; `delete` deletes and evicts the row. A refused save throws `ActionRequestFailed.refusalOf(...)` with the model's `lastRemoteResponse`, and a refused delete throws `ActionRequestFailed` carrying it, so `isTransportFailure` can tell a request that got no readable answer from a refusal.
 
 **Output**: `lib/app/actions/pause_monitor.dart`
 

@@ -358,6 +358,7 @@ When the write goes through the ORM instead of a hand-rolled `Http` call, the mo
 |---|---|---|
 | `model.validationErrors` | `Map<String, List<String>>` | Per-field messages from the most recent remote `save()`. Deeply unmodifiable, cleared at the start of every remote save |
 | `model.validationError(field)` | `String?` | First message for `field`, or `null` |
+| `model.lastRemoteResponse` | `MagicResponse?` | The latest remote `save()`/`delete()` response; `statusCode` 0 means no readable answer (the write may or may not have landed). `null` before one ran or when the driver threw. Pass it as `refusalOf`'s third argument |
 
 ```dart
 if (!await monitor.save()) {
