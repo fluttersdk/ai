@@ -1,11 +1,11 @@
 ---
 name: fluttersdk-telescope
 description: "fluttersdk_telescope: passive runtime inspector for Flutter apps. Lets an LLM agent read what the app captured (HTTP traffic, structured logs, uncaught exceptions, debug dumps, in-app events, gate checks, DB queries, Magic Cache ops) by calling 10 MCP tools (`telescope_*`) or 10 CLI commands (`./bin/fsa telescope:*`). Records land in 10 in-memory ring buffers with FIFO eviction (500 entries each, except the frame-perf buffer at 3600, about a minute at 60fps) backed by `ext.telescope.*` VM Service extensions. Pairs with fluttersdk_dusk: dusk drives the app, telescope reads the side effects. TRIGGER when: any `telescope_*` MCP tool call, any `telescope:*` CLI command, the user asks the agent to inspect HTTP / logs / exceptions / events / queries / cache / dump output from a running Flutter app, the user mentions ring buffer / TelescopeStore / ext.telescope, or the conversation pairs with dusk for state verification after a gesture. DO NOT TRIGGER when: only authoring flutter_test widget tests, only driving the UI without reading captured state (use fluttersdk-dusk), or only modifying Dart source without running it."
-version: 0.0.8
+version: 0.0.9
 when_to_use: "Any task that reads runtime state from a running Flutter app via telescope: calling `telescope_*` MCP tools to inspect HTTP / logs / exceptions / events / gates / dumps / queries / caches, invoking `./bin/fsa telescope:*` from a shell, pairing with dusk to verify side effects after a gesture, filtering logs by minimum level (FINE/INFO/WARNING/SEVERE/SHOUT), or clearing buffers before a repro."
 ---
 
-<!-- fluttersdk_telescope v0.0.8 | Skill updated: 2026-09-28 -->
+<!-- fluttersdk_telescope v0.0.9 | Skill updated: 2026-09-29 -->
 
 # fluttersdk_telescope
 
@@ -109,6 +109,15 @@ restart, and verify with `./bin/fsa telescope:tail`.
      A swallowed `try / catch` is invisible; pair with `telescope_tail`
      to catch the breadcrumb the swallower logged.
 
+8. **`********` is telescope's mask, not the app's value.** HTTP records
+   are redacted before they are buffered: credential headers
+   (`Authorization`, `Cookie`, `X-Api-Key`, ...) and credential keys of a
+   JSON or form-encoded body (`password`, `token`, `access_token`, ...)
+   read `********`.
+   Do not report a masked header as "the app sent a bogus token"; a
+   missing header is absent from `requestHeaders`, a masked one was sent.
+   An empty credential (null, `false`, `''`, `[]`, `{}`) stays visible.
+
 ## 2. Tool surface (10 MCP tools, 10 CLI commands)
 
 | Family | MCP tool | CLI command | Captures |
@@ -121,7 +130,7 @@ restart, and verify with `./bin/fsa telescope:tail`.
 | Gates | `telescope_gates` | `telescope:gates` | Every `Gate.allows` / `Gate.denies` call (via `MagicGateWatcher`). Carries `ability`, `result` (bool), `arguments`, `userId`. |
 | Queries | `telescope_queries` | `telescope:queries` | DB queries through Magic's QueryBuilder via the `QueryExecuted` event. Raw `sqlite3` / `drift` bypasses this. |
 | Cache | `telescope_caches` | `telescope:caches` | Magic Cache ops (placeholder, see Law 7). |
-| Frames | `telescope_frames` | `telescope:frames` | Per-frame build/raster/vsync micros plus a block-attribution map, joined from `SchedulerBinding` timings and a `FlutterTimeline` drain. Opt-in: register `FramePerfWatcher` yourself. Every response also carries `livenessCounter`, a monotonic count of frames actually drawn, and it is on an empty response too: without it an empty result cannot distinguish a quiet app from a stalled engine. This buffer holds 3600, not 500. |
+| Frames | `telescope_frames` | `telescope:frames` | Per-frame build/raster/vsync micros plus a block-attribution map, joined from `SchedulerBinding` timings and a `FlutterTimeline` drain. Each block carries inclusive `micros` and exclusive `selfMicros` (children subtracted). Opt-in: register `FramePerfWatcher` yourself. Every response also carries `livenessCounter`, a monotonic count of frames actually drawn, and it is on an empty response too: without it an empty result cannot distinguish a quiet app from a stalled engine. Every record also carries `atUs` (a `FlutterTimeline.now` monotonic timestamp) and a `vsyncStartUs`, plus the optional `interactionId`/`linkedBy` pair. This buffer holds 3600, not 500. |
 | Reset | `telescope_clear` | `telescope:clear` | Wipes all 10 buffers atomically. |
 | Install | (no MCP) | `telescope:install` | Bootstraps the plugin in a fresh consumer: patches `lib/main.dart`, scaffolds `bin/dispatcher.dart` / `bin/fsa`, registers the artisan plugin. |
 

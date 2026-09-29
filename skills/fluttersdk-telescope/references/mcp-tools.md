@@ -53,7 +53,7 @@ Outbound HTTP records captured by the registered `TelescopeHttpAdapter`.
       "durationMs": 184,
       "isError": false,
       "timestamp": "2026-05-25T09:14:22.318Z",
-      "requestHeaders": { "Authorization": "Bearer ..." },
+      "requestHeaders": { "Authorization": "********" },
       "responseBody": "{\"data\":[...]}"
     }
   ]
@@ -347,7 +347,7 @@ Return recent per-frame performance records from the running app.
 
 **Input schema:** `limit` (integer, optional, default 50).
 
-**Returns:** `{"frames": [...], "livenessCounter": <int>}`. Each frame carries `frameNumber`, `buildMicros`, `rasterMicros`, `vsyncOverheadMicros`, `totalSpanMicros`, `time`, and a `blocks` map of `{name: {micros, count}}`.
+**Returns:** `{"frames": [...], "livenessCounter": <int>}`. Each frame carries `frameNumber`, `buildMicros`, `rasterMicros`, `vsyncOverheadMicros`, `totalSpanMicros`, `time`, `atUs`, a `blocks` map of `{name: {micros, selfMicros, count}}`, and when known `vsyncStartUs`, `interactionId` and `linkedBy` (field notes in `records.md`).
 
 `livenessCounter` is present on every response, including an empty one. It is a monotonic count of frames actually drawn, and it is the only reliable proof the engine is rendering: `SchedulerBinding.framesEnabled` was measured reporting `true`, with a `resumed` lifecycle, on a backgrounded Chrome page that had produced one frame in two seconds. If the counter does not advance across an interaction, every number in the response is a zero that reads as "fast".
 

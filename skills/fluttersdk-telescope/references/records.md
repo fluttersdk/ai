@@ -36,10 +36,16 @@ Inside `telescope_requests` → `records[]`.
 | `durationMs` | integer | yes | Wall-clock duration in milliseconds. |
 | `isError` | boolean | yes | `true` for 4xx / 5xx or transport failures. |
 | `timestamp` | string (ISO 8601) | yes | Note: this field is `timestamp`, not `time`, on HTTP records only. |
-| `requestHeaders` | object (string → string) | opt | Often redacted by the adapter. |
-| `requestBody` | string | opt | Truncated snippet; not the full payload. |
-| `responseBody` | string | opt | Truncated snippet. |
+| `requestHeaders` | object (string → string) | opt | Credential headers (`Authorization`, `Cookie`, `X-Api-Key`, ...) read `********`: telescope's mask, not the app's value. |
+| `requestBody` | string | opt | Truncated snippet; not the full payload. Credential keys (`password`, `token`, ...) of a JSON or form-encoded body read `********`. |
+| `responseBody` | string | opt | Truncated snippet. Credential keys (`token`, `access_token`, ...) of a JSON or form-encoded body read `********`. |
 | `attributedHeuristically` | boolean | opt (omitted when false) | `true` when the adapter could not directly associate the call to the request and inferred it from timing. Treat the record as best-effort. |
+| `requestId` | string | opt | Id of the request that produced this record, when the adapter tracks one. It pairs a response to its request exactly, replacing FIFO attribution. |
+| `startUs` | integer | opt | `FlutterTimeline.now` when the request was sent, when the adapter tracks it. |
+| `endUs` | integer | opt | `FlutterTimeline.now` when the response arrived, when the adapter tracks it. |
+| `atUs` | integer | yes | Monotonic microseconds from `FlutterTimeline.now` at capture. Comparable across every record type below that carries it, whatever the wall clock did; join records on this, not on the ISO time. |
+| `interactionId` | string | opt | The interaction (a tap, a navigation) this record was captured under, when the capturing site knows one. Records sharing an id belong to the same gesture. |
+| `linkedBy` | string | opt | How the link was made: `zone` (the interaction was carried in the zone), `frame` (the frame it was drawn in), `window` (no interaction was open, so `interactionId` is absent and the record joins by `atUs`). Absent when the site does not link at all. |
 
 ---
 
@@ -86,6 +92,9 @@ Inside `telescope_events` → `events[]`.
 | `payload` | object | yes | Empty `{}` in current builds (structured payload extraction is V1.x backlog). |
 | `time` | string (ISO 8601) | yes | |
 | `listenerCount` | integer | opt | Number of registered listeners at dispatch time. |
+| `atUs` | integer | yes | Monotonic microseconds from `FlutterTimeline.now` at capture. Comparable across every record type below that carries it, whatever the wall clock did; join records on this, not on the ISO time. |
+| `interactionId` | string | opt | The interaction (a tap, a navigation) this record was captured under, when the capturing site knows one. Records sharing an id belong to the same gesture. |
+| `linkedBy` | string | opt | How the link was made: `zone` (the interaction was carried in the zone), `frame` (the frame it was drawn in), `window` (no interaction was open, so `interactionId` is absent and the record joins by `atUs`). Absent when the site does not link at all. |
 
 ---
 
@@ -132,6 +141,9 @@ Inside `telescope_queries` → `queries[]`.
 | `timeMs` | integer | yes | Execution duration in milliseconds. |
 | `connectionName` | string | yes | `default` unless the consumer named a non-default connection. |
 | `time` | string (ISO 8601) | yes | |
+| `atUs` | integer | yes | Monotonic microseconds from `FlutterTimeline.now` at capture. Comparable across every record type below that carries it, whatever the wall clock did; join records on this, not on the ISO time. |
+| `interactionId` | string | opt | The interaction (a tap, a navigation) this record was captured under, when the capturing site knows one. Records sharing an id belong to the same gesture. |
+| `linkedBy` | string | opt | How the link was made: `zone` (the interaction was carried in the zone), `frame` (the frame it was drawn in), `window` (no interaction was open, so `interactionId` is absent and the record joins by `atUs`). Absent when the site does not link at all. |
 
 ---
 
@@ -146,8 +158,12 @@ Inside `telescope_frames` -> `frames[]`.
 | `rasterMicros` | integer | yes | `FrameTiming.rasterDuration`. |
 | `vsyncOverheadMicros` | integer | yes | `FrameTiming.vsyncOverhead`. |
 | `totalSpanMicros` | integer | yes | `FrameTiming.totalSpan`. |
-| `blocks` | object | yes | `{name: {micros, count}}` per framework span drawn that frame. Empty when no measurement session was collecting. |
+| `blocks` | object | yes | `{name: {micros, selfMicros, count}}` per framework span drawn that frame. `micros` includes nested spans, `selfMicros` excludes the directly nested ones, so summing `selfMicros` does not count a nested build twice. Empty when no measurement session was collecting. |
 | `time` | string (ISO 8601) | yes | |
+| `vsyncStartUs` | integer | opt | `FrameTiming`'s vsync-start timestamp. Its clock is not verified to match `atUs`, so do not subtract one from the other. |
+| `atUs` | integer | yes | Monotonic microseconds from `FlutterTimeline.now` at capture. Comparable across every record type below that carries it, whatever the wall clock did; join records on this, not on the ISO time. |
+| `interactionId` | string | opt | The interaction (a tap, a navigation) this record was captured under, when the capturing site knows one. Records sharing an id belong to the same gesture. |
+| `linkedBy` | string | opt | How the link was made: `zone` (the interaction was carried in the zone), `frame` (the frame it was drawn in), `window` (no interaction was open, so `interactionId` is absent and the record joins by `atUs`). Absent when the site does not link at all. |
 
 ---
 
@@ -161,6 +177,9 @@ Inside `telescope_caches` → `caches[]`.
 | `key` | string | yes | The cache key. |
 | `time` | string (ISO 8601) | yes | |
 | `ttlMs` | integer | opt | TTL in milliseconds (`Duration.inMilliseconds`). Absent for operations that do not carry a TTL (`hit`, `miss`, `forget`, `flush`). |
+| `atUs` | integer | yes | Monotonic microseconds from `FlutterTimeline.now` at capture. Comparable across every record type below that carries it, whatever the wall clock did; join records on this, not on the ISO time. |
+| `interactionId` | string | opt | The interaction (a tap, a navigation) this record was captured under, when the capturing site knows one. Records sharing an id belong to the same gesture. |
+| `linkedBy` | string | opt | How the link was made: `zone` (the interaction was carried in the zone), `frame` (the frame it was drawn in), `window` (no interaction was open, so `interactionId` is absent and the record joins by `atUs`). Absent when the site does not link at all. |
 
 The cache buffer is currently a placeholder (Magic does not yet emit
 the events); records will start appearing once Magic ships them.
@@ -180,6 +199,9 @@ via `TelescopeStore.recentModels()`):
 | `modelKey` | string | yes | The primary key of the affected row. |
 | `time` | string (ISO 8601) | yes | |
 | `attributes` | object | opt | The model's serialized attributes at the moment of the event. |
+| `atUs` | integer | yes | Monotonic microseconds from `FlutterTimeline.now` at capture. Comparable across every record type below that carries it, whatever the wall clock did; join records on this, not on the ISO time. |
+| `interactionId` | string | opt | The interaction (a tap, a navigation) this record was captured under, when the capturing site knows one. Records sharing an id belong to the same gesture. |
+| `linkedBy` | string | opt | How the link was made: `zone` (the interaction was carried in the zone), `frame` (the frame it was drawn in), `window` (no interaction was open, so `interactionId` is absent and the record joins by `atUs`). Absent when the site does not link at all. |
 
 To inspect model lifecycle from the agent, use `telescope_events` and
 filter on `eventType` matching `ModelCreated`, `ModelSaved`,

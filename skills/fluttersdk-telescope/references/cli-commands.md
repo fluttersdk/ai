@@ -150,9 +150,11 @@ Print recent HTTP records.
 **Output format:**
 
 ```
-2026-05-25T09:14:22.318Z GET https://api.example.test/users -> 200 (184ms)
-2026-05-25T09:14:23.121Z POST https://api.example.test/users -> 422 (97ms)
+2026-05-25T09:14:22.318Z GET https://api.example.test/users → 200 (184ms) atUs=81234567 requestId=r12 interactionId=i3 linkedBy=zone
+2026-05-25T09:14:23.121Z POST https://api.example.test/users → 422 (97ms) atUs=82037120 linkedBy=window
 ```
+
+`requestId`, `interactionId` and `linkedBy` are printed only when the record carries them. `linkedBy=window` comes without an `interactionId`: no interaction was open, so the record joins by `atUs`.
 
 **Empty-buffer hint:** `"No HTTP records (register a TelescopeHttpAdapter)."`
 
@@ -205,7 +207,7 @@ Print recent per-frame performance records.
 **Output format:**
 
 ```
-2026-08-25T10:46:51.145Z frame#409 build=57301us raster=2901us vsync=0us total=64301us blocks={WDiv: {micros: 518300, count: 122}, ...}
+2026-08-25T10:46:51.145Z frame#409 atUs=81234567 vsyncStartUs=81170266 build=57301us raster=2901us vsync=0us total=64301us blocks={WDiv: {micros: 518300, selfMicros: 402100, count: 122}, ...} interactionId=i3 linkedBy=frame
 livenessCounter=415
 ```
 
