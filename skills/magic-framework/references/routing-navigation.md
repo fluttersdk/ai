@@ -665,7 +665,8 @@ final title = MagicRoute.currentTitle; // without suffix
 ### TitleManager (Internal)
 
 - `TitleManager.instance` — singleton, lazy-initialized
-- `TitleManager.configure(onTitleChanged: callback)` — injectable callback for testing
+- `TitleManager.configure(onTitleChanged: callback)`: injectable callback for testing; it receives the title and the ARGB switcher color
+- `TitleManager.instance.setPrimaryColor(color)`: the task-switcher color; `MagicApplication` sets it from `theme.primaryColor`, and `0` (system default) is sent until it is set, because Android rejects a null color
 - `TitleManager.reset()` — clears state, called by `MagicRouter.reset()`
 - Route listener: `GoRouter.routerDelegate.addListener` — fires on all navigation types
 

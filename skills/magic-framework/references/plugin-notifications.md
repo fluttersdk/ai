@@ -1,4 +1,4 @@
-<!-- magic_notifications v0.3.6 | Updated: 2026-09-29 -->
+<!-- magic_notifications v0.3.7 | Updated: 2026-10-02 -->
 
 # magic_notifications Plugin
 
@@ -100,6 +100,7 @@ All methods are accessed via the static `Notify` facade after importing `package
 |:-------|:-----------|:------------|:------------|
 | `Notify.initializePush(userId)` | `String userId` | `Future<void>` | Record the intent to be subscribed as `userId`, then reconcile it against the driver. Call after `Auth.login()`. A build with no push driver is a supported state: it no longer throws (0.1.0+). |
 | `Notify.requestPushPermission()` | none | `Future<bool>` | Show system permission dialog. Returns `true` if granted. |
+| `Notify.openPushSettings()` | none | `Future<void>` | Open the app's own notification settings page on a denied device (0.3.7+). The action behind `PushPromptAction.openSettings`; a permission request there would put the SDK's untranslated fallback dialog first. Throws `UnsupportedPlatformException` on a driver without the capability (web). |
 | `Notify.logoutPush()` | none | `Future<void>` | Drop the cached rows, clear the intent, unlink the device. Call before `Auth.logout()`. |
 | `Notify.describePushUserUsing(resolver)` | `PushUserAttributesResolver?` | `void` | Register once how the app describes whoever signs in (email + tags). Nothing is sent until `notifications.push.share_user_attributes` is on, and it ships OFF. |
 | `Notify.extend(name, factory)` | `String`, `PushDriver Function()` | `void` | Register a push driver under a name; the config's `push.driver` picks one. |
@@ -399,7 +400,7 @@ Scaffolded to `lib/config/notifications.dart` by `notifications:install` and reg
     'self_test_enabled': false,         // gates PushChannel.send(); backend carries the same switch
     'auto_request_on_login': false,     // raise the OS prompt once after sign-in (think twice on web)
     'reprompt_after_hours': 0,          // the app's OWN reminder cadence; 0 means never
-    'fallback_to_settings': true,       // mobile: a request on a denied device opens app settings
+    'fallback_to_settings': true,       // mobile: a denied device keeps a route to app settings
     'share_user_attributes': false,     // gates email + tags reaching OneSignal
   },
   'database': {
