@@ -5,7 +5,7 @@ version: 0.0.7
 when_to_use: "Any task where the agent boots, restarts, inspects, or evaluates a running Flutter app via artisan: calling `artisan_*` MCP tools (start, status, doctor, tinker, hot-restart) in sequence, invoking `./bin/fsa <cmd>` from Bash, recovering from missing state.json or stale PID, picking substrate vs dispatcher MCP wiring, choosing between `artisan_tinker` (VM Service evaluate) and `dusk_evaluate` (E2E driver) for an inspect-or-mutate flow."
 ---
 
-<!-- fluttersdk_artisan v0.0.17 | Skill updated: 2026-09-29 | Source: https://github.com/fluttersdk/artisan -->
+<!-- fluttersdk_artisan v0.0.18 | Skill updated: 2026-10-05 | Source: https://github.com/fluttersdk/artisan -->
 
 # fluttersdk_artisan
 
