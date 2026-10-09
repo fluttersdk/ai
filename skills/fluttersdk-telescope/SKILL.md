@@ -1,11 +1,11 @@
 ---
 name: fluttersdk-telescope
 description: "fluttersdk_telescope: passive runtime inspector for Flutter apps. Lets an LLM agent read what the app captured (HTTP traffic, structured logs, uncaught exceptions, debug dumps, in-app events, gate checks, DB queries, Magic Cache ops) by calling 10 MCP tools (`telescope_*`) or 10 CLI commands (`./bin/fsa telescope:*`). Records land in 10 in-memory ring buffers with FIFO eviction (500 entries each, except the frame-perf buffer at 3600, about a minute at 60fps) backed by `ext.telescope.*` VM Service extensions. Pairs with fluttersdk_dusk: dusk drives the app, telescope reads the side effects. TRIGGER when: any `telescope_*` MCP tool call, any `telescope:*` CLI command, the user asks the agent to inspect HTTP / logs / exceptions / events / queries / cache / dump output from a running Flutter app, the user mentions ring buffer / TelescopeStore / ext.telescope, or the conversation pairs with dusk for state verification after a gesture. DO NOT TRIGGER when: only authoring flutter_test widget tests, only driving the UI without reading captured state (use fluttersdk-dusk), or only modifying Dart source without running it."
-version: 0.0.9
+version: 0.0.10
 when_to_use: "Any task that reads runtime state from a running Flutter app via telescope: calling `telescope_*` MCP tools to inspect HTTP / logs / exceptions / events / gates / dumps / queries / caches, invoking `./bin/fsa telescope:*` from a shell, pairing with dusk to verify side effects after a gesture, filtering logs by minimum level (FINE/INFO/WARNING/SEVERE/SHOUT), or clearing buffers before a repro."
 ---
 
-<!-- fluttersdk_telescope v0.0.9 | Skill updated: 2026-09-29 -->
+<!-- fluttersdk_telescope v0.0.10 | Skill updated: 2026-10-09 -->
 
 # fluttersdk_telescope
 
