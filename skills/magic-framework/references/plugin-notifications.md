@@ -1,4 +1,4 @@
-<!-- magic_notifications v0.3.7 | Updated: 2026-10-02 -->
+<!-- magic_notifications v0.3.8 | Updated: 2026-10-09 -->
 
 # magic_notifications Plugin
 
@@ -34,7 +34,7 @@ dart run magic:artisan notifications:install
 dart run magic:artisan notifications:doctor
 ```
 
-From 0.3.6 the floors are `magic ^0.0.24`, `fluttersdk_artisan ^0.0.17` and `fluttersdk_wind ^1.8.0`, the newest of each at that release. The real `magic` requirement is 0.0.22, not a name only: `PushStateReporter` calls `Event.listenAny`, which that release introduces. The other requirements underneath are older: `magic` 0.0.6 for `Echo.connection`, the accessor the realtime path needs to tell an open connection from a closed one, and `fluttersdk_artisan` 0.0.15 for `XcodeProjectEditor.setEntitlementsPaths`, which the iOS install below cannot do without.
+From 0.3.8 the floors are `magic ^0.0.27`, `fluttersdk_artisan ^0.0.19` and `fluttersdk_wind ^1.8.1`, the newest of each at that release. The real `magic` requirement is 0.0.22, not a name only: `PushStateReporter` calls `Event.listenAny`, which that release introduces. The other requirements underneath are older: `magic` 0.0.6 for `Echo.connection`, the accessor the realtime path needs to tell an open connection from a closed one, and `fluttersdk_artisan` 0.0.15 for `XcodeProjectEditor.setEntitlementsPaths`, which the iOS install below cannot do without.
 
 ### The APNs entitlement install writes, and why there are two files
 

@@ -1,4 +1,4 @@
-<!-- magic_deeplink v0.1.5 | Updated: 2026-09-29 -->
+<!-- magic_deeplink v0.1.6 | Updated: 2026-10-09 -->
 
 # magic_deeplink Plugin
 
@@ -307,7 +307,7 @@ Map<String, dynamic>? extractData(dynamic event)
 | `DeeplinkOpened` | It starts opening a link it matched | `source` (`DeeplinkSource`), `route`, `namesTenant` (`bool`, the payload named a tenant under a gate) | `deeplink.open` |
 | `DeeplinkNavigating` | Immediately before `MagicRoute.to` | `route` | `deeplink.navigate` |
 
-`route` is the matched PATTERN (`/invitations/:token/accept`), never the concrete path, the query string or a payload value, since a link can carry a token in any of the three. Both implement magic's `ReportsBreadcrumb`, so a crash reporter listening through `Event.listenAny` (magic_sentry does) records them with no dependency on this package. That contract is why the `magic` floor is `^0.0.22`.
+`route` is the matched PATTERN (`/invitations/:token/accept`), never the concrete path, the query string or a payload value, since a link can carry a token in any of the three. Both implement magic's `ReportsBreadcrumb`, so a crash reporter listening through `Event.listenAny` (magic_sentry does) records them with no dependency on this package. That contract needs `magic` 0.0.22 or later; the floor names the newer release this package is verified against.
 
 ```dart
 Event.listen<DeeplinkOpened>(() => AuditDeeplinkListener());   // your MagicListener

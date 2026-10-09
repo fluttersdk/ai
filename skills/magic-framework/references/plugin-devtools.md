@@ -1,4 +1,4 @@
-<!-- magic_devtools v0.0.8 | Updated: 2026-09-29 -->
+<!-- magic_devtools v0.0.9 | Updated: 2026-10-09 -->
 
 # magic_devtools Plugin
 
@@ -20,12 +20,12 @@ The manual path, when the app is already installed and only the tooling is being
 
 ```yaml
 dependencies:
-  magic_devtools: ^0.0.8
-  fluttersdk_dusk: ^0.0.17       # add if you use dusk
-  fluttersdk_telescope: ^0.0.9   # add if you use telescope
+  magic_devtools: ^0.0.9
+  fluttersdk_dusk: ^0.0.19       # add if you use dusk
+  fluttersdk_telescope: ^0.0.10  # add if you use telescope
 ```
 
-`magic_devtools` 0.0.8 declares `fluttersdk_dusk ^0.0.17` and `fluttersdk_telescope ^0.0.9`, beside `magic ^0.0.24` and `fluttersdk_wind ^1.8.0`: the newest of each sibling at that release, so the lines above match its own floors. Three of them are real requirements: `MagicPerfHooks.sink` and the request ids arrive in magic 0.0.24, `PerfMode` and the interaction readers in dusk 0.0.17, and `TelescopeRedaction` plus the record link fields in telescope 0.0.9. The older minimums are `perf_readers.dart` (dusk 0.0.12), `FramePerfWatcher` / `TelescopeStore.recentFramePerf` (telescope 0.0.5) and `WindPerfCounters` (wind 1.5.0). magic 0.0.24 removed `MagicController.onRefreshUI`, which 0.0.7 assigned, so 0.0.7 does not compile against it: move both together. A caret range resolves to the newest, so a fresh graph always worked; an app whose own constraints hold one sibling back gets a satisfiable graph that then fails on undefined symbols.
+`magic_devtools` 0.0.9 declares `fluttersdk_dusk ^0.0.19` and `fluttersdk_telescope ^0.0.10`, beside `magic ^0.0.27` and `fluttersdk_wind ^1.8.1`: the newest of each sibling at that release, so the lines above match its own floors. The real requirements underneath are older than the batch that set them: `MagicPerfHooks.sink` and the request ids arrive in magic 0.0.24, `PerfMode` and the interaction readers in dusk 0.0.17, and `TelescopeRedaction` plus the record link fields in telescope 0.0.9. The older minimums are `perf_readers.dart` (dusk 0.0.12), `FramePerfWatcher` / `TelescopeStore.recentFramePerf` (telescope 0.0.5) and `WindPerfCounters` (wind 1.5.0). magic 0.0.24 removed `MagicController.onRefreshUI`, which 0.0.7 assigned, so 0.0.7 does not compile against it: move both together. A caret range resolves to the newest, so a fresh graph always worked; an app whose own constraints hold one sibling back gets a satisfiable graph that then fails on undefined symbols.
 
 These are regular `dependencies`, not `dev_dependencies`: `lib/main.dart` imports them, so a `dev_dependencies` entry trips the `depend_on_referenced_packages` lint. The `!kReleaseMode` guard is what keeps them out of a release build, not the dependency section.
 
