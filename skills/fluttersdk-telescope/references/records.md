@@ -1,6 +1,6 @@
 # Record reference
 
-The 9 record types that ride inside the `telescope_*` MCP response
+The record types that ride inside the `telescope_*` MCP response
 envelopes. Every record carries a `time` (or `timestamp`) field in ISO
 8601, plus its own typed payload. Optional fields are omitted from JSON
 when null, never serialized as `null`; check for key presence, not
@@ -46,6 +46,7 @@ Inside `telescope_requests` → `records[]`.
 | `atUs` | integer | yes | Monotonic microseconds from `FlutterTimeline.now` at capture. Comparable across every record type below that carries it, whatever the wall clock did; join records on this, not on the ISO time. |
 | `interactionId` | string | opt | The interaction (a tap, a navigation) this record was captured under, when the capturing site knows one. Records sharing an id belong to the same gesture. |
 | `linkedBy` | string | opt | How the link was made: `zone` (the interaction was carried in the zone), `frame` (the frame it was drawn in), `window` (no interaction was open, so `interactionId` is absent and the record joins by `atUs`). Absent when the site does not link at all. |
+| `redacted` | boolean | yes | True when the host's `TelescopeRedaction.redactor` ran over the record before it was buffered (after the credential key masking). |
 
 ---
 
@@ -62,6 +63,8 @@ Inside `telescope_tail` → `messages[]`.
 | `time` | string (ISO 8601) | yes | |
 | `error` | string | opt | `error.toString()` when the Logger call attached an error object. |
 | `stackTrace` | string | opt | Full stack trace when attached. |
+| `atUs` | integer | yes | Monotonic microseconds from `FlutterTimeline.now`, stamped at construction: the same clock as `EventRecord.atUs`, so a log line orders against an event whatever the wall clock did. This is the cursor `since` compares against. |
+| `redacted` | boolean | yes | True when the host's `TelescopeRedaction.redactor` ran over the record before it was buffered. |
 
 ---
 
@@ -76,6 +79,7 @@ Inside `telescope_exceptions` → `exceptions[]`.
 | `time` | string (ISO 8601) | yes | |
 | `stackTrace` | string | opt | Full stack trace when one was attached. |
 | `isolate` | string | opt | Source isolate name (`main`, worker name). |
+| `redacted` | boolean | yes | True when the host's `TelescopeRedaction.redactor` ran over the record before it was buffered. |
 
 Only uncaught exceptions. A swallowed `try / catch` does not produce a
 record here.
@@ -89,9 +93,10 @@ Inside `telescope_events` → `events[]`.
 | JSON key | Type | Required | Notes |
 |---|---|---|---|
 | `eventType` | string | yes | Class name of the dispatched event (`AuthLoginSucceeded`, `ModelSaved`, etc.). |
-| `payload` | object | yes | Empty `{}` in current builds (structured payload extraction is V1.x backlog). |
+| `payload` | object | yes | Empty `{}` in current builds (structured payload extraction is V1.x backlog). Whatever it holds is JSON-safe: a value `jsonEncode` cannot write is its `toString()`, as is a non-String map key; with a redactor set, every String and map key in it was redacted. |
 | `time` | string (ISO 8601) | yes | |
 | `listenerCount` | integer | opt | Number of registered listeners at dispatch time. |
+| `redacted` | boolean | yes | True when the host's `TelescopeRedaction.redactor` ran over the record before it was buffered. |
 | `atUs` | integer | yes | Monotonic microseconds from `FlutterTimeline.now` at capture. Comparable across every record type below that carries it, whatever the wall clock did; join records on this, not on the ISO time. |
 | `interactionId` | string | opt | The interaction (a tap, a navigation) this record was captured under, when the capturing site knows one. Records sharing an id belong to the same gesture. |
 | `linkedBy` | string | opt | How the link was made: `zone` (the interaction was carried in the zone), `frame` (the frame it was drawn in), `window` (no interaction was open, so `interactionId` is absent and the record joins by `atUs`). Absent when the site does not link at all. |
@@ -238,5 +243,10 @@ order).
 - Numeric fields default to zero where meaningful (`statusCode: 0` for
   pre-response failures, `timeMs: 0` for zero-duration queries) rather
   than being omitted.
+- `redacted` is always present on the four records that carry it (log,
+  event, exception, HTTP), `false` when no redactor was registered at
+  insert. It is read-only and set only by telescope's redaction pass; a
+  consumer that persists records, such as `TelescopeFileSink`, writes
+  only the `true` ones.
 - Arrays are always present (`bindings: []`, `arguments: []`) even when
   empty; they are never null.

@@ -1,6 +1,6 @@
 # CLI command reference
 
-Per-command flags, defaults, output format, and exit codes for the 6
+Per-command flags, defaults, output format, and exit codes for the 11
 `telescope:*` CLI commands. Two invocation forms reach the same code
 path:
 
@@ -12,9 +12,11 @@ path:
 
 All read commands boot in `connected` mode: they attach to the running
 app's VM Service before issuing the extension call, and fail with "VM
-Service URI absent" if the app is not running. Output is always
-human-readable (formatted lines), never JSON. Prefer the MCP tools when
-the agent needs structured data.
+Service URI absent" if the app is not running. Output is human-readable
+(formatted lines) by default; `telescope:tail` and `telescope:events`
+print one JSON object per line with `--json`. Prefer the MCP tools when
+the agent needs structured data, and `--json` when it needs the `atUs`
+cursor.
 
 ## Contents
 
@@ -29,6 +31,7 @@ the agent needs structured data.
 - [telescope:dumps](#telescopedumps)
 - [telescope:frames](#telescopeframes)
 - [telescope:clear](#telescopeclear)
+- [telescope:files](#telescopefiles)
 - [Why exceptions is MCP-only](#why-exceptions-is-mcp-only)
 - [Common output behaviour](#common-output-behaviour)
 
@@ -44,6 +47,7 @@ the agent needs structured data.
 - [`telescope:dumps`](#telescopedumps)
 - [`telescope:frames`](#telescopeframes)
 - [`telescope:clear`](#telescopeclear)
+- [`telescope:files`](#telescopefiles)
 - [Why exceptions is MCP-only](#why-exceptions-is-mcp-only)
 - [Common output behaviour](#common-output-behaviour)
 
@@ -112,10 +116,15 @@ Print recent log records.
 
 | Flag | Default | Help |
 |---|---|---|
-| `--level=<NAME>` | (none, no filter) | Minimum-threshold filter, accepts `info`, `warning`, `severe`, `shout`, `fine`, etc. |
-| `--limit=<N>` | `50` | Max records to print (most-recent N from the buffer). |
+| `--level=<NAME>` | (none, no filter) | Minimum-threshold filter, accepts `info`, `warning`, `severe`, `shout`, `fine`, etc. A name that is not a level prints nothing. |
+| `--limit=<N>` | `50` | Max records to print (most-recent N from the buffer; with `--since`, the oldest N after it). |
+| `--since=<atUs>` | (none) | Only records whose `atUs` (microseconds) is greater than this. A non-integer value is refused. |
+| `--logger=<name>` | (none) | Only records of this exact logger name. |
+| `--json` | off | Print one JSON object per line (the record's `toJson()`, `atUs` and `redacted` included) instead of formatted text. |
+| `--follow` | off | Keep polling every second from the cursor the previous read returned, until interrupted. Drops `--limit` after the first read. |
 
-**VM extension:** `ext.telescope.console`.
+**VM extension:** `ext.telescope.console`. The filters run on the app
+side before `limit`.
 
 **Output format:** one line per record:
 
@@ -124,6 +133,8 @@ Print recent log records.
 ```
 
 **Empty-buffer hint:** `"No log records."` (warning style, exit 0).
+Suppressed under `--json` and `--follow`, where an empty poll prints
+nothing.
 
 **Exit codes:** always `0` (success or empty).
 
@@ -131,6 +142,7 @@ Print recent log records.
 
 ```bash
 ./bin/fsa telescope:tail --level=warning --limit=20
+./bin/fsa telescope:tail --logger=Sync --json --follow
 ```
 
 ---
@@ -255,9 +267,14 @@ Print recent in-app events dispatched through Magic's `Event` facade.
 
 | Flag | Default | Help |
 |---|---|---|
-| `--limit=<N>` | `50` | Max records to print. |
+| `--limit=<N>` | `50` | Max records to print (most-recent N; with `--since`, the oldest N after it). |
+| `--since=<atUs>` | (none) | Only records whose `atUs` (microseconds) is greater than this. |
+| `--type=<prefix>` | (none) | Only event types that start with this prefix. |
+| `--json` | off | Print one JSON object per line (payload as JSON, `atUs` and `redacted` included). |
+| `--follow` | off | Keep polling every second from the last cursor until interrupted. |
 
-**VM extension:** `ext.telescope.events`.
+**VM extension:** `ext.telescope.events`. The filters run on the app
+side before `limit`.
 
 **Output format:**
 
@@ -268,8 +285,15 @@ Print recent in-app events dispatched through Magic's `Event` facade.
 `listeners=<N>` is omitted when the watcher did not record a count.
 
 **Empty-buffer hint:** `"No event records (register MagicEventWatcher)."`
+Suppressed under `--json` and `--follow`.
 
 **Exit codes:** always `0`.
+
+**Example:**
+
+```bash
+./bin/fsa telescope:events --type=Auth --since=81234567 --json
+```
 
 ---
 
@@ -341,9 +365,55 @@ Cleared telescope buffers.
 
 ---
 
+## telescope:files
+
+List the timeline files of the running app's `TelescopeFileSink`, or print
+the lines of one. Reads through `ext.telescope.files` and
+`ext.telescope.file`, so a name is only ever one the sink listed.
+
+**Flags:**
+
+| Flag | Default | Help |
+|---|---|---|
+| `--name=<file>` | (none) | Print the lines of this file, as listed, instead of the list. |
+| `--offset=<n>` | `0` | Byte offset to start reading from: `0` or a previous `next`. |
+
+**VM extensions:** `ext.telescope.files` (`{files: [{name, bytes}]}`, newest
+first, earlier launches included) and `ext.telescope.file`
+(`{lines, next}`, whole lines within 64 KiB of the offset).
+
+**Output format:** the list prints one `<name> <bytes>` line per file:
+
+```
+timeline-20261010T091500Z-1.jsonl 4096
+timeline-20261010T091500Z-0.jsonl 1048512
+```
+
+With `--name`, it prints each JSONL line as stored
+(`{"kind":"log",...}`), then `next offset: <n>` at `-v` only. Pass that
+number as `--offset` to continue; at the end of the file no lines print
+and `next` equals the offset.
+
+**Empty hint:** `"No timeline files."` (warning, exit 0).
+
+**Errors:** when no sink runs the command prints the extension's message
+(`No timeline file sink is running.`) and exits `1`, not a stack. A name
+the sink did not list, a negative offset or a bad `maxBytes` all answer
+one fixed message (`Unknown timeline file, or offset or maxBytes out of
+range.`), exit `1`.
+
+**Example:**
+
+```bash
+./bin/fsa telescope:files
+./bin/fsa telescope:files --name=timeline-20261010T091500Z-0.jsonl -v
+```
+
+---
+
 ## Why exceptions is MCP-only
 
-V1 ships 10 CLI commands and 10 MCP tools. `exceptions` is the one buffer
+V1 ships 11 CLI commands and 10 MCP tools. `exceptions` is the one buffer
 without a `telescope:*` mirror: its records carry full stack traces that do
 not fit a single line. From a shell, `dusk:exceptions` reads the same buffer.
 
@@ -360,9 +430,13 @@ not fit a single line. From a shell, `dusk:exceptions` reads the same buffer.
   hint message; the human-facing wording signals the cause. Scripting
   against an empty buffer must grep the output, not the exit code.
 
-- **No JSON output.** Use the MCP tools when the agent needs
-  structured data. The CLI is for the human at the keyboard or for
-  one-shot inspection.
+- **JSON only where asked.** `telescope:tail` and `telescope:events`
+  print JSON lines with `--json`; every other command prints formatted
+  text. Use the MCP tools when the agent needs structured data from the
+  other buffers. `--follow` (tail, events) polls until the process is
+  interrupted, so run it in the background or under a timeout. The
+  loop behind it, `followCursor`, is exported from
+  `package:fluttersdk_telescope/cli.dart`.
 
 - **Stale AOT recovery.** If `./bin/fsa telescope:<cmd>` deadlocks on
   the lock file, run `rm -rf .artisan/.fsa.lock && ./bin/fsa list` to

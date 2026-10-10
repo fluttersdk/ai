@@ -1,6 +1,6 @@
 # MCP tool reference
 
-Per-tool schema, response envelope, and example calls for the 9
+Per-tool schema, response envelope, and example calls for the 10
 `telescope_*` MCP tools. Every read tool returns a single
 `{"<key>": [<record>, ...]}` JSON object inside a single `text` content
 block; parse the `text` body as JSON before reasoning over fields.
@@ -88,6 +88,12 @@ Structured log records from `package:logging`.
 | `level` | string | no filter | Minimum-threshold filter. Uppercase names from `package:logging` (`FINEST`, `FINER`, `FINE`, `CONFIG`, `INFO`, `WARNING`, `SEVERE`, `SHOUT`). Case-insensitive inside the handler. |
 | `limit` | integer | whole buffer | Cap on records returned. |
 
+The extension also accepts `since` (an `atUs`, microseconds, exclusive)
+and `logger` (exact name), but the tool descriptor declares neither; from
+a shell use `telescope:tail --since --logger --json --follow`. With
+`since`, `limit` keeps the OLDEST N after it (plus any ties on the last
+`atUs`); without, the newest N.
+
 **Response:**
 
 ```json
@@ -99,16 +105,23 @@ Structured log records from `package:logging`.
       "message": "User 42 reload returned no data",
       "loggerName": "UserController",
       "time": "2026-05-25T09:14:22.318Z",
+      "atUs": 81234567,
+      "redacted": false,
       "error": "...",
       "stackTrace": "..."
     }
-  ]
+  ],
+  "cursor": 81234567
 }
 ```
 
+`cursor` is the largest `atUs` returned, else the `since` given, else
+`null`; pass it back as `since` to read only newer records.
+
 **Level threshold semantics:** `level: "WARNING"` returns WARNING (900)
 + SEVERE (1000) + SHOUT (1200) only. `level: "INFO"` adds INFO (800) on
-top. Omit `level` to get every level.
+top. Omit `level` to get every level. A `level` that is not one of the
+eight names matches nothing and returns `{"messages": [], "cursor": null}`.
 
 **Capture gate:** `LogWatcher` sets `Logger.root.level = Level.ALL`,
 so every record is captured regardless of named-logger thresholds.
@@ -182,6 +195,11 @@ In-app events dispatched through Magic's `Event` facade.
 |---|---|---|---|
 | `limit` | integer | whole buffer | Cap on records returned. |
 
+The extension also accepts `since` (an `atUs`, microseconds, exclusive)
+and `type` (prefix of `eventType`), but the tool descriptor declares
+neither; from a shell use `telescope:events --since --type --json
+--follow`.
+
 **Response:**
 
 ```json
@@ -191,11 +209,17 @@ In-app events dispatched through Magic's `Event` facade.
       "eventType": "AuthLoginSucceeded",
       "payload": {},
       "time": "2026-05-25T09:14:22.318Z",
-      "listenerCount": 3
+      "listenerCount": 3,
+      "atUs": 81234567,
+      "redacted": false
     }
-  ]
+  ],
+  "cursor": 81234567
 }
 ```
+
+`cursor` works as on `telescope_tail`. Payload values `jsonEncode`
+cannot write are stored as their `toString()`.
 
 **Coverage:** `MagicEventWatcher` listens for `AuthLogin`,
 `AuthLogout`, `AuthFailed`, `AuthRestored`, `DatabaseConnected`,
@@ -452,18 +476,26 @@ tools in V1. Reach for them only from Dart code via
   entries evict silently on overflow. Without `limit`, the response
   carries up to 500 records per buffer.
 
-- **Bad input is silent.** Invalid `limit` (non-numeric string)
-  coerces to null, returning the whole buffer. Invalid `level` (a name
-  not in the `package:logging` order list) is also lenient and returns
-  the whole buffer, not empty: `_meetsLevel` resolves the threshold
-  with `List.indexOf` and falls back to `-1` on a miss, so every
-  captured level (indices 0..7) passes the `actual >= min` check. No
-  error envelope is emitted; the handler always returns
-  `ServiceExtensionResponse.result`.
+- **Bad input.** Invalid `limit` (non-numeric string) coerces to null,
+  returning the whole buffer; a zero or negative `limit` returns
+  nothing. An unknown `level` (a name not in the `package:logging`
+  order list) matches nothing, so an empty answer is not proof of a
+  clean log: check the name. A `since` that is not an integer is
+  refused with `kInvalidParams` ("since must be an integer number of
+  microseconds."), never read as "from the start".
 
-- **Hot-restart safety.** All 12 extensions register via
+- **Hot-restart safety.** All 14 extensions register via
   `registerExtensionIdempotent` from `fluttersdk_artisan`. Hot
   restart re-runs the install code without re-registration errors.
+
+- **Redaction.** Log, event, exception and HTTP records are run through
+  the host's `TelescopeRedaction.redactor` at insert, when one is set,
+  and carry `redacted: true`. A record the redactor threw on is dropped
+  and never appears.
+
+- **Timeline files have no MCP tool.** `ext.telescope.files` and
+  `ext.telescope.file` read the host's `TelescopeFileSink` (answering
+  `{error}` when none runs) and are reached with `telescope:files`.
 
 - **Pause / resume gating.** When `TelescopeStore.pause()` is called
   (no MCP tool, Dart-only), all `recordX` methods early-return. The

@@ -1,11 +1,11 @@
 ---
 name: fluttersdk-telescope
-description: "fluttersdk_telescope: passive runtime inspector for Flutter apps. Lets an LLM agent read what the app captured (HTTP traffic, structured logs, uncaught exceptions, debug dumps, in-app events, gate checks, DB queries, Magic Cache ops) by calling 10 MCP tools (`telescope_*`) or 10 CLI commands (`./bin/fsa telescope:*`). Records land in 10 in-memory ring buffers with FIFO eviction (500 entries each, except the frame-perf buffer at 3600, about a minute at 60fps) backed by `ext.telescope.*` VM Service extensions. Pairs with fluttersdk_dusk: dusk drives the app, telescope reads the side effects. TRIGGER when: any `telescope_*` MCP tool call, any `telescope:*` CLI command, the user asks the agent to inspect HTTP / logs / exceptions / events / queries / cache / dump output from a running Flutter app, the user mentions ring buffer / TelescopeStore / ext.telescope, or the conversation pairs with dusk for state verification after a gesture. DO NOT TRIGGER when: only authoring flutter_test widget tests, only driving the UI without reading captured state (use fluttersdk-dusk), or only modifying Dart source without running it."
-version: 0.0.10
-when_to_use: "Any task that reads runtime state from a running Flutter app via telescope: calling `telescope_*` MCP tools to inspect HTTP / logs / exceptions / events / gates / dumps / queries / caches, invoking `./bin/fsa telescope:*` from a shell, pairing with dusk to verify side effects after a gesture, filtering logs by minimum level (FINE/INFO/WARNING/SEVERE/SHOUT), or clearing buffers before a repro."
+description: "fluttersdk_telescope: passive runtime inspector for Flutter apps. Lets an LLM agent read what the app captured (HTTP traffic, structured logs, uncaught exceptions, debug dumps, in-app events, gate checks, DB queries, Magic Cache ops) by calling 10 MCP tools (`telescope_*`) or 11 CLI commands (`./bin/fsa telescope:*`). Records land in 10 in-memory ring buffers with FIFO eviction (500 entries each, except the frame-perf buffer at 3600, about a minute at 60fps) backed by 14 `ext.telescope.*` VM Service extensions, with an optional redacted JSONL timeline on disk (`TelescopeFileSink`, `telescope:files`). Pairs with fluttersdk_dusk: dusk drives the app, telescope reads the side effects. TRIGGER when: any `telescope_*` MCP tool call, any `telescope:*` CLI command, the user asks the agent to inspect HTTP / logs / exceptions / events / queries / cache / dump output from a running Flutter app, the user mentions ring buffer / TelescopeStore / ext.telescope, or the conversation pairs with dusk for state verification after a gesture. DO NOT TRIGGER when: only authoring flutter_test widget tests, only driving the UI without reading captured state (use fluttersdk-dusk), or only modifying Dart source without running it."
+version: 0.0.11
+when_to_use: "Any task that reads runtime state from a running Flutter app via telescope: calling `telescope_*` MCP tools to inspect HTTP / logs / exceptions / events / gates / dumps / queries / caches, invoking `./bin/fsa telescope:*` from a shell, pairing with dusk to verify side effects after a gesture, filtering logs by minimum level (FINE/INFO/WARNING/SEVERE/SHOUT), following a buffer with `--since` / `--follow`, reading the timeline files with `telescope:files`, or clearing buffers before a repro."
 ---
 
-<!-- fluttersdk_telescope v0.0.10 | Skill updated: 2026-10-09 -->
+<!-- fluttersdk_telescope v0.0.11 | Skill updated: 2026-10-10 -->
 
 # fluttersdk_telescope
 
@@ -18,7 +18,8 @@ read those buffers on demand, without touching the source or attaching
 DevTools.
 
 This skill assumes the app already has telescope installed (a
-`kDebugMode`-gated `TelescopePlugin.install()` in `lib/main.dart`, the
+mode-guarded `TelescopePlugin.install()` in `lib/main.dart`: `kDebugMode`
+from the installer, `!kReleaseMode` when profile builds need it, the
 MCP server in `.mcp.json`). If not, run
 `dart run fluttersdk_telescope telescope:install` once from the app root,
 restart, and verify with `./bin/fsa telescope:tail`.
@@ -67,15 +68,28 @@ restart, and verify with `./bin/fsa telescope:tail`.
 4. **Parameters are minimal: `limit` everywhere, `level` only on tail.**
    `limit: <int>` caps the response (omit to read the whole buffer, up
    to the ring's 500-entry cap). The handler parses with
-   `int.tryParse`, so a bad value silently falls back to "whole
-   buffer". `level: "<NAME>"` (only on `telescope_tail`) is a minimum-
-   threshold filter against `package:logging` names: `FINEST` (300),
+   `int.tryParse`, so a non-numeric value silently falls back to "whole
+   buffer"; a zero or negative `limit` returns nothing. `level: "<NAME>"` (only on `telescope_tail`) is a minimum-
+   threshold filter against `package:logging` names (a name that is not
+   one of them matches NOTHING, an empty answer, not the whole buffer): `FINEST` (300),
    `FINER` (400), `FINE` (500), `CONFIG` (700), `INFO` (800), `WARNING`
    (900), `SEVERE` (1000), `SHOUT` (1200). `level: "WARNING"` returns
    WARNING + SEVERE + SHOUT only. Comparison is case-insensitive inside
    the handler; uppercase is the convention. Records below the
    threshold are filtered after capture, the buffer still holds them
    (no recapture needed for a later, looser query).
+
+   The extensions behind `telescope_tail` and `telescope_events` take
+   more than the MCP descriptors declare, and the CLI exposes it:
+   `since` (an `atUs` in microseconds, exclusive), `logger` (exact name,
+   tail) and `type` (event type prefix, events). Both answer a `cursor`
+   (the largest `atUs` returned, else the `since` given, else null);
+   passing it back as `since` yields only newer records. With `since`,
+   `limit` keeps the OLDEST N after it so paging skips nothing; without
+   it, the newest N. A `since` that is not an integer is refused with
+   `invalidParams`. From a shell:
+   `./bin/fsa telescope:tail --since=<cursor> --logger=<name> --json`,
+   `telescope:events --type=<prefix>`, and `--follow` to keep polling.
 
 5. **Order is chronological, oldest at index 0.** The handler reads the
    queue in insertion order without reversing, then truncates from the
@@ -85,8 +99,10 @@ restart, and verify with `./bin/fsa telescope:tail`.
    pre-0.0.3 "newest-first" shorthand was retired).
 
 6. **Buffers are 500-entry FIFO rings, cleared atomically.** Each
-   buffer caps at 500; oldest evicts on overflow with no warning, no
-   callback, no disk fallback. `telescope_clear` returns
+   buffer caps at 500 by default (the host can change it with
+   `TelescopeStore.setCapacity(n, kind: TelescopeKind.x)`); oldest
+   evicts on overflow with no warning and no callback. The only disk
+   fallback is the optional file sink (Law 9). `telescope_clear` returns
    `{"cleared": true}` after wiping all 10 buffers in one call; use it
    as a "set zero" before reproducing a bug. `ext.telescope.pause` and
    `.resume` exist as VM extensions but are deliberately not surfaced
@@ -118,7 +134,33 @@ restart, and verify with `./bin/fsa telescope:tail`.
    missing header is absent from `requestHeaders`, a masked one was sent.
    An empty credential (null, `false`, `''`, `[]`, `{}`) stays visible.
 
-## 2. Tool surface (10 MCP tools, 10 CLI commands)
+   The host may also set `TelescopeRedaction.redactor`, a
+   `String Function(String)` run at insert over every text field of the
+   log, event, exception and HTTP records, event payload keys included.
+   Its output is what you read, so a `[card]`-style placeholder in a log
+   line is the host's mask, not the app's value. A redactor that throws
+   makes telescope DROP the record (neither buffered nor emitted), so a
+   missing line right after a risky log call can mean a failing
+   redactor, not a quiet app. Every log, event, exception and HTTP
+   record carries a `redacted` boolean: true when the redactor ran.
+   Event payload values `jsonEncode` cannot write (`DateTime`,
+   `Duration`, any object) appear as their `toString()`.
+
+9. **The timeline on disk is opt-in and redacted-only.** When the host
+   runs `TelescopeFileSink.start(directory:, maxFileBytes:, maxFiles:)`,
+   log, event and exception records are also written as JSONL
+   (`{"kind": "log"|"event"|"exception", ...record}`) to rotating
+   `timeline-<launch>-<n>.jsonl` files that survive the ring buffers and
+   earlier launches. It writes only records with `redacted: true`
+   (counted in `droppedUnredacted` otherwise), and it halts on a write
+   failure (counted in `writeFailures`), so an empty or stale timeline
+   means check the redactor and the sink first. Read it with
+   `./bin/fsa telescope:files` (list) and
+   `telescope:files --name=<file> --offset=<next>` (lines; add `-v` to
+   see `next`). No sink running answers an error message. There is no
+   MCP tool for it.
+
+## 2. Tool surface (10 MCP tools, 11 CLI commands)
 
 | Family | MCP tool | CLI command | Captures |
 |---|---|---|---|
@@ -131,6 +173,7 @@ restart, and verify with `./bin/fsa telescope:tail`.
 | Queries | `telescope_queries` | `telescope:queries` | DB queries through Magic's QueryBuilder via the `QueryExecuted` event. Raw `sqlite3` / `drift` bypasses this. |
 | Cache | `telescope_caches` | `telescope:caches` | Magic Cache ops (placeholder, see Law 7). |
 | Frames | `telescope_frames` | `telescope:frames` | Per-frame build/raster/vsync micros plus a block-attribution map, joined from `SchedulerBinding` timings and a `FlutterTimeline` drain. Each block carries inclusive `micros` and exclusive `selfMicros` (children subtracted). Opt-in: register `FramePerfWatcher` yourself. Every response also carries `livenessCounter`, a monotonic count of frames actually drawn, and it is on an empty response too: without it an empty result cannot distinguish a quiet app from a stalled engine. Every record also carries `atUs` (a `FlutterTimeline.now` monotonic timestamp) and a `vsyncStartUs`, plus the optional `interactionId`/`linkedBy` pair. This buffer holds 3600, not 500. |
+| Timeline files | (no MCP; `ext.telescope.files` / `.file`) | `telescope:files` | The host's `TelescopeFileSink` JSONL files: list them, or print the lines of one by `--name` and `--offset`. Redacted log, event and exception records only. Needs a running sink. |
 | Reset | `telescope_clear` | `telescope:clear` | Wipes all 10 buffers atomically. |
 | Install | (no MCP) | `telescope:install` | Bootstraps the plugin in a fresh consumer: patches `lib/main.dart`, scaffolds `bin/dispatcher.dart` / `bin/fsa`, registers the artisan plugin. |
 
@@ -198,6 +241,20 @@ For Magic-stack debugging this is the canonical "what just happened" view.
 Read in order: events name the intent, queries / requests show the
 persistence side, gates show the authorization decisions.
 
+### D. Follow a live signal (CLI)
+
+```
+1. ./bin/fsa telescope:tail --logger=Sync --json --follow
+   or ./bin/fsa telescope:events --type=Auth --follow
+   One JSON object per line, polled every second from the last cursor
+   until interrupted. Run it in the background while driving the app.
+2. ./bin/fsa telescope:tail --since=<atUs of the last line you read>
+   Resume later without re-reading: records come back oldest first.
+```
+
+Prefer this over repeated unfiltered reads when the signal is a stream
+rather than a single repro.
+
 ## 4. Pairing with dusk
 
 Dusk drives, telescope reads. Both share the same VM Service connection
@@ -250,7 +307,9 @@ dart run fluttersdk_telescope telescope:install
 ```
 
 `telescope:install` injects the following into `lib/main.dart`, all gated
-by `if (kDebugMode)` so release builds tree-shake the entire block. The
+by `if (kDebugMode)` so release builds tree-shake the entire block (a
+hand-written guard can be `!kReleaseMode` to keep profile builds, as
+`magic_devtools` does). The
 `package:magic_devtools/telescope.dart` import and the
 `MagicTelescopeIntegration.install()` block are injected only for
 Magic-stack projects (detected when `magic_devtools` is in pubspec and

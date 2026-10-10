@@ -16,6 +16,8 @@ order goes from highest-frequency to specialised.
 - [8. Reading Magic model lifecycle via events](#8-reading-magic-model-lifecycle-via-events)
 - [9. Network-idle without telescope](#9-network-idle-without-telescope)
 - [10. Sentry / Bugsnag coexistence](#10-sentry--bugsnag-coexistence)
+- [11. Follow a buffer with a cursor](#11-follow-a-buffer-with-a-cursor)
+- [12. Read the timeline on disk](#12-read-the-timeline-on-disk)
 
 ---
 
@@ -128,6 +130,10 @@ Recovery pattern: hunt with `level: "SEVERE"` first to find the worst,
 then re-query with `level: "WARNING"` to read the breadcrumb context,
 then drop the filter when you need full FINE-level tracing. The buffer
 holds everything; no recapture is needed.
+
+An unknown level name matches nothing (an empty answer), not every
+level: when a filtered read comes back empty, check the spelling before
+concluding the log is clean.
 
 Levels and their values (low to high):
 `FINEST` (300), `FINER` (400), `FINE` (500), `CONFIG` (700),
@@ -284,3 +290,49 @@ that never re-threw or logged. Trace the breadcrumb in
 When `uninstall()` is called on a watcher (rare in V1; mostly for
 test isolation), the previous handler is restored exactly. The chain
 is non-destructive.
+
+---
+
+## 11. Follow a buffer with a cursor
+
+`ext.telescope.console` and `ext.telescope.events` answer a `cursor`, the
+largest `atUs` returned, so a reader never re-reads or skips a record.
+The CLI wraps it:
+
+```bash
+# Stream one logger as JSON lines until interrupted (run in the background).
+./bin/fsa telescope:tail --logger=Sync --json --follow
+
+# Page by hand: read, keep the cursor, read again from it.
+./bin/fsa telescope:events --type=Auth --json --limit=20
+./bin/fsa telescope:events --type=Auth --json --since=<atUs of the last line>
+```
+
+With `--since`, `--limit` keeps the OLDEST N after the cursor, so paging
+skips nothing; without it, the newest N of what matched. `--follow` polls
+every second and drops `--limit` after the first read; an empty poll
+prints nothing and keeps the cursor. The MCP tools do not declare
+`since`, `type` or `logger`, so this loop is CLI (or raw VM extension)
+only.
+
+---
+
+## 12. Read the timeline on disk
+
+When the host runs a `TelescopeFileSink`, the redacted log, event and
+exception records outlive the ring buffers and the launch:
+
+```bash
+./bin/fsa telescope:files                                  # newest first
+./bin/fsa telescope:files --name=timeline-20261010T091500Z-0.jsonl -v
+./bin/fsa telescope:files --name=<same file> --offset=<next offset>
+```
+
+Each line is `{"kind": "log"|"event"|"exception", ...}` with `atUs`
+where the record has one; join across kinds on `atUs`. `next offset` (at
+`-v`) is where to continue; at the end of the file no lines print.
+Earlier launches are listed too, so a crash from the last run is still
+readable. If the list is empty or the command answers "No timeline file
+sink is running.", the host has not started a sink; if the sink runs but
+stays empty, the host has set no `TelescopeRedaction.redactor` (the sink
+writes only redacted records) or the sink halted on a write failure.
