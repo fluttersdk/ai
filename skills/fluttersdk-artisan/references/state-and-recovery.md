@@ -274,6 +274,28 @@ slow, and `artisan_logs` shows what it printed. From Bash the scrape window
 itself is adjustable: `./bin/fsa start -d chrome --timeout=180`. The MCP
 tool has no timeout parameter, so that path is CLI-only.
 
+The CLI reaches the same state on its own when `--timeout` runs out while
+flutter run is still alive (a cold macOS or iOS build): `start` prints
+`flutter run (pid <n>) is still building after <n>s` and exits 75, the
+"retry later" code. Treat it like the interrupted start above. Exit 1 with
+`exited before announcing a VM Service URI` is the real failure: read the log.
+
+### `<ext> is not registered in the running app yet`
+
+Cause: a connected command called an `ext.*` extension the app has not
+registered (JSON-RPC `-32601`). Usually the app is still booting and the
+plugin registers it a moment later; a release build or a plugin missing from
+the app answers the same way. The CLI prints this one line and exits 75.
+
+```
+<wait a few seconds>
+<retry the command>    # succeeds once the extension is registered
+```
+
+If it never clears, the app is a release build or the plugin is not
+installed in it. Plugin code can catch `ExtensionNotRegisteredException`
+from `ctx.callExtension` to wait instead of failing.
+
 ### `state.json missing vmServiceUri`
 
 Cause: a state file that records no URI and carries no `booting` marker, so

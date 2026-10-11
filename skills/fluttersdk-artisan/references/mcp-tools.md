@@ -155,7 +155,11 @@ another app is recorded (pid=12345). Run `artisan stop` first.
 ```
 
 Other documented error messages: `Failed to capture child PIDs from start
-wrapper`, `Timed out after 90s waiting for VM Service URI`,
+wrapper`, `flutter run (pid <n>) is still building after <n>s` (exit 75: the
+session stays booting, retry a connected tool once the build finishes),
+`flutter run (pid <n>) exited before announcing a VM Service URI` (exit 1:
+read the log; the session is removed),
+`Timed out after 90s waiting for VM Service URI` (CDP path),
 `--cdp-port expects an integer port number, got "..."`,
 `--cdp-port requires --device=chrome or --device=web-server`,
 `Flutter SDK <X> is older than 3.30.0` (CDP path),
