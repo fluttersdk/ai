@@ -1,4 +1,4 @@
-<!-- magic_deeplink v0.1.6 | Updated: 2026-10-09 -->
+<!-- magic_deeplink v0.1.7 | Updated: 2026-10-13 -->
 
 # magic_deeplink Plugin
 

@@ -1,4 +1,4 @@
-<!-- magic_payments v0.0.8 | Updated: 2026-10-09 -->
+<!-- magic_payments v0.0.11 | Updated: 2026-10-13 -->
 
 # magic_payments Plugin
 
@@ -26,10 +26,10 @@ The backend half of the same contract lives in `magic-starter-laravel` (`api/v1/
 
 ```yaml
 dependencies:
-  magic_payments: ^0.0.8
+  magic_payments: ^0.0.11
 ```
 
-0.0.8 pins `magic ^0.0.27` and `fluttersdk_artisan ^0.0.19`, the newest of each at that release, and `purchases_flutter ^10.15.1` for the store rail.
+0.0.11 pins `magic ^0.0.28` and `fluttersdk_artisan ^0.0.20`, the newest of each at that release, and `purchases_flutter ^10.15.1` for the store rail.
 
 ```bash
 # Register the plugin's artisan provider with the app dispatcher (once)
@@ -214,6 +214,8 @@ A RevenueCat promotional grant (`rc_promo_...`) is no store's subscription and t
 | `pending` | The store accepted but has not settled it (parental approval, deferred payment). Not a failure to retry. |
 | `receiptInUse` | The receipt belongs to another paying account. |
 | `alreadyOwned` | The customer already holds the product. |
+| `paymentDeclined` | 0.0.10+. A plan change charged at once (an upgrade or a cycle change on magic-starter-laravel 0.0.28+) was declined by the card (`402`, `billing.reason` `payment_failed`); nothing changed. The message is the producer's localised sentence. |
+| `paymentRequiresAction` | 0.0.10+. The same charge needed a 3D Secure confirmation an in-place change cannot ask for (`402`, `payment_requires_action`); nothing changed. |
 | `network` | The request or its answer never arrived. |
 | `store` | The store refused for a reason none of the above names. |
 | `unknown` | No cause named. |
@@ -239,7 +241,7 @@ A RevenueCat promotional grant (`rc_promo_...`) is no store's subscription and t
 | `BillingErrorCode` | see [Typed errors](#typed-errors) | Client-side only. |
 | `InvoiceStatus` | `paid`, `pending`, `failed` | |
 
-`StoreProductOffer` carries the store's own answer: `priceString` (localized, render this), `currencyCode`, `price` (for arithmetic, not display), `subscriptionPeriod` (ISO 8601, `P1M`, `null` for a product that does not renew) and the intro fields `introPrice`, `introPriceString`, `introPeriod`.
+`StoreProductOffer` carries the store's own answer: `priceString` (localized, render this), `currencyCode`, `price` (for arithmetic, not display), `subscriptionPeriod` (ISO 8601, `P1M`, `null` for a product that does not renew) and the intro fields `introPrice`, `introPriceString`, `introPeriod`, plus `introEligible` (0.0.9+, default `false`): `true` only when the store says THIS customer may take the introductory offer, so show intro copy only when it is `true`. On the App Store only a definite `eligible` answer counts; on Play a present intro price counts as eligible, since Play offers only what the account may take. A failed eligibility read leaves every offer `false`.
 
 Other models: `PurchaseContext`, `BillingCheckoutSession`, `BillingInvoicesPage` (`invoices` + `nextCursor`), `Invoice`, `PaymentMethod`, `UsageStat`.
 

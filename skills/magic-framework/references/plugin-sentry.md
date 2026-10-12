@@ -1,4 +1,4 @@
-<!-- magic_sentry v0.0.3 | Updated: 2026-10-09 -->
+<!-- magic_sentry v0.0.4 | Updated: 2026-10-13 -->
 
 # magic_sentry Plugin
 
@@ -21,10 +21,10 @@ The package is generic on purpose: it has no user model, team or tag of its own.
 
 ```yaml
 dependencies:
-  magic_sentry: ^0.0.2
+  magic_sentry: ^0.0.4
 ```
 
-0.0.3 pins `magic ^0.0.27`, the newest at that release; the real requirement is still `magic` 0.0.22, the first release with `Event.listenAny` and `ReportsBreadcrumb`. It also pins `sentry_flutter` / `sentry_dio` `^9.27.0`.
+0.0.4 pins `magic ^0.0.28`, the newest at that release; the real requirement is still `magic` 0.0.22, the first release with `Event.listenAny` and `ReportsBreadcrumb`. It also pins `sentry_flutter` / `sentry_dio` `^9.27.0`.
 
 ```bash
 dart run <app>:artisan plugin:install magic_sentry

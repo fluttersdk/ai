@@ -1,8 +1,8 @@
-<!-- magic_starter v0.0.40 | Updated: 2026-10-09 -->
+<!-- magic_starter v0.0.43 | Updated: 2026-10-13 -->
 
 # magic_starter Plugin
 
-Full-stack Flutter starter kit for Magic Framework: pre-built auth flows, team management, profile settings, billing, and responsive app/guest layouts with an opt-in feature flag system. The notification UI moved to `magic_notifications` in alpha.25; this package mounts it. From 0.0.40 every sibling floor names the newest release at that point: `magic ^0.0.27`, `magic_notifications ^0.3.8`, `magic_payments ^0.0.8`, `fluttersdk_wind ^1.8.1` and `fluttersdk_artisan ^0.0.19`. The `magic_payments` floor is a real requirement: the billing screen purchases by catalogue product key and reads `StoreBillingService.products()`, `store` and `lastChangeTiming`, all new in 0.0.8, so 0.0.40 does not compile against 0.0.7 (see [Billing](#billing)). The real `magic` requirement is 0.0.24: the starter reads `AuthRestored.changed` to skip the app reload when a restore left the user unchanged. Underneath it sit older ones: `SessionScope`, `SessionScoped`, the keyed `LatestRead` and `BaseGuard.cacheUser` arrive in magic 0.0.22, `Notify.pushState` in magic_notifications 0.3.5, and `StoreIdentitySync` in magic_payments 0.0.5. Two more carry a requirement older than the batch that set them. Wind is declared DIRECTLY, rather than taken through `magic`, so a floor exists to raise when this package calls a new Wind API: 0.0.28 passes `WSelect.onOpen`, which 1.6.0 adds. And `magic` has needed 0.0.12 since 0.0.29, for two reasons rather than one: `RouteDefinition.stacked()` exists in no release below it, and 0.0.12 is also where a routed page stopped being transparent, which is the defect stacking a route would otherwise expose.
+Full-stack Flutter starter kit for Magic Framework: pre-built auth flows, team management, profile settings, billing, and responsive app/guest layouts with an opt-in feature flag system. The notification UI moved to `magic_notifications` in alpha.25; this package mounts it. From 0.0.43 every sibling floor names the newest release at that point: `magic ^0.0.28`, `magic_notifications ^0.3.9`, `magic_payments ^0.0.11`, `fluttersdk_wind ^1.8.4` and `fluttersdk_artisan ^0.0.20`. The `magic_payments` floor carries real requirements underneath: the billing screen purchases by catalogue product key and reads `StoreBillingService.products()`, `store` and `lastChangeTiming`, all new in 0.0.8, so 0.0.40 does not compile against 0.0.7 (see [Billing](#billing)); 0.0.41 needs 0.0.9 for `StoreProductOffer.introEligible`, which the trial copy reads (see [Trials](#trials-0041)); and 0.0.42 needs 0.0.10 for the swap refusal codes (see [Changing a web plan](#changing-a-web-plan-0042)). The Wind floor is a real requirement from 0.0.43 too: the auth forms pass `autofillHints` to `WInput` and `WFormInput`, which Wind 1.8.3 adds. The real `magic` requirement is 0.0.24: the starter reads `AuthRestored.changed` to skip the app reload when a restore left the user unchanged. Underneath it sit older ones: `SessionScope`, `SessionScoped`, the keyed `LatestRead` and `BaseGuard.cacheUser` arrive in magic 0.0.22, `Notify.pushState` in magic_notifications 0.3.5, and `StoreIdentitySync` in magic_payments 0.0.5. Two more carry a requirement older than the batch that set them. Wind is declared DIRECTLY, rather than taken through `magic`, so a floor exists to raise when this package calls a new Wind API: 0.0.28 passes `WSelect.onOpen`, which 1.6.0 adds. And `magic` has needed 0.0.12 since 0.0.29, for two reasons rather than one: `RouteDefinition.stacked()` exists in no release below it, and 0.0.12 is also where a routed page stopped being transparent, which is the defect stacking a route would otherwise expose.
 
 0.0.39 is BREAKING in three places, all from the redesigned social login and account deletion, and it needs a `magic-starter-laravel` with its `social-login` feature on. `MagicStarter.useSocialAuth(bridge)` replaces the old social login builder hook, with no alias. Every gated `MagicStarterProfileController` method takes a `proof` map where it took a `password`. `doDeleteAccount` schedules the deletion (a grace period a sign-in cancels), or runs it immediately when asked, rather than removing the account in the request. See [Social login and connected accounts](#social-login-and-connected-accounts) and [Identity confirmation and account deletion](#identity-confirmation-and-account-deletion).
 
@@ -20,6 +20,7 @@ Versions left the alpha rail at 0.0.27: `0.0.1-alpha.26` is followed by `0.0.27`
 - [Route middleware](#route-middleware)
 - [Plan upgrade wall](#plan-upgrade-wall)
 - [Billing](#billing)
+- [Support desk](#support-desk)
 - [Page geometry](#page-geometry)
 - [Controllers](#controllers)
 - [Social login and connected accounts](#social-login-and-connected-accounts)
@@ -216,14 +217,14 @@ All sub-theme classes live in `lib/src/configuration/magic_starter_theme.dart`. 
 | Method / Property | Signature | Description |
 |:------------------|:----------|:------------|
 | `useLogout(callback)` | `void` | Override the default logout handler in the app layout. |
-| `beforeLogout(hook)` | `void` | 0.0.37+. `Future<void> Function()`. Both user sign-out paths (the profile dropdown and `MagicStarterAuthController.logout()`) await every hook in registration order BEFORE a custom `useLogout()` callback and before `Auth.logout()`, while the token is still valid. Each is isolated (a throw is logged) and bounded to five seconds. When `magic_notifications` is bound and push-state reporting is configured, the provider registers `Notify.pushState.release` as a default hook. Account deletion runs none (the server already revoked the tokens), and neither does the `AuthInterceptor` sign-out after a failed refresh. |
+| `beforeLogout(hook)` | `void` | 0.0.37+. `Future<void> Function()`. Both user sign-out paths (the profile dropdown and `MagicStarterAuthController.logout()`) await every hook in registration order BEFORE a custom `useLogout()` callback and before `Auth.logout()`, while the token is still valid. Each is isolated (a throw is logged) and bounded to five seconds. When `magic_notifications` is bound and push-state reporting is configured, the provider registers `Notify.pushState.release` as a default hook. From 0.0.43 it also registers a hook that sends `POST /auth/logout` with the still-valid bearer whenever a token is held, after the push release (which needs the same token), so a sign-out revokes the token on the server instead of only forgetting it on the device; a refused or failed request is logged and the sign-out goes on. A host hook registered after this provider boots runs after the revoke, on a dead token. Account deletion runs none (the server already revoked the tokens), and neither does the `AuthInterceptor` sign-out after a failed refresh. |
 | `useLogin(callback)` | `void` | 0.0.37+. The `onLogin` hook; see the bootstrap table. |
 | `useGuestClaimed(callback)` | `void` | 0.0.37+. See [Guest Claim](#guest-claim). |
 | `useHeader(builder)` | `void` | Replace the default app layout header. Builder receives `(context, isDesktop)`. |
 | `useSidebarFooter(builder)` | `void` | Add widget between navigation and user menu in sidebar/drawer. Builder receives `(context)`. |
 | `useSocialAuth(bridge)` | `void` | 0.0.39+. Register the app's `MagicStarterSocialAuth` bridge (requires `features.social_login`). The starter renders the buttons itself; see [Social login and connected accounts](#social-login-and-connected-accounts). |
 | `socialAuth` | `MagicStarterSocialAuth?` | The registered bridge, or `null`. |
-| `useGuestAuthEntry(builder)` | `void` | Register custom widget for guest/anonymous login flows (requires `features.guest_auth`). |
+| `useGuestAuthEntry(builder)` | `void` | Stores a custom guest entry widget. No starter screen reads it yet: the login page's "Continue as guest" button is what `features.guest_auth` shows. |
 | `guestAuthEntryBuilder` | `Widget Function()?` | Get registered builder, or `null`. |
 | `useNewsletterLabel(label)` | `void` | Override the default newsletter checkbox label. |
 | `newsletterLabel` | `String?` | Get registered label, or `null`. |
@@ -274,6 +275,7 @@ Copy from `lib/config/magic_starter.dart` into your app config:
     'notifications': true,
     'timezones': false,
     'billing': false,          // gates `teams.billing` (alpha.23+ ships it in the generated stub)
+    'support': false,          // the support desk screens and the dropdown's Support item (0.0.43+)
   },
   'auth': {
     'email': true,    // Email-based login/register
@@ -313,7 +315,7 @@ Copy from `lib/config/magic_starter.dart` into your app config:
 },
 ```
 
-All 14 features default to `false` in code. The template above has some enabled as a reasonable starting point.
+All 15 features default to `false` in code. The template above has some enabled as a reasonable starting point.
 
 `billing.billable` (0.0.37+) picks who the store rail bills: the provider sets `StoreIdentitySync.billableId` from it in `register()`, and any value but `'user'` or `'team'` throws a `StateError`. `localization.apply_user_locale` cooperates with a profile save's own language switch, so one save still issues exactly one `Lang.setLocale()`.
 
@@ -351,7 +353,7 @@ MagicStarter.view.registerModal('modal.confirm', () => CustomConfirmDialog());
 
 ### Routes push, except where they deliberately do not (0.0.29+)
 
-Eleven routes are registered `.stacked()`, so they push and can be popped: the eight settings spokes, `teams/create`, `teams/settings`, and both notification screens. The Connected accounts page (0.0.39) is stacked too. `MagicRoute.to()` otherwise calls `go()`, which replaces the Navigator's whole page list, and a settings app was then never more than one page deep: no iOS edge swipe, and on Android the embedder unregisters its own back callback at a stack depth of one, so the system back button LEFT THE APP from a sub-page.
+Eleven routes are registered `.stacked()`, so they push and can be popped: the eight settings spokes, `teams/create`, `teams/settings`, and both notification screens. The Connected accounts page (0.0.39) is stacked too, and so are the support desk's create and thread pages (0.0.43), while its list replaces like the settings hub. `MagicRoute.to()` otherwise calls `go()`, which replaces the Navigator's whole page list, and a settings app was then never more than one page deep: no iOS edge swipe, and on Android the embedder unregisters its own back callback at a stack depth of one, so the system back button LEFT THE APP from a sub-page.
 
 Three groups keep replacing, each for a reason: the settings hub (a host commonly points a nav destination at it, and a pushing destination grows the stack per tab tap), `/invitations/:token/accept` (an arrival from an emailed link, with nothing behind it), and the six auth routes.
 
@@ -381,6 +383,9 @@ A stacked route names NO transition, which is the half a host controls. These ro
 | `teams.settings` | `features.teams` | `MagicStarterTeamSettingsView` |
 | `teams.invitation_accept` | `features.teams` | `MagicStarterTeamInvitationAcceptView` |
 | `teams.billing` | `features.billing` | `MagicStarterBillingView` |
+| `support.index` | `features.support` | `MagicStarterSupportIndexView` (0.0.43+). See [Support desk](#support-desk). |
+| `support.create` | `features.support` | `MagicStarterSupportCreateView` (0.0.43+) |
+| `support.thread` | `features.support` | `MagicStarterSupportThreadView` (0.0.43+) |
 
 `notifications.list` and `notifications.preferences` are NOT on this registry (alpha.25). They live on `Notify.view`, whose API is the same; move the override there.
 
@@ -629,7 +634,7 @@ Two guards ship ready to register as the `auth` and `guest` aliases in the app's
 | `EnsureAuthenticated` | a visitor away from a protected page | `MagicStarterConfig.loginRoute()` |
 | `RedirectIfAuthenticated` | a signed-in account away from a guest page | `MagicStarterConfig.homeRoute()` |
 
-Since 0.0.34 `RedirectIfAuthenticated` lets a user whose `is_guest` is true through: a guest session is signed in, and the login and registration pages are where it becomes an account. From the same release a guest gets Sign in and Create account at the top of `MSUserProfileDropdown` (the menu reads `is_guest`) and a Sign in row under the settings hub's upgrade row. The hub shows both of its guest rows when `Gate.denies('starter.delete-account')`, which is how the hub tells a guest: that ability is granted only when `is_guest != true` (see Gate Abilities), so it is denied for a guest and the rows appear. All of this only ever meets a guest when `features.guest_auth` is on, since nothing else creates one; on a default install (the flag is `false`) no user carries `is_guest` and none of it shows. Create account opens the profile route's in-place upgrade, so the guest keeps its own rows. `MagicStarterGuestAuthController.doGuestLogin` goes home without a request when the user is already a guest, because a second `POST /auth/guest` revokes every token of a returning guest, including one a host keeps to claim the guest's data at sign-in.
+Since 0.0.34 `RedirectIfAuthenticated` lets a user whose `is_guest` is true through: a guest session is signed in, and the login and registration pages are where it becomes an account. From the same release a guest gets Sign in and Create account at the top of `MSUserProfileDropdown` (the menu reads `is_guest`) and a Sign in row under the settings hub's upgrade row. The hub shows both of its guest rows when `Gate.denies('starter.delete-account')`, which is how the hub tells a guest: that ability is granted only when `is_guest != true` (see Gate Abilities), so it is denied for a guest and the rows appear. All of this only ever meets a guest when `features.guest_auth` is on, since nothing else creates one; on a default install (the flag is `false`) no user carries `is_guest` and none of it shows. Create account opens the profile route's in-place upgrade, so the guest keeps its own rows. `MagicStarterGuestAuthController.doGuestLogin` goes home without a request when the user is already a guest, because a second `POST /auth/guest` revokes every token of a returning guest, including one a host keeps to claim the guest's data at sign-in. From 0.0.43 it is `openGuestSession()` followed by `navigateHome()`; see [Auth Controller Key Methods](#auth-controller-key-methods).
 
 Both override `redirectTarget` (a pre-build synchronous redirect) rather than `handle` (a post-build remount), so a guarded page never mounts for someone who is about to be sent away. Each one guards its own destination so the redirect cannot loop, which matters because go_router raises after more than five successive redirects.
 
@@ -681,9 +686,9 @@ Copy comes from the `common.upgrade`, `common.upgrade_available_on`, and `common
 | `storeProducts(store)` | The sellable products that have an id in `store` (`ManageVia.appStore` or `ManageVia.playStore`). |
 | `storeProductFor(cycle, store)` | The same pick as `productFor`, among `storeProducts(store)`. |
 
-`MagicStarterProduct` (exported through `magic_starter_plan.dart`) is one entry of a row's `products`: `key` (the value a purchase, checkout and swap send), `type` (`ProductType?`), `tier`, `cycle` (`BillingCycle?`; an unknown word is `null`, never monthly), `sellable` (absent reads `true`), `storeIds` (`MagicStarterStoreIds`, a record `(appStore, play)`, Play as `subscriptionId:basePlanId`) and `webPrices` (`Map<String, MagicStarterWebPrice>` keyed by ISO 4217 code, each `(amountMinor, display)`).
+`MagicStarterProduct` (exported through `magic_starter_plan.dart`) is one entry of a row's `products`: `key` (the value a purchase, checkout and swap send), `type` (`ProductType?`), `tier`, `cycle` (`BillingCycle?`; an unknown word is `null`, never monthly), `sellable` (absent reads `true`), `storeIds` (`MagicStarterStoreIds`, a record `(appStore, play)`, Play as `subscriptionId:basePlanId`) and `webPrices` (`Map<String, MagicStarterWebPrice>` keyed by ISO 4217 code, each `({int amountMinor, String currency, String display})`; `currency` is new and BREAKING in 0.0.43, see [Gotchas](#gotchas)). From 0.0.41 it also carries `trialDays` (`int`, decoded from `trial_days`, `0` for none or for anything that is not a positive integer).
 
-How a card is priced: the first row, when it sells no product, is the free floor (`plan_price_free`), and a tier above it with no sellable product is custom (`plan_price_custom`). A web card shows the selected product's first web price `display` (`29.00 USD`), `plan_price_checkout` when it has none, and `plan_price_app` for a tier the web does not sell. A store card shows the store's own `StoreProductOffer.priceString`, with `plan_price_store` ("Price shown in the store") until or unless the store prices it, and a tier its store carries nothing of says `plan_store_unsold` instead of a price (except on the held tier's own card). A store build offers and prices only products with an id in ITS store, and the cycle toggle, now rendered on store builds too, hides when that store sells only one cycle. `renewal_text` and `renewal_ends` lost their `/mo`, since the figure is the product's price for its whole period. A store card also renders the subscription disclosure (price per period, auto-renewal, where to cancel) with Terms and Privacy links from `legal.terms_url` and `legal.privacy_url`; an unset url is left out.
+How a card is priced: the first row, when it sells no product, is the free floor (`plan_price_free`), and a tier above it with no sellable product is custom (`plan_price_custom`). A web card shows the selected product's first web price through `priceText` (the producer's `display`, `29.00 USD`, unless the host registered a format; see [Price format and the featured call to action](#price-format-and-the-featured-call-to-action-0043)), `plan_price_checkout` when it has none, and `plan_price_app` for a tier the web does not sell. A store card shows the store's own `StoreProductOffer.priceString`, with `plan_price_store` ("Price shown in the store") until or unless the store prices it, and a tier its store carries nothing of says `plan_store_unsold` instead of a price (except on the held tier's own card). A store build offers and prices only products with an id in ITS store, and the cycle toggle, now rendered on store builds too, hides when that store sells only one cycle. `renewal_text` and `renewal_ends` lost their `/mo`, since the figure is the product's price for its whole period. A store card also renders the subscription disclosure (price per period, auto-renewal, where to cancel) with Terms and Privacy links from `legal.terms_url` and `legal.privacy_url`; an unset url is left out.
 
 ### The controller's purchase surface
 
@@ -700,6 +705,68 @@ How a card is priced: the first row, when it sells no product, is the free floor
 `canPurchaseViaStore` refuses a subscription the OTHER store sold, read from `storeRail.store` against the entitlement's `manageVia` and never from the platform, and refuses while `awaitingProductKey` is set. A store failure toasts `magic_starter.billing.errors.<snake_case code>` (`not_configured`, `unmapped_active_product`, ...), one sentence per `BillingErrorCode` (`unknown` keeps `toast_failed_text`); `pending` is shown as information, not as a failure. The free tier's Downgrade never renders once the subscription has stopped renewing; otherwise it opens the billing portal on a web build where `portalAvailable`, or the store's own subscription page for a store-billed team with a `manageUrl` and an owner (or an unresolved membership), and renders no button anywhere else.
 
 An app that installed an earlier `en` stub adds, under `magic_starter.billing`, `errors.*`, `plan_price_free`, `plan_price_app`, `plan_price_checkout`, `plan_store_unsold`, the `store_disclosure_*` keys, `wait_processing` and `wait_takes_effect_on`, drops `plan_price_monthly`, removes the `/mo` from its `renewal_text` and `renewal_ends` values (or an annual card reads `290.00 USD/mo`), and adds the `social.deletion_blocking_teams*` and `social.subscription_*` keys below. A fresh `starter:install` already ships them.
+
+### Trials (0.0.41+)
+
+A web free trial needs magic-starter-laravel 0.0.23, whose `GET /billing/plans` product rows carry `trial_days` answered for THIS caller (`0` when they are not eligible: a guest, somebody who already trialed, a subject that held a subscription), so a positive `MagicStarterProduct.trialDays` is safe to advertise. An older backend sends none and reads as no trial.
+
+- `MagicStarterBillingController.trialEnd` (`DateTime?`) is non-null only while `planStatus` is `trialing`: `trialEndsAt` for a web trial, the entitlement's `currentPeriodEnd` for a store trial (a store trial has no `trial_ends_at`). It resets with the session.
+- The current plan card adds a "Trial" badge and replaces the renewal line with the trial line: the end date, the days left, and what is billed after (`trial_line_renews`, `trial_line_cycleless`, `trial_line_store`); a cancelled trial (`renews == false`) reads `trial_line_ends` and never claims a charge.
+- A web plan card whose sale product has `trialDays > 0` states `trial_card_required` ("Free for 14 days. Card required, then 18.49 USD per month.") above a `trial_cta` ("Start free trial") button. Checkout is unchanged; the backend starts the trial.
+- The store disclosure states `store_disclosure_intro_free` ("Free for 2 weeks, then ... per month") only when `StoreProductOffer.introEligible` is true, the intro price is `0` and `introPeriod` is one whole ISO 8601 unit. A paid intro keeps the plain price line, because the wire carries one period of the offer and no cycle count. The billed price stays the large figure on every card, as Apple requires.
+- New `en` stub keys under `magic_starter.billing`: `trial_badge`, `trial_line_renews`, `trial_line_cycleless`, `trial_line_store`, `trial_line_ends`, `trial_days_left_one`, `trial_days_left_other`, `trial_card_required`, `trial_cta`, `store_disclosure_intro_free`, and `period_day`, `period_week`, `period_month`, `period_year` with `_one` and `_other` (the translator has no plural API, so the view picks the form).
+
+### Changing a web plan (0.0.42+)
+
+A team that already holds a web (Stripe) subscription changes plan through `POST billing/swap`, not a new checkout: the backend refuses a second subscription with 409 `subscription_exists`. Needs `magic_payments ^0.0.10` and, for the charge behaviour below, magic-starter-laravel 0.0.29.
+
+- `MagicStarterBillingController.holdsWebSubscription` is true for a granting Stripe subscription (`trialing`, `active`, `pastDue`, `grace`), read from the provider and status, never from a resolved `plan`.
+- Tapping another paid tier opens an `MSConfirmDialog` (`swap_confirm_title`) whose body says what happens: `swap_confirm_trial` while the trial runs (charged when it ends), `swap_confirm_charge_now` for an upgrade or an unrankable tier (prorated difference now), `swap_confirm_period_now` for a downgrade onto another cycle (new period billed at once, less unused time), `swap_confirm_credit` for a same-cycle downgrade (credited to the next invoice). Confirm calls `web.swap(productKey:)`, toasts `toast_swap_description`, and waits for the webhook with `awaitEntitlementChange(before)` (60 s).
+- The backend answers a charged change the card refuses with 402; magic_payments 0.0.10 maps `payment_failed` to `BillingErrorCode.paymentDeclined` and `payment_requires_action` (3D Secure, which an in-place change cannot show) to `paymentRequiresAction`, toasted as `errors.payment_declined` and `errors.payment_requires_action` under `toast_swap_failed_title`. Nothing changed in either case.
+- Downgrade to the free floor still opens the billing portal; a team with no web subscription still checks out.
+- New `en` stub keys under `magic_starter.billing`: `swap_confirm_title`, `swap_confirm_trial`, `swap_confirm_charge_now`, `swap_confirm_period_now`, `swap_confirm_credit`, `swap_confirm_button`, `swap_cancel_button`, `toast_swap_description`, `toast_swap_failed_title`, `errors.payment_declined`, `errors.payment_requires_action`.
+
+### Price format and the featured call to action (0.0.43+)
+
+Every web price the screen shows (the plan card, the trial line, the renewal line, the trialing line) goes through `MagicStarterBillingController.priceText(price)`, which calls the host's `MagicStarterPriceFormat` when one was passed and answers the producer's `display` (`379.00 TRY`) otherwise. The format is optional, unlike `formatNumber`, because `display` is correct if plain in every locale; pass one to write a symbol, a local decimal mark or `379 TL`, and fall back to `price.display` for a currency you do not sell:
+
+```dart
+Magic.put(MagicStarterBillingController(
+  usageCopy: appUsageCopy,
+  formatNumber: appNumberFormat,
+  formatPrice: (price) => price.currency == 'TRY'
+      ? '${price.amountMinor ~/ 100} TL'
+      : price.display,
+));
+```
+
+The grid has ONE filled button. It goes to the first tier above the held one, in catalogue order, whose sale product starts with a web trial on the selected cycle; with no trial on the grid the cheapest upgrade keeps it. A custom tier (a sales handoff) and a tier this build sells nothing of never take it, and nothing is filled while the entitlement is unresolved. The featured trial button glows in its own `bg-primary` fill (the dark one in dark mode) and pulses three times when the card first paints, then rests; reduced motion keeps the glow and drops the pulse, including when it is switched on mid-pulse. The fill follows the cycle toggle when only one cycle carries a trial.
+
+A custom tier's call to action ("Contact sales") toasts `toast_contact_title` with the support desk off. With `features.support` on it records a `contact_sales` conversation (subject `magic_starter.support.contact_sales_subject`, `Contact sales: <plan name>`) and opens its thread; a refusal toasts the backend's message under `support.contact_sales_failed_title` and stays on the billing screen. The routes must be registered for that thread to open (see [Support desk](#support-desk)).
+
+## Support desk
+
+Since 0.0.43, behind `magic_starter.features.support` (default `false`; `starter:install --features=support` turns it on). The client half of `magic-starter-laravel` 0.0.30's support desk, which needs `Features::support()` on the backend and its two migrations (`magic-starter:install --features=support`); staff answer from the backend's admin panel inbox, never from the app. Full contract: `doc/basics/support.md` (magic_starter's own doc).
+
+The host mounts the routes itself, beside its other `registerMagicStarter*Routes()` calls; the function is a no-op with the feature off:
+
+```dart
+registerMagicStarterSupportRoutes();
+```
+
+| Route | View key | Default widget | Shape |
+|:------|:---------|:---------------|:------|
+| `MagicStarterConfig.supportRoute()` (`/support`) | `support.index` | `MagicStarterSupportIndexView` | Replaces. The opener's conversations, newest activity first, a status badge, an unread dot from `has_unread`, an empty state and a New button. |
+| `supportCreateRoute()` (`/support/new`) | `support.create` | `MagicStarterSupportCreateView` | Stacked. Subject and message, posted with `source: 'in_app'`, then opens the new thread. |
+| `supportThreadRoute()` (`/support/:id`) | `support.thread` | `MagicStarterSupportThreadView` | Stacked. Messages by `sender_type` (`customer` or `staff`), a composer, and a seen receipt on open. |
+
+The three paths are fixed under `/support`; no `routes.*` config key moves them. All three sit in the `layout.app` shell behind the `auth` middleware. With the feature on, `MSUserProfileDropdown` gains a Support item (`Icons.support_agent_outlined`, `magic_starter.nav.support`) that goes to `/support` whether or not the routes were registered, so an app that skips the call ships a dead menu item; a host that draws its own account menu adds its own entry.
+
+`MagicStarterSupportController` (`.instance`, `SessionScoped`) backs the screens and is exported for a host that overrides a view: `loadConversations()`, `loadConversation(id)`, `createConversation({subject, body, source})` (the new conversation, or `null` with field errors in `getError` and anything else in `writeError`), `sendMessage(id, body)`, `markSeen(id)` (quiet: a failure is logged, never shown), and the reads `conversations`, `conversation`, `listStatus`, `threadStatus` and `isSubmitting`. The client never sends a user or team id: the backend scopes every `support/conversations` endpoint to the authenticated opener. A 404 sets `MagicStarterSupportReadStatus.notFound`, rendered as a not-found state and never retried, because a teammate's conversation answers 404 exactly like a missing one.
+
+The index and thread refresh on `support.conversation.updated` from the private user channel `App.Models.User.{id}`, subscribed through magic's `BroadcastListeners` (the channel is shared with the notification bell, and a direct `Echo.private(...).listen` would replace its handler), and resync on reconnect since Reverb has no replay. With no broadcast driver configured (`broadcasting.default` empty or `null`), or while the socket is down, they poll every 30 seconds instead.
+
+Copy lives under `magic_starter.support.*` (titles, labels, placeholders, `status.open`, `status.resolved`, `sender.customer`, `sender.staff`, the error and not-found sentences, `contact_sales_subject`, `contact_sales_body`, `contact_sales_failed_title`), plus `magic_starter.nav.support` and `magic_starter.titles.support`, `support_create` and `support_thread`. A fresh `starter:install` writes them into `en.stub`; an app with a published `en.json` merges them from `assets/stubs/install/en.stub`, or each renders as its own key.
 
 ## Page geometry
 
@@ -723,7 +790,8 @@ All controllers use the `Magic.findOrPut(ControllerClass.new)` singleton pattern
 | `MagicStarterProfileController` | `.instance` | Profile info, password change and first password, sessions, two-factor, connected accounts, account deletion |
 | `MagicStarterTeamController` | `.instance` | Team create, settings, member management, team switching |
 | `MagicStarterNewsletterController` | `.instance` | Newsletter subscription management |
-| `MagicStarterBillingController` | constructed, not `.instance` | Plans, usage meters, the web and store rails, and product-keyed store purchases (`purchaseInStore`, `purchaseInStoreAndWait`; see [Billing](#billing)). It takes `usageCopy` and `formatNumber` as required arguments (and optional `storeFundedTeamReader` / `isOwnerReader`), so the host registers its own instance with `Magic.put`. |
+| `MagicStarterBillingController` | constructed, not `.instance` | Plans, usage meters, the web and store rails, and product-keyed store purchases (`purchaseInStore`, `purchaseInStoreAndWait`; see [Billing](#billing)). It takes `usageCopy` and `formatNumber` as required arguments (and optional `formatPrice` from 0.0.43, `storeFundedTeamReader` / `isOwnerReader`), so the host registers its own instance with `Magic.put`. |
+| `MagicStarterSupportController` | `.instance` | The support desk's conversation list, one thread, and the create, reply and seen writes (0.0.43+; see [Support desk](#support-desk)) |
 
 ### Auth Controller Key Methods
 
@@ -755,7 +823,14 @@ await MagicStarterAuthController.instance.doTwoFactorChallenge(
 
 // Logout
 await MagicStarterAuthController.instance.logout();
+
+// A guest session opened in the background, the viewer left where they are (0.0.43+)
+final hasSession = await MagicStarterGuestAuthController.instance.openGuestSession();
 ```
+
+`openGuestSession()` sends the same `POST /auth/guest` as "Continue as guest" and answers whether a session exists afterwards; it never throws (the reason for a `false` is in the controller's error state). A session already held is kept with no request: a guest's, since a second request revokes the returning guest's tokens, and an account's, signed in or only stored. Concurrent callers share one request, and a call after a failure tries again. It concludes through `CompletesSignIn.completeSignIn(body, navigate: false)`: the session is logged in, nothing navigates, and the intended url waits for the next sign-in that does.
+
+**Autofill (0.0.43+).** The login, register, forgot-password and reset-password fields carry autofill hints (`username` and `email` plus `password` on sign-in, `name` and `email` on register, `newPassword` on both password fields of register and reset, `email` on forgot-password, `telephoneNumber` on a phone identity), and the login, register and reset-password forms sit in an `AutofillGroup` with `onDisposeAction: AutofillContextAction.cancel`, since the default commit offers to save a wrong password when the viewer leaves after a failure. So the save is explicit: `doLogin` passes `completeSignIn(..., saveCredentials: true)` and `doRegister` calls `TextInput.finishAutofillContext(shouldSave: true)` once `Auth.login` succeeds, both before navigating. A provider, a one-time code, a two-factor challenge and a background session never save. Login and register stay mounted while the request is in flight, because swapping them for a spinner cancelled the group before the answer arrived. A host that publishes or overrides these views keeps the group and the hints, or the platform offers nothing.
 
 The preference matrix is `NotificationPreferencesController` in `magic_notifications` now; see `plugin-notifications.md`.
 
@@ -900,7 +975,10 @@ Realtime is NOT wired here: the layout arms the poller only. Call `Notify.startR
 |:--------|:----|
 | `features.teams` enabled but no `useTeamResolver()` call | `MagicStarter.isReady` returns `false`; a warning is logged at boot. Call `useTeamResolver()` in `AppServiceProvider.boot()`. |
 | `useUserModel()` not called | Starter falls back to `MagicStarterAuthUser`. Always register before `MagicStarterServiceProvider` boots. |
-| View key not registered | `MagicStarter.view.make(key)` throws `StateError`. Conditional views (`two_factor`, `phone_otp`, `billing`, teams) are only registered when their feature flag is `true`. |
+| View key not registered | `MagicStarter.view.make(key)` throws `StateError`. Conditional views (`two_factor`, `phone_otp`, `billing`, `support`, teams) are only registered when their feature flag is `true`. |
+| The dropdown's Support item leads nowhere | `features.support` shows the item, but the routes are the host's: call `registerMagicStarterSupportRoutes()` beside the other `registerMagicStarter*Routes()` calls (0.0.43+). |
+| A test fixture building `MagicStarterWebPrice` stops compiling after 0.0.43 | The record gained `currency` (BREAKING): `(amountMinor: 1849, currency: 'USD', display: '18.49 USD')`. Code that only reads a price is unaffected. |
+| A host `beforeLogout` hook whose request answers 401 | From 0.0.43 the starter's own hook revokes the token with `POST /auth/logout`, and a hook registered after `MagicStarterServiceProvider` boots runs after it. Register a hook that needs the token BEFORE the starter provider boots. |
 | Overriding a notification screen on the wrong registry | `notifications.list` and `notifications.preferences` live on `Notify.view`, not `MagicStarter.view`. Registering on the starter's registry mounts nothing. |
 | `features.social_login` enabled but no `useSocialAuth()` bridge | The flag gates the feature; without a bridge the login and register buttons and the settings hub row are absent. The Connected accounts route still exists, and a page opened without a bridge lists no provider. |
 | Looking for a builder to render social buttons | There is none. Register a `MagicStarterSocialAuth` with `MagicStarter.useSocialAuth(...)`; the starter renders the buttons. |
