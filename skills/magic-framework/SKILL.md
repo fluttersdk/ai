@@ -2,10 +2,10 @@
 name: magic-framework
 description: "Write correct, idiomatic code in a Flutter app that depends on the `magic` framework (Laravel-inspired: IoC container, 18 facades, Eloquent-style ORM, service providers, reactive controllers, GoRouter routing, validation, auth, broadcasting, MagicAction writes, Repository row caches, SessionScope tenant resets). Use whenever code imports `package:magic/magic.dart` or `package:magic/testing.dart`, or the work touches Magic.init, MagicApp, a facade (Auth/Http/Cache/DB/Echo/Event/Gate/Config/Lang/Launch/Log/Pick/MagicRoute/Schema/Session/Storage/Vault/Crypt), a Model, MagicController, a MagicView, MagicFormData, FormRequest, MagicAction, MagicFormObject, Repository, SessionScope, BroadcastListeners, a ServiceProvider, a migration, or the artisan make:* CLI. UI styling is Wind (separate wind-ui skill). Do NOT use for plain Flutter or Wind-only work with no magic import."
 when_to_use: "Use proactively when editing or scaffolding a magic app: Magic.init / a facade / a Model / a MagicController or MagicView / a form (MagicFormData, FormRequest, Validator, MagicFormObject) / a write (MagicAction, RunsActions) / a resource cache (Repository, RepositoryQuery) / a tenant boundary (SessionScope, SessionScoped) / a shared realtime channel (BroadcastListeners, ListensToBroadcasts) / a ServiceProvider / a route or MagicMiddleware / a migration / MagicStateMixin + RxStatus + fetchList / Session flash + old() + trans() / testing with MagicTest + Http.fake/Auth.fake / the artisan make:* CLI / the magic_deeplink, magic_notifications, magic_social_auth, magic_starter, magic_payments, magic_devtools, or magic_sentry plugins. Trigger even when the user does not say the word 'magic'. Do NOT trigger for plain Flutter or Wind-only UI with no package:magic import."
-version: 0.1.62
+version: 0.1.67
 ---
 
-<!-- magic 0.0.28 | Skill v0.1.62 (2026-10-13). API surface verified against lib/src. -->
+<!-- magic 0.0.29 | Skill v0.1.67 (2026-10-14). API surface verified against lib/src. -->
 
 # Magic Framework
 
@@ -337,7 +337,7 @@ void main() {
 }
 ```
 
-Six facades fake without any mock library: `Http.fake` (`FakeNetworkDriver`: `assertSent/assertNotSent/assertSentCount/assertNothingSent`), `Auth.fake` (`assertLoggedIn/assertLoggedOut/assertLoginAttempted/assertLoginCount`), `Cache.fake` (`assertHas/assertMissing/assertPut`), `Vault.fake` (`assertWritten/assertDeleted/assertContains/assertMissing`), `Log.fake` (`assertLogged/assertLoggedError/assertNothingLogged/assertLoggedCount`), `Echo.fake` (`assertConnected/assertDisconnected/assertSubscribed/assertNotSubscribed/assertInterceptorAdded`). Every `setUp` must reset the container (`MagicTest.init()` does this); skipping it leaks state and produces false passes. Full patterns: `${CLAUDE_SKILL_DIR}/references/testing-patterns.md`.
+Six facades fake without any mock library: `Http.fake` (`FakeNetworkDriver`: `assertSent/assertNotSent/assertSentCount/assertNothingSent`), `Auth.fake` (`assertLoggedIn/assertLoggedOut/assertLoginAttempted/assertLoginCount`), `Cache.fake` (`assertHas/assertMissing/assertPut`), `Vault.fake` (`assertWritten/assertDeleted/assertContains/assertMissing`), `Log.fake` (`assertLogged/assertLoggedError/assertNothingLogged/assertLoggedCount`), `Echo.fake` (`assertConnected/assertDisconnected/assertSubscribed/assertNotSubscribed/assertInterceptorAdded`, `driver.setSubscribed` for `isSubscribed`). Every `setUp` must reset the container (`MagicTest.init()` does this); skipping it leaks state and produces false passes. Full patterns: `${CLAUDE_SKILL_DIR}/references/testing-patterns.md`.
 
 ## 7. Common rationalizations (close the escape hatch)
 

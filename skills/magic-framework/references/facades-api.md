@@ -395,7 +395,7 @@ Resolves `Magic.make<LaunchService>('launch')`. Requires `LaunchServiceProvider`
 
 | Signature | Return Type | Notes |
 |-----------|-------------|-------|
-| `Launch.url(String url, {LaunchMode mode = LaunchMode.externalApplication})` | `Future<bool>` | Open URL in external app or in-app WebView. |
+| `Launch.url(String url, {LaunchMode mode = LaunchMode.externalApplication, String? webOnlyWindowName})` | `Future<bool>` | Open URL in external app or in-app WebView. `webOnlyWindowName: '_self'` on the web for a download opened after an `await` (Safari blocks the new window and the launcher still answers `true`). |
 | `Launch.email(String address, {String? subject, String? body})` | `Future<bool>` | Open email client pre-filled with address/subject/body. |
 | `Launch.phone(String number)` | `Future<bool>` | Open device phone dialer. |
 | `Launch.sms(String number, {String? body})` | `Future<bool>` | Open SMS app pre-filled with number/body. |

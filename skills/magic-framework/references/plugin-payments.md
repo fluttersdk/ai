@@ -1,4 +1,4 @@
-<!-- magic_payments v0.0.11 | Updated: 2026-10-13 -->
+<!-- magic_payments v0.0.12 | Updated: 2026-10-14 -->
 
 # magic_payments Plugin
 
@@ -26,10 +26,10 @@ The backend half of the same contract lives in `magic-starter-laravel` (`api/v1/
 
 ```yaml
 dependencies:
-  magic_payments: ^0.0.11
+  magic_payments: ^0.0.12
 ```
 
-0.0.11 pins `magic ^0.0.28` and `fluttersdk_artisan ^0.0.20`, the newest of each at that release, and `purchases_flutter ^10.15.1` for the store rail.
+0.0.12 pins `magic ^0.0.29` and `fluttersdk_artisan ^0.0.20`, the newest of each at that release, and `purchases_flutter ^10.15.1` for the store rail.
 
 ```bash
 # Register the plugin's artisan provider with the app dispatcher (once)

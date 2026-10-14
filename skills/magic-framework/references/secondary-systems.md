@@ -836,7 +836,7 @@ Context-free facade for opening URLs, emails, phone calls, and SMS. Built on `ur
 
 | Method | Parameters | Return Type | Description |
 |:-------|:-----------|:------------|:------------|
-| `Launch.url(url, {mode})` | `String url`, `LaunchMode? mode` | `Future<bool>` | Open URL in external app or in-app browser. |
+| `Launch.url(url, {mode, webOnlyWindowName})` | `String url`, `LaunchMode? mode`, `String? webOnlyWindowName` | `Future<bool>` | Open URL in external app or in-app browser; the window name is the web browsing context (`_self` for a download opened after an `await`). |
 | `Launch.email(address, {subject, body})` | `String address`, `String? subject`, `String? body` | `Future<bool>` | Open email client pre-filled. |
 | `Launch.phone(number)` | `String number` | `Future<bool>` | Open phone dialer. |
 | `Launch.sms(number, {body})` | `String number`, `String? body` | `Future<bool>` | Open SMS app pre-filled. |
@@ -1071,6 +1071,10 @@ Laravel Echo-equivalent real-time channel system over WebSockets. Accessed via t
 | `channel.stopListening(event)` | `void` | Remove a listener |
 | `channel.events` | `Stream<BroadcastEvent>` | Raw stream of all events on this channel |
 | `channel.name` | `String` | Fully-qualified channel name |
+| `channel.isSubscribed` | `bool` | Server confirmed the channel on this connection (`subscription_succeeded`); `false` after a drop, a leave, or a failed auth. `connected` does NOT imply it |
+| `channel.onSubscriptionChanged` | `Stream<bool>` | Emits `isSubscribed` on each change; never replays, so read `isSubscribed` when attaching |
+
+Both members are abstract: a hand-written `implements BroadcastChannel` test double must add them. Under `Echo.fake()` every channel starts unsubscribed; flip it with `fake.driver.setSubscribed('private-team.1', true)` (fully-qualified name).
 
 ### BroadcastEvent Fields
 
@@ -1109,7 +1113,7 @@ Register interceptors via `Echo.addInterceptor(interceptor)` or `driver.addInter
 
 ### ReverbBroadcastDriver (Pusher Protocol)
 
-Handles the full Pusher protocol over WebSocket: connection handshake, ping/pong keepalive, public/private/presence subscriptions, event deduplication via ring buffer, automatic reconnection with exponential backoff + 30% random jitter, client-side activity monitoring, and configurable connection establishment timeout.
+Handles the full Pusher protocol over WebSocket: connection handshake, ping/pong keepalive, public/private/presence subscriptions, automatic reconnection with exponential backoff + 30% random jitter, client-side activity monitoring, and configurable connection establishment timeout.
 
 Config keys under `broadcasting.connections.reverb`:
 
@@ -1124,7 +1128,6 @@ Config keys under `broadcasting.connections.reverb`:
 | `max_reconnect_delay` | `30000` | Max backoff delay in ms |
 | `activity_timeout` | `120` | Seconds of inactivity before ping is sent |
 | `connection_timeout` | `15` | Seconds to wait for connection establishment |
-| `dedup_buffer_size` | `100` | Ring buffer size for deduplication |
 
 Constructor DI parameters for testing:
 - `channelFactory` — overrides WebSocket creation (inject mock channels)
@@ -1132,13 +1135,17 @@ Constructor DI parameters for testing:
 - `pongTimeout` — override the 30-second pong deadline (use short durations in tests)
 - `random` — inject a seeded `Random` for deterministic backoff jitter in tests
 
-**Connection health**: Activity monitor detects silent connection loss using the Pusher protocol `activity_timeout` (provided by server in handshake; falls back to `activity_timeout` config key, default 120s). After `activity_timeout` seconds of inactivity → sends `pusher:ping`. If no `pusher:pong` within `pongTimeout` (30s default) → closes socket, triggers reconnect. Timer resets on ANY inbound message.
+**Connection health**: Activity monitor detects silent connection loss using the Pusher protocol `activity_timeout` (provided by server in handshake; falls back to `activity_timeout` config key, default 120s). After `activity_timeout` seconds of inactivity → sends `pusher:ping`. If no `pusher:pong` within `pongTimeout` (30s default) → drops the connection as a code-less close (state `reconnecting`, channels unsubscribed, backoff retry) without waiting on the dead socket's close. Timer resets on ANY inbound message.
+
+**Close codes decide the reconnect** (Pusher protocol): 4000-4099 fatal (no retry, state `disconnected`), 4100-4199 backoff, 4200-4299 immediate, any other code or none (a Reverb restart sends no close frame) backoff. A `pusher:error` frame on an open socket never reconnects, only reaches interceptors: Reverb sends 4200 for any server exception without closing.
+
+**Resubscription**: every `pusher:connection_established` subscribes every channel in the driver's registry with the new socket id, whichever path opened the socket (timer retry, `connect()` after a drop even with `reconnect: false`, first connect). A channel created while down is subscribed once by the next handshake. Work started for one socket (auth call, auth retry, late close or error) is dropped once the socket changed, and an auth answer for a channel `leave()`d meanwhile sends nothing.
 
 **Reconnection backoff**: Exponential backoff with 30% random jitter — `base = 500ms × 2^attempt` (capped at `max_reconnect_delay`), `delay = base + random(0..base×0.3)`. Jitter prevents thundering herd when many clients reconnect simultaneously.
 
 **Connection timeout**: Configurable via `connection_timeout` (default 15s). If the server doesn't complete the Pusher handshake within this window → closes socket, schedules reconnect, throws `TimeoutException`.
 
-Auth failures in `_authenticateAndSubscribe()` are logged via `Log.error()` and routed through the interceptor `onError()` chain. On reconnect, all channels are re-subscribed with `await` — `onReconnect` emits only after completion. Per-channel error handling ensures partial failures don't block other channels.
+**Auth failures**: the default auth call throws `BroadcastAuthException` (`statusCode`, `channelName`, `isRetryable`) on a non-2xx answer, since `Http.post` never throws on 4xx/5xx. Status `0` and 5xx retry with `backoffDelay` while the socket lasts, logged via `Log.warning()`; 401, 403 and other failures are logged via `Log.error()` and not retried. Every failure is routed through the interceptor `onError()` chain; one channel's failure does not block the others. `onReconnect` emits after each reconnect handshake once every channel was sent its subscribe (private/presence after the first auth attempt), never for the first connection.
 
 ### NullBroadcastDriver
 
@@ -1162,7 +1169,7 @@ Auth.stateNotifier.addListener(subscription.sync);
 subscription.sync(); // reconcile once at startup too
 ```
 
-`sync()` is serialised (a call arriving mid-flight defers and re-runs once more) and a no-op when `channelName()` still answers the subscribed name, whatever the connection is doing (the Reverb driver recovers a drop on its own). A name change leaves the old channel by its prefixed name, calls `Echo.connect()` when the connection is not live, then subscribes and wires every `listeners` entry. That connect is safe mid-reconnect: `ReverbBroadcastDriver.connect()` is idempotent (returns when connected, joins an attempt in flight, supersedes an armed retry), so it never opens a second socket. `onReconnect` fires on both an `Echo.onReconnect` signal and a `connectionState` transition to `connected`. `dispose()` cancels only the reconnect-listening subscriptions, not the channel or connection. A `null` channel name disconnects the whole default connection, dropping any other channel the app subscribed elsewhere through `Echo`: deliberate, a signed-out app has no business staying on the socket. Full reference: `doc/digging-deeper/broadcasting.md#auth-scoped-subscriptions`.
+`sync()` is serialised (a call arriving mid-flight defers and re-runs once more) and never registers the channel again while `channelName()` still answers the subscribed name; with the connection down it only calls `Echo.connect()` (needed with `reconnect: false`). A name change leaves the old channel by its prefixed name, calls `Echo.connect()` when the connection is not live, then subscribes and wires every `listeners` entry. That connect is safe mid-reconnect: `ReverbBroadcastDriver.connect()` is idempotent (returns when connected, joins an attempt in flight, supersedes an armed retry), so it never opens a second socket. `onReconnect` fires when the server confirms the channel again after a drop (`onSubscriptionChanged` turning `true`), not when the socket returns, since a channel whose auth is being retried misses events until then; it also fires on the first confirmation when the connect failed at registration. A failed connect still registers the channel and its listeners. `dispose()` cancels only the reconnect-listening subscriptions, not the channel or connection. A `null` channel name disconnects the whole default connection, dropping any other channel the app subscribed elsewhere through `Echo`: deliberate, a signed-out app has no business staying on the socket. Full reference: `doc/digging-deeper/broadcasting.md#auth-scoped-subscriptions`.
 
 ### FakeBroadcastManager (Testing)
 

@@ -1,4 +1,4 @@
-<!-- magic_notifications v0.3.9 | Updated: 2026-10-13 -->
+<!-- magic_notifications v0.3.10 | Updated: 2026-10-14 -->
 
 # magic_notifications Plugin
 
@@ -34,7 +34,7 @@ dart run magic:artisan notifications:install
 dart run magic:artisan notifications:doctor
 ```
 
-From 0.3.9 the floors are `magic ^0.0.28`, `fluttersdk_artisan ^0.0.20` and `fluttersdk_wind ^1.8.4`, the newest of each at that release. The real `magic` requirement is 0.0.22, not a name only: `PushStateReporter` calls `Event.listenAny`, which that release introduces. The other requirements underneath are older: `magic` 0.0.6 for `Echo.connection`, the accessor the realtime path needs to tell an open connection from a closed one, and `fluttersdk_artisan` 0.0.15 for `XcodeProjectEditor.setEntitlementsPaths`, which the iOS install below cannot do without.
+From 0.3.10 the floors are `magic ^0.0.29`, `fluttersdk_artisan ^0.0.20` and `fluttersdk_wind ^1.9.0`, the newest of each at that release. The real `magic` requirement is 0.0.29, not a name only: the realtime path follows `BroadcastChannel.isSubscribed` and `onSubscriptionChanged`, which that release introduces. The other requirements underneath are older: `magic` 0.0.22 for `Event.listenAny`, which `PushStateReporter` calls, `magic` 0.0.6 for `Echo.connection`, the accessor the realtime path needs to tell an open connection from a closed one, and `fluttersdk_artisan` 0.0.15 for `XcodeProjectEditor.setEntitlementsPaths`, which the iOS install below cannot do without.
 
 ### The APNs entitlement install writes, and why there are two files
 
@@ -147,15 +147,19 @@ Notification state can arrive over the app's broadcast socket instead of being p
 
 | Method | Parameters | Return Type | Description |
 |:-------|:-----------|:------------|:------------|
-| `Notify.startRealtime()` | `{String? channel, String event = 'notification.created'}` | `Future<bool>` | Subscribe to the notifiable's private channel and apply each frame to the cache. Returns `false` (changing nothing) when the app has no broadcast driver, so the caller keeps polling. |
+| `Notify.startRealtime()` | `{String? channel, String event = 'notification.created'}` | `Future<bool>` | Subscribe to the notifiable's private channel and apply each frame to the cache. Returns `false` (changing nothing) when the app has no broadcast driver, so the caller keeps polling, and `false` when the subscribe itself fails. A socket that cannot connect yet is no longer a failure (0.3.10+). |
 | `Notify.stopRealtime()` | none | `void` | Leave the channel and drop the connection watcher. Does NOT close the connection (it is shared) and does NOT restart polling. |
 | `Notify.isRealtime` | none | `bool` | Whether state is currently arriving over a socket. |
 
 `channel` has to come from the caller: this package has no user model and cannot know whose notifications these are. Laravel's default for a `Notifiable` that has not overridden `receivesBroadcastNotificationsOn()` is `App.Models.User.{id}`.
 
-What a successful `startRealtime()` does, in order: connects only if no connection exists (magic's Reverb driver `connect()` is NOT idempotent, a second call leaks the first socket), subscribes and listens for the event exactly once, stops the poller, fetches the existing list ONCE (a socket carries only what happens next), and watches the connection so a drop falls back to polling and a reconnect lifts the fallback. It is idempotent per channel: the same channel is a no-op, a different one moves the subscription.
+What a successful `startRealtime()` does, in order: connects only if no connection exists (magic's Reverb driver `connect()` is NOT idempotent, a second call leaks the first socket), subscribes and listens for the event exactly once, and follows the CHANNEL's `onSubscriptionChanged`, not the socket. The poller keeps running (or is armed) until the channel reports subscribed; then it stops and the list is fetched ONCE (a socket carries only what happens next). An unsubscribed report restarts the poller; the connection state only arms it on a drop. It is idempotent per channel: the same channel is a no-op, a different one moves the subscription.
 
-Requires `magic ^0.0.6` for `Echo.connection`, the public accessor that tells an open connection from a closed one.
+From 0.3.10 a `connect()` that fails no longer ends it: the channel is subscribed anyway (the driver sends it once its retry connects) and polling covers the gap, so an app launched while Reverb was down goes live when the server returns. Before 0.3.10 the poller stopped on `connected`, which arrives before the private channel's auth, so a connected but unsubscribed socket left the bell with neither frames nor polling.
+
+An identity switch with no sign-out between (a guest signing in, an account switch) re-adopts the channel armed under the auth generation now in effect and reads the list again (0.3.10+); a channel armed under an earlier generation is the previous person's and stays dropped until the host re-arms it.
+
+Requires `magic ^0.0.6` for `Echo.connection`, the public accessor that tells an open connection from a closed one, and `magic ^0.0.29` for the channel's subscription state.
 
 ### Manager Access
 
@@ -254,6 +258,7 @@ Posts `toPush()` to a self-addressed endpoint that makes the platform emit a rea
 | `isSupported` | `bool` | Whether push is supported on this platform. |
 | `permissionState()` | `Future<PushPermissionState>` | Current permission state. **Async since 0.1.0**: both platforms answer asynchronously. |
 | `isOptedIn` | `bool` | Whether user is opted in. |
+| `isInitialized` | `bool` | Whether the SDK started (0.3.10+). Defaults to `true`; both OneSignal drivers override it. While `false` (a blank `notifications.push.app_id`, a failed init) `reachability()` answers `unavailable`, so `PushPromptHost` offers no Enable button that cannot work. |
 | `subjectGuard` / `mayDisplay(data)` | `bool Function(Map)?` / `bool` | The guard that keeps a push addressed to the previous account off this device. |
 | `initialize(config)` | `Future<void>` | Initialize driver with config map. |
 | `login(externalId)` / `logout()` | `Future<void>` | Attach / detach the external id on the subscription. |
@@ -354,7 +359,7 @@ The package owns the notification UI since 0.1.0. `magic_starter` used to ship i
 
 | Symbol | Shape |
 |:-------|:------|
-| `NotificationDropdown` | The bell. `{required notificationStream, onMarkAsRead, onMarkAllAsRead, onNotificationTap, onViewAll}` plus five className overrides (`panelClassName`, `triggerClassName`, `triggerIconClassName`, `badgeClassName`, `badgeTextClassName`). |
+| `NotificationDropdown` | The bell. `{required notificationStream, onMarkAsRead, onMarkAllAsRead, onNotificationTap, onViewAll}` plus five className overrides (`panelClassName`, `triggerClassName`, `triggerIconClassName`, `badgeClassName`, `badgeTextClassName`). 0.3.10 adds `triggerHitClassName`, a tap box around a trigger drawn smaller than a finger needs (null builds the trigger as before), and `panelOffset` (default `Offset(0, 4)`): with a hit box the panel anchors to the box, so pass its inset back, `Offset(-4, 0)` for a 36px trigger in a 44px box. Rows and the footer show keyboard focus. |
 | `NotificationsListView` | `{onMarkAsRead, onMarkAllAsRead, onDelete, onNavigate, perPage = 15, contentClassName = 'p-4 lg:p-6'}`. `onDelete` is `Future<bool> Function(String id)?` (0.2.0): `true` means the row is gone and the page reloads, `false` means the host declined and nothing is re-read. The per-row delete control renders only when it is non-null. |
 | `NotificationPreferencesView` | `{pushProvisioned, backRoute, contentClassName = 'p-4 lg:p-6'}`. The per-type channel matrix plus a bulk row per channel. |
 | `NotificationsListController` | `.instance`; owns the page and its rows. `loadPage(int page)`, `refresh()`, `currentPage`. |

@@ -1,4 +1,4 @@
-<!-- magic_sentry v0.0.4 | Updated: 2026-10-13 -->
+<!-- magic_sentry v0.0.5 | Updated: 2026-10-14 -->
 
 # magic_sentry Plugin
 
@@ -21,10 +21,10 @@ The package is generic on purpose: it has no user model, team or tag of its own.
 
 ```yaml
 dependencies:
-  magic_sentry: ^0.0.4
+  magic_sentry: ^0.0.5
 ```
 
-0.0.4 pins `magic ^0.0.28`, the newest at that release; the real requirement is still `magic` 0.0.22, the first release with `Event.listenAny` and `ReportsBreadcrumb`. It also pins `sentry_flutter` / `sentry_dio` `^9.27.0`.
+0.0.5 pins `magic ^0.0.29`, the newest at that release, and that is a real requirement: the token scrubber reads `MagicRouter.allRoutes`, which magic 0.0.29 adds. Underneath it sits `magic` 0.0.22, the first release with `Event.listenAny` and `ReportsBreadcrumb`. It also pins `sentry_flutter` / `sentry_dio` `^9.27.0`.
 
 ```bash
 dart run <app>:artisan plugin:install magic_sentry
@@ -97,10 +97,14 @@ One zone is the point, not a detail: on Flutter web `SentryFlutter.init` opens i
 | `>= 500` | Event |
 | anything else (4xx: an expired session, a validation error) | `warning` breadcrumb, `category: 'http'` |
 
-- The endpoint is normalised before it is reported: the query string is dropped and a numeric or UUID path segment becomes `{id}`, so `/monitors/42` and `/monitors/43` are one issue.
+- The endpoint is normalised before it is reported: the query string is dropped and a numeric or UUID path segment becomes `{id}`, so `/monitors/42` and `/monitors/43` are one issue. From 0.0.5 it also goes through `SentryTokenScrubber.scrubApiUrl`, so a failed invitation call groups under `/api/v1/invitations/{token}/accept` instead of carrying the token; `normalizeEndpoint` is public API.
 - An event is fingerprinted `['http', method, endpoint, status]` and carries an `http_failure` context (method, endpoint, status, the transport message when there is one).
 - One event per distinct `METHOD endpoint status` per session: a repeat becomes an `error` breadcrumb marked `(repeat)`. The set is process-wide (`SentryNetworkInterceptor.reportedFailures`), not time-windowed.
 - `sentry_dio`'s own failed-request capture stays OFF. Turning it back on double-reports every failure, with a stack trace inside the SDK instead of at the caller.
+
+## Token scrubbing
+
+`MagicSentry.run` installs `SentryTokenScrubber` after `configure` returns, so it runs first in `beforeSend`, `beforeSendTransaction` and `beforeBreadcrumb` and hands the masked value to any hook the app set inside `configure`. It masks query values whose key names a secret (`token`, `password`, `secret`, `signature`, `credential`, `api_key`), path segments bound to a magic route param whose name contains `token`, and on HTTP breadcrumb and span URLs any remaining 32+ character opaque segment (a UUID excepted). The routes come from `MagicRouter.instance.allRoutes` (magic 0.0.29+), so routes inside `MagicRoute.group(layout: ...)` count; hash-routed URLs and a fragment that opens with a secret pair (`#access_token=...`) are masked too. It covers `request.url`, `queryString` and `fragment`, the transaction name, `contexts.trace`, exception values, the event message, breadcrumb `message` and `data`, and span descriptions and data. It only masks, never drops, and fails closed: if it throws, the fields it covers become `[Filtered]`. A hook assigned after `SentryFlutter.init` replaces the scrubber, so set app hooks inside `configure`. A transaction's deprecated `extra` map is not scrubbed; keep tokens out of transaction data.
 
 ## User context
 

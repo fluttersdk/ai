@@ -344,9 +344,17 @@ MagicRoute.page('/posts/:id', (id) {
   return PostPage(id: id);
 });
 
-// Access globally from anywhere
-final id = MagicRouter.instance.pathParameter('id');
-final query = MagicRouter.instance.queryParameter('q');
+// Inside a widget: ask the page the widget sits in. Call from
+// didChangeDependencies or build, never initState. Throws GoError when no
+// route page is above the context; there is no fallback to the static reader.
+final id = MagicRouter.instance.pathParameterOf(context, 'id');
+final query = MagicRouter.instance.queryParameterOf(context, 'q');
+
+// No BuildContext (controller, middleware): the static readers answer for the
+// page built LAST. A page pushed across layout shells is built before the shell
+// under it, so under shells they can return the other page's parameters.
+final staticId = MagicRouter.instance.pathParameter('id');
+final staticQuery = MagicRouter.instance.queryParameter('q');
 
 // Get all parameters at once
 final allPathParams = MagicRouter.instance.pathParameters;
