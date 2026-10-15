@@ -222,7 +222,7 @@ MagicApplication(
 )
 ```
 
-Passed straight to `MaterialApp.builder`: the builder runs inside `Theme`, localizations, `Directionality` and `MediaQuery`, `child` is the `Router` (which builds the root Navigator), and the layer's State survives every `to()`, push and `back()`. From the layer's own context `Navigator.of` and `Overlay.of` find nothing: navigate with `MagicRoute`, open dialogs with `Magic.dialog()`, and put an `Overlay` inside the layer around any `Tooltip`, `WPopover` or `WSelect`, which throw without one. `Magic.reload()` (and `Lang.setLocale()` without `reload: false`) remounts the layer with a new State. The loading and failure screens before init are not wrapped; null wraps nothing.
+Passed straight to `MaterialApp.builder`: the builder runs inside `Theme`, localizations, `Directionality` and `MediaQuery`, `child` is the `Router` (which builds the root Navigator), and the layer's State survives every `to()`, push and `back()`. From the layer's own context `Navigator.of` and `Overlay.of` find nothing: navigate with `MagicRoute`, open dialogs with `Magic.dialog<T>()` (answer it with `Magic.closeDialog(result)`), and put an `Overlay` inside the layer around any `Tooltip`, `WPopover` or `WSelect`, which throw without one. `Magic.reload()` (and `Lang.setLocale()` without `reload: false`) remounts the layer with a new State. The loading and failure screens before init are not wrapped; null wraps nothing.
 
 ## Route Transitions
 
