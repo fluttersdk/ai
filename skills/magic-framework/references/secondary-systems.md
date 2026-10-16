@@ -1057,6 +1057,8 @@ Laravel Echo-equivalent real-time channel system over WebSockets. Accessed via t
 | `Echo.fake()` | `FakeBroadcastManager` | Swap to in-memory fake for testing |
 | `Echo.unfake()` | `void` | Restore the real manager binding |
 
+`BroadcastServiceProvider` also registers `SocketIdInterceptor` on the network driver: every `Http` request carries `X-Socket-ID: <Echo.socketId>` while the socket is connected (no header when it is not), which is what Laravel's `broadcast(...)->toOthers()` reads to skip the sender. Skipped for the `'null'` connection or when no network driver is bound.
+
 ### Channel Types
 
 - **Public** (`Echo.channel('name')`): No auth. Any connected client may subscribe.
