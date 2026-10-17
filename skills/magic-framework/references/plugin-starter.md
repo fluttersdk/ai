@@ -1,4 +1,4 @@
-<!-- magic_starter v0.0.46 | Updated: 2026-10-15 -->
+<!-- magic_starter v0.0.47 | Updated: 2026-10-17 -->
 
 # magic_starter Plugin
 
@@ -546,22 +546,59 @@ The starter-specific widgets, exported from the same barrel. These are not desig
 | `MagicStarterStepUpDialog` | 0.0.39+. Identity confirmation for a password-less account: a TOTP `code` field and one "Confirm with <provider>" button per linked provider. Opened through `confirmIdentity`, which a host rarely bypasses. |
 | `MagicStarterTimezoneSelect` | Searchable timezone dropdown backed by `GET /timezones` (async search, never local data). Pages through the endpoint since 0.0.28: it asks for the next page on scroll, resets its cursor through `WSelect.onOpen` when the menu reopens, and drops any response whose list epoch has moved. |
 | `MagicStarterAuthFormCard` | Centered card wrapper for auth-adjacent screens |
-| `MagicStarterHideBottomNav` | `InheritedWidget` that signals `MagicStarterAppLayout` to hide the mobile bottom nav for fullscreen routes |
-| `MagicStarterHideChrome` | Since 0.0.32. The same shape for the WHOLE shell: no sidebar, no drawer, no header, no bottom bar, no safe-area inset and no scroll container. The layout stays mounted, so its notification polling, its auth listeners and its route key survive. For a media player or a map, which sizes itself and cannot use the scroll container's unbounded height. |
+| `MagicStarterHideBottomNav` | Wraps a route's PAGE and collapses the mobile bottom nav in step with that page's transition. A layout opts in with `MagicStarterBottomNavScope` at its root and renders its nav in `MagicStarterBottomNavSlot`. |
+| `MagicStarterBottomNavScope` | Goes at a layout's root. It is what `MagicStarterHideBottomNav` talks to; a layout without one ignores the hide request. |
+| `MagicStarterBottomNavSlot` | Wraps the layout's bottom nav, so it collapses and expands with the wrapped page's transition. |
+| `MagicStarterHideChrome` | Since 0.0.32. The same shape for the WHOLE shell: no sidebar, no drawer, no header, no bottom bar, no safe-area inset and no scroll container. For a media player or a map, which sizes itself and cannot use the scroll container's unbounded height. Its group is a separate shell, so entering it rebuilds the layout and leaving it rebuilds the layout again. |
 | `MagicStarterConfirmDialog` | Thin alias of `MSConfirmDialog`, kept for existing callers. New code writes `MSConfirmDialog`. |
 | `MagicStarterDialogShell` | Thin alias of `MSDialog` (sticky header/footer, scrollable body). New code writes `MSDialog`. |
 
 ### MagicStarterHideBottomNav
 
-Wrap a route's widget to hide the mobile bottom navigation bar in `MagicStarterAppLayout`:
+Wrap a route's page to collapse the mobile bottom navigation bar while that page is showing. The nav animates away in step with the page's own transition, and the app shell stays the one shell:
 
 ```dart
-MagicStarterHideBottomNav(child: FullscreenEditorView())
+MagicRoute.page('/editor', () => MagicStarterHideBottomNav(child: FullscreenEditorView()));
 ```
+
+The layout has to opt in. Put `MagicStarterBottomNavScope` at its root and wrap its nav in `MagicStarterBottomNavSlot`:
+
+```dart
+class HostLayout extends StatelessWidget {
+  const HostLayout({required this.child, super.key});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return MagicStarterBottomNavScope(
+      child: Column(
+        children: [
+          Expanded(child: child),
+          MagicStarterBottomNavSlot(child: HostBottomBar()),
+        ],
+      ),
+    );
+  }
+}
+```
+
+A starter app's own routes go in the app group, `MagicStarterLayoutIds.app`, so they share the one `layout.app` shell with the starter's profile, team, notification and support routes:
+
+```dart
+MagicRoute.group(
+  layoutId: MagicStarterLayoutIds.app,
+  layout: (child) => MagicStarter.view.makeLayout('layout.app', child: child),
+  middleware: ['auth'],
+  routes: () { /* the app's own routes */ },
+);
+```
+
+A group without that id is a separate shell: moving between it and the starter's screens rebuilds the whole layout and plays its entrance animation again.
 
 ### MagicStarterHideChrome
 
-Since 0.0.32. Wrap a route group's layout to give the window to the child and keep the shell mounted:
+Since 0.0.32. Wrap a route group's layout to give the window to the child. The group is a separate shell (its own `layoutId`), so entering it rebuilds the layout; `MagicStarterAppLayout.initState` re-arms notification polling when the shell mounts again:
 
 ```dart
 MagicRoute.group(
@@ -766,7 +803,7 @@ registerMagicStarterSupportRoutes();
 | `supportCreateRoute()` (`/support/new`) | `support.create` | `MagicStarterSupportCreateView` | Stacked. Topic chips (`magic_starter.support.topics`) and one message box with a counter; no subject is sent (the backend derives it). |
 | `supportThreadRoute()` (`/support/:id`) | `support.thread` | `MagicStarterSupportThreadView` | Stacked. A chat (0.0.44): bubbles by `sender_type` (`customer`, `staff`, `ai`) with the avatar at the bubble top, centred activity lines, a typing bubble while `awaiting_ai`, a docked composer, and a seen receipt on open. |
 
-The three paths are fixed under `/support`; no `routes.*` config key moves them. All three sit behind the `auth` middleware; the list in the `layout.app` shell, and from 0.0.44 the thread in its own `app.chat` group wrapped in `MagicStarterHideBottomNav`, so a host shell that reads `MagicStarterHideBottomNav.of(context)` drops its bottom tab bar under the composer. Status pills use `bg-warning-soft`, `bg-success-soft`, `bg-ai-soft` and their `text-*-soft-foreground` peers, which `MagicStarterTokens.defaultAliases` defines; a host theme that replaces the alias map must define them or the tint drops silently. Since 0.0.44 the AI desk states need `magic-starter-laravel` 0.0.31. With the feature on, `MSUserProfileDropdown` gains a Support item (`Icons.support_agent_outlined`, `magic_starter.nav.support`) that goes to `/support` whether or not the routes were registered, so an app that skips the call ships a dead menu item; a host that draws its own account menu adds its own entry.
+The three paths are fixed under `/support`; no `routes.*` config key moves them. All three sit behind the `auth` middleware; the list and, from 0.0.44, the thread both live in the app shell (`MagicStarterLayoutIds.app`), so opening a thread does not rebuild the layout. The thread's page is wrapped in `MagicStarterHideBottomNav`, which collapses the bottom tab bar under the composer in step with the page's transition; a host layout that wants that opts in with `MagicStarterBottomNavScope` and `MagicStarterBottomNavSlot`. Status pills use `bg-warning-soft`, `bg-success-soft`, `bg-ai-soft` and their `text-*-soft-foreground` peers, which `MagicStarterTokens.defaultAliases` defines; a host theme that replaces the alias map must define them or the tint drops silently. Since 0.0.44 the AI desk states need `magic-starter-laravel` 0.0.31. With the feature on, `MSUserProfileDropdown` gains a Support item (`Icons.support_agent_outlined`, `magic_starter.nav.support`) that goes to `/support` whether or not the routes were registered, so an app that skips the call ships a dead menu item; a host that draws its own account menu adds its own entry.
 
 `MagicStarterSupportController` (`.instance`, `SessionScoped`) backs the screens and is exported for a host that overrides a view: `loadConversations()`, `loadConversation(id)`, `loadMoreConversations()` (0.0.44, the next page; a row already held is skipped and a tap during a reread is ignored), `createConversation({topic, subject, body, source})` (the new conversation, or `null` with field errors in `getError` and anything else in `writeError`), `sendMessage(id, body)`, `markSeen(id)` (quiet: a failure is logged, never shown), and the reads `conversations`, `conversation`, `topics`, `hasMoreConversations`, `isAwaitingAi`, `listStatus`, `threadStatus` and `isSubmitting`. The client never sends a user or team id: the backend scopes every `support/conversations` endpoint to the authenticated opener. A 404 sets `MagicStarterSupportReadStatus.notFound`, rendered as a not-found state and never retried, because a teammate's conversation answers 404 exactly like a missing one.
 
@@ -1023,6 +1060,7 @@ Realtime is NOT wired here: the layout arms the poller only. Call `Notify.startR
 | `brandBuilder` + `brandClassName` both set | `brandBuilder` wins. `brandClassName` is ignored when a builder is registered. |
 | Hardcoding dialog classNames | All modal classNames must come from `MagicStarter.manager.modalTheme`. Never hardcode in widget build methods. |
 | Navigation theme not affecting UI | `MagicStarter.useNavigationTheme()` must be called before the app layout is first painted. |
-| Bottom nav visible on fullscreen routes | Wrap route widget with `MagicStarterHideBottomNav(child: widget)` to hide mobile bottom nav. |
+| Bottom nav visible on fullscreen routes | Wrap the route's page with `MagicStarterHideBottomNav(child: page)`, and make sure the layout opts in: `MagicStarterBottomNavScope` at its root, its nav inside `MagicStarterBottomNavSlot`. |
+| Whole layout flashes or re-animates between two screens of the same app | The two routes sit in different shells. Every group with a `layout:` is its own `ShellRoute`; give the groups the same `layoutId` (`MagicStarterLayoutIds.app` for a starter app). |
 | Published view not auto-wired | `dart run magic:artisan starter:doctor` detects published but unregistered views. Re-run publish or manually add `MagicStarter.view.register()`. |
 | A raw key rendering in a tab title or a dialog | The catalogue is the CONSUMER's; `trans()` answers a missing key with the key. An app upgrading past alpha.24 merges the 20 `magic_starter.titles.*` keys from `assets/stubs/install/en.stub`, and past alpha.26 adds `common.delete`, `notifications.delete_confirm_title` and `notifications.delete_confirm_message`. A fresh `starter:install` already ships them. |

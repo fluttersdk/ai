@@ -110,7 +110,7 @@ MagicRoute.group(
 | `middleware` | `List<dynamic>` | Middleware applied to all routes |
 | `as` | `String?` | Named prefix (e.g., 'admin.') for route names |
 | `layout` | `Widget Function(Widget)` | Persistent shell layout for grouped routes |
-| `layoutId` | `String?` | Layout identifier for merging groups with same layout |
+| `layoutId` | `String?` | Groups sharing a `layoutId` share one `ShellRoute`; without one, or with a different one, the group is a separate shell |
 | `routes` | `void Function()` | Callback to register child routes |
 
 ## Resource Routes (ResourceController)
@@ -179,6 +179,7 @@ Use layouts to maintain persistent UI (tabs, navigation rails, sidebars) while c
 
 ```dart
 MagicRoute.group(
+  layoutId: 'app',
   layout: (child) => AppLayout(
     sidebar: NavigationSidebar(),
     child: child,
@@ -191,6 +192,8 @@ MagicRoute.group(
 ```
 
 The layout builder receives the child widget and returns the wrapped layout.
+
+Every group with a `layout:` compiles to its own go_router `ShellRoute`. Groups sharing a `layoutId` share one persistent shell; a group without one, or with a different one, is a separate shell even when it builds the same layout widget. Moving between shells rebuilds and re-animates the whole layout, so give every route that shows the same layout one `layoutId`. In debug builds MagicRouter prints once per layout widget type when a group without a `layoutId` builds the same layout widget as another group; two different explicit ids are taken as deliberate.
 
 ### Via Direct Layout Registration
 
@@ -205,7 +208,7 @@ MagicRoute.layout(
 );
 ```
 
-Multiple layout groups with the same ID merge their routes under a single layout shell.
+Multiple layout groups with the same ID merge their routes under a single layout shell: children are concatenated in registration order and the first builder wins. A layout without an ID is its own shell. Shells are emitted in registration order of their first group, and go_router tries them in that order.
 
 ### Above Every Route: `MagicApplication.builder`
 
@@ -578,6 +581,7 @@ MagicRoute.group(
 
 ```dart
 MagicRoute.layout(
+  id: 'dashboard',
   builder: (child) => DashboardShell(
     navigation: BottomNavigationBar(items: [...]),
     child: child,
