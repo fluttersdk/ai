@@ -1,4 +1,4 @@
-<!-- magic_starter v0.0.47 | Updated: 2026-10-17 -->
+<!-- magic_starter v0.0.53 | Updated: 2026-10-19 -->
 
 # magic_starter Plugin
 
@@ -281,6 +281,8 @@ Copy from `lib/config/magic_starter.dart` into your app config:
     'support_attachments': false,  // image and PDF attachments on a message (0.0.45+)
     'support_diagnostics': false,  // client info and a previewed screenshot (0.0.45+)
     'store_review': false,         // native review prompt and the menu's Rate us (0.0.45+)
+    'releases': false,             // "What's new" page at /settings/changelog, hub row, version caption (0.0.48+)
+    'app_update': false,           // MagicStarterAppUpdateBanner: new web deploy or newer store build (0.0.48+)
   },
   'auth': {
     'email': true,    // Email-based login/register
@@ -320,7 +322,7 @@ Copy from `lib/config/magic_starter.dart` into your app config:
 },
 ```
 
-All 15 features default to `false` in code. The template above has some enabled as a reasonable starting point.
+All 22 features default to `false` in code. The template above has some enabled as a reasonable starting point.
 
 `billing.billable` (0.0.37+) picks who the store rail bills: the provider sets `StoreIdentitySync.billableId` from it in `register()`, and any value but `'user'` or `'team'` throws a `StateError`. `localization.apply_user_locale` cooperates with a profile save's own language switch, so one save still issues exactly one `Lang.setLocale()`.
 
@@ -374,6 +376,7 @@ A stacked route names NO transition, which is the half a host controls. These ro
 | `auth.reset_password` | always | `MagicStarterResetPasswordView` |
 | `auth.two_factor_challenge` | `features.two_factor` | `MagicStarterTwoFactorChallengeView` |
 | `auth.otp_verify` | `features.phone_otp` | `MagicStarterOtpVerifyView` |
+| `auth.verify_email` | `features.email_verification` | `MagicStarterVerifyEmailView` (0.0.53+). Served at `/auth/verify-email` outside the `guest` group; it replays the mailed `id`, `hash`, `expires` and `signature` against `GET /email/verify/{id}/{hash}` once. Pair with magic-starter-laravel 0.0.41, whose mail opens it. |
 | `settings.hub` | always | `MagicStarterSettingsHubView` |
 | `profile.profile` | always | `MagicStarterProfileSubPageView` |
 | `settings.appearance` | always | `MagicStarterAppearanceView` |
@@ -392,6 +395,7 @@ A stacked route names NO transition, which is the half a host controls. These ro
 | `support.create` | `features.support` | `MagicStarterSupportCreateView` (0.0.43+) |
 | `support.thread` | `features.support` | `MagicStarterSupportThreadView` (0.0.43+) |
 | `support.feedback` | `features.support_feedback` | `MagicStarterFeedbackView` (0.0.45+), `/support/feedback`: `MagicStarterFeedbackCard(onDemand: true)` |
+| `settings.changelog` | `features.releases` | `MagicStarterChangelogView` (0.0.48+), `/settings/changelog` (`MagicStarterConfig.settingsChangelogRoute()`, follows `profile_prefix`), stacked. Releases newest first from `GET releases`. |
 
 `notifications.list` and `notifications.preferences` are NOT on this registry (alpha.25). They live on `Notify.view`, whose API is the same; move the override there.
 
@@ -461,7 +465,7 @@ Published files go to `lib/resources/views/starter/` (views) or `lib/resources/l
 
 ## Design-system components
 
-44 atomic components (39 until 0.0.37), all `MS`-prefixed, exported from `package:magic_starter/magic_starter.dart`. Each lives in a 4-file folder under `lib/src/ui/components/` (`<name>.dart`, `<name>.recipe.dart`, `<name>.preview.dart`, `index.dart`) and styles through a `WindRecipe` that reads `MagicStarterTokens.defaultAliases`, so a consumer's theme drives them.
+45 atomic components (39 until 0.0.37, 44 until 0.0.48), all `MS`-prefixed, exported from `package:magic_starter/magic_starter.dart`. Each lives in a 4-file folder under `lib/src/ui/components/` (`<name>.dart`, `<name>.recipe.dart`, `<name>.preview.dart`, `index.dart`) and styles through a `WindRecipe` that reads `MagicStarterTokens.defaultAliases`, so a consumer's theme drives them.
 
 > [!IMPORTANT]
 > The `MS` prefix is not optional and there is no compat shim. The pre-`MS` component names (`Button`, `Dialog`, `Switch`, ...) were removed in alpha.19, and so were the six `MagicStarter*` alias widgets (`MagicStarterCard`, `MagicStarterPageHeader`, `MagicStarterSocialDivider`, `MagicStarterNotificationDropdown`, `MagicStarterTeamSelector`, `MagicStarterUserProfileDropdown`). Write `MSCard`, `MSPageHeader`, `MSSocialDivider`, `MSTeamSelector`, `MSUserProfileDropdown`. The bell is no longer here at all: it is `NotificationDropdown` from `magic_notifications`. The prefix is what ends the `package:flutter/material.dart` collision, so no `hide` clause is needed either way.
@@ -476,9 +480,19 @@ Published files go to `lib/resources/views/starter/` (views) or `lib/resources/l
 | Page geometry | `MSPageContainer`, `MSPageScaffold` |
 | Settings surface | `MSSettingsSection`, `MSSettingsRow`, `MSSettingsNavRow` |
 | Billing surface | `MSUsageMeter`, `MSUpgradeDialog`, `MSUpgradeNudge` |
-| App chrome | `MSUserProfileDropdown`, `MSTeamSelector`, `MSAvatar` |
+| App chrome | `MSUserProfileDropdown`, `MSTeamSelector`, `MSAvatar`, `MSUpdateBanner` |
 
 The five added in 0.0.37 are `MSFormActions` (a cancel/submit footer row), `MSSwitchRow` (a labelled `MSSwitch`), `MSHeaderAction` (a page-header action that collapses to an icon below `lg`), `MSKeyValueEditor` (a controlled editor for a list of key/value pairs) and `MSStringValueList` (a controlled chip editor for distinct strings). Each takes every visible string as a required constructor parameter and reads no translation key of its own.
+
+Since 0.0.49 `MSSwitch` takes an optional `label`: tapping it toggles the switch, it is the switch's accessible name unless `semanticLabel` is set, and it wraps in the width beside the track. `MSSwitchRow` is a full-width `MSSwitch(label:)`, so a test finds its switch by `label`, not `semanticLabel`. Below `lg` the switch and an `sm` `MSButton` sit in a 44 px hit area, and `MSSelect`, `MSSwitch` and `MSSegmentedControl` draw a primary focus ring on Tab (the select's needs `fluttersdk_wind` 1.9.1).
+
+Since 0.0.50 every `MSButton` size, not only `sm`, sits in a 44 px hit area below `lg`, and each `MSSegmentedControl` segment has a 44 px hit cell around its painted pill. `MSSelect` and `MSCombobox` default their placeholders to `trans('common.select_option')` and `trans('common.search_options')`, so a host merges those two keys into every locale it ships. The billing controller re-reads plans and usage when the locale changes.
+
+Since 0.0.51 `MSInput` and the `MSSelect` and `MSCombobox` triggers paint 44 px tall below `lg` and 40 px from `lg` up (`MSTextarea` is unchanged). `MSCombobox`'s search field defaults its placeholder to `trans('common.search_placeholder')`, a third key a host merges into every locale. The package's own profile, settings, security and team action buttons are `MSButton`s. The billing locale listener stays silent for a guest.
+
+Since 0.0.52 destructive text follows the host's theme: `MagicStarterTokens.role(WindTheme.maybeDataOf(context), 'text-destructive')` returns the token when the host's `WindThemeData` defines it (an alias key or a `destructive` colour) and `text-red-600 dark:text-red-400` otherwise, since the shipped alias map has no destructive text role and a bare `text-destructive` renders neutral where the host omits it. An outlined danger action is `ButtonIntent.secondary` plus `className: buttonDangerOutlineClassName(context)` (that role plus a raw red border); it replaces 0.0.51's `kButtonDangerOutlineClassName`, which is gone. `MSSettingsRow`'s destructive title, the billing dunning notice and the connected accounts error resolve the same role, so a host that maps `text-destructive` to its brand red sees it there.
+
+Since 0.0.53: `MSPageHeader.subtitleSuffix` puts a widget on the subtitle line (it wraps under the subtitle when the line is full); `MSEmptyState` takes the full width, so it centres on a start-aligned page instead of hugging the left edge; `MSBottomSheet(scrollable: false)` hands a body that owns its scrolling the sheet's bounded height (a fixed summary over a paged list) instead of nesting it in the sheet's own scroll view; an `MSSettingsSection` footer sits 12 px under its card; the support composer's Send circle sits flush in its 44 px target, spins while a reply is out and reads as disabled while any support write runs; `MSTabs` and `MSSegmentedControl` reach 44 px below `lg`. Hosts merge the new `magic_starter.titles.verify_email` and `magic_starter.email_verification.*` keys into every locale.
 
 `MSButton`, `MSInput` and `MSTextarea` take `bool fullWidth = false`, which wraps the rendered widget in a `SizedBox(width: double.infinity)` rather than adding a className token (Material widgets ignore cross-axis stretch).
 
@@ -525,6 +539,7 @@ MSPageHeader(
   subtitle: trans('projects.manage_subtitle'),
   leading: BackButton(),
   titleSuffix: StatusBadge(status: 'active'), // inline widget after title
+  subtitleSuffix: CertificatePill(), // 0.0.53+: on the subtitle line, wraps under it when full
   inlineActions: true, // force single-row layout at every width
   actions: [
     MSButton(onPressed: _onCreate, child: WText(trans('projects.new'))),
@@ -550,8 +565,32 @@ The starter-specific widgets, exported from the same barrel. These are not desig
 | `MagicStarterBottomNavScope` | Goes at a layout's root. It is what `MagicStarterHideBottomNav` talks to; a layout without one ignores the hide request. |
 | `MagicStarterBottomNavSlot` | Wraps the layout's bottom nav, so it collapses and expands with the wrapped page's transition. |
 | `MagicStarterHideChrome` | Since 0.0.32. The same shape for the WHOLE shell: no sidebar, no drawer, no header, no bottom bar, no safe-area inset and no scroll container. For a media player or a map, which sizes itself and cannot use the scroll container's unbounded height. Its group is a separate shell, so entering it rebuilds the layout and leaving it rebuilds the layout again. |
+| `MagicStarterAppVersion` | 0.0.48+. One-line caption naming the running build. See [MagicStarterAppVersion](#magicstarterappversion). |
+| `MagicStarterAppUpdateBanner` | 0.0.48+. Non-modal strip offering a newer web deploy or store build. See [MagicStarterAppUpdateBanner](#magicstarterappupdatebanner). |
 | `MagicStarterConfirmDialog` | Thin alias of `MSConfirmDialog`, kept for existing callers. New code writes `MSConfirmDialog`. |
 | `MagicStarterDialogShell` | Thin alias of `MSDialog` (sticky header/footer, scrollable body). New code writes `MSDialog`. |
+
+### MagicStarterAppVersion
+
+A one-line caption naming the build the app runs, `1.0.0 (14)` on iOS and Android and `1.0.0 · <build>` on the web (version only when the build number is empty). The settings hub and the changelog page show it when `releases` is on; a host places it anywhere else by hand:
+
+```dart
+const MagicStarterAppVersion()
+```
+
+`className` replaces the default `text-xs text-fg-muted text-center`. It renders nothing while the read is pending and when the platform cannot answer.
+
+### MagicStarterAppUpdateBanner
+
+A non-modal strip (an `MSUpdateBanner`) with one action and "Later". `MagicStarterAppLayout` mounts it when `app_update` is on; a host with its own layout places it by hand near the top of the content:
+
+```dart
+const MagicStarterAppUpdateBanner()
+```
+
+- **Web**: compares the running build number with the `build_number` in the `version.json` the server serves now, polling every 15 minutes (`checkInterval`) and on resume. A new build is revealed 60 seconds after it is first seen (`revealDelay`), and the action is Reload. Build with `flutter build web --release --build-number="$DEPLOY_SHA"`, or two deploys look identical, and serve `version.json` with `Cache-Control: no-cache`.
+- **iOS and Android**: only release builds installed from the store (App Store, Google Play); TestFlight, simulator, debug and sideloads stay quiet. Compares the installed build with `meta.latest_build` from `GET releases` on mount and on resume, and "Update" opens the store page. iOS needs `magic_starter.store_review.app_store_id` (the `store_review` feature itself can stay off); without it the banner stays hidden.
+- "Later" is remembered per offered build in the `Vault` under `magic_starter.app_update.dismissed_build`, so only a newer build brings it back. It never reloads by itself, and a check that cannot read a build logs a warning and leaves the banner as it was.
 
 ### MagicStarterHideBottomNav
 
@@ -825,6 +864,17 @@ Five flags on top of `features.support`, all default `false`. The four `support_
 
 `MagicStarterConfig.supportThreadPath(id)` is the path to one conversation, beside the `supportThreadRoute()` pattern. The copy adds `magic_starter.support.attach_*`, `attachment_*`, `attachments_*`, `feedback_*`, `rating_*`, `screenshot_*`, `support_feedback`, and `magic_starter.nav.feedback` / `nav.rate_us`; a published `en.json` merges them by hand. 0.0.45 adds the `in_app_review` and `package_info_plus` dependencies.
 
+### Releases and app update (0.0.48+)
+
+Two flags, both default `false` and independent. They read `GET releases` from `magic-starter-laravel` (`Features::releases()` on the backend, 404 when off; the endpoint is open to guests); the web banner reads only `version.json`. Full contract: `doc/basics/releases.md`.
+
+| Flag | What it adds |
+|:-----|:-------------|
+| `releases` | The `/settings/changelog` page (view key `settings.changelog`), a "What's new" row in the settings hub and `MagicStarterAppVersion`. Each release is a card with version, date and New, Improved or Fixed items in the reader's language, then `defaults.locale`, then the first non-empty entry. |
+| `app_update` | `MagicStarterAppUpdateBanner`, mounted by `MagicStarterAppLayout`. |
+
+Models: `MagicStarterRelease` (`version`, `publishedAt`, `iosBuild`, `androidBuild`, `items`), `MagicStarterReleaseItem` with `MagicStarterReleaseItemType` (`new`, `improved`, `fixed`; an item of any other type is skipped), and `MagicStarterReleaseFeed` (`releases`, `latestIosBuild`, `latestAndroidBuild`). Support helper `MagicStarterAppBuild` is the one read of the platform's package info, shared by the version caption, the banner and the support conversation's client context: `info()` (`null` when the platform cannot answer), `label(info)`, `isStoreInstall(info)` and `prime()` (call it at boot on the web so the cached build is the one the bundle shipped with). The copy lives under `magic_starter.releases.*`, `magic_starter.app_update.*` and `magic_starter.titles.changelog`; a published `en.json` merges them by hand.
+
 ## Page geometry
 
 `MagicStarter.manager.pageContainerClassName` carries the WHOLE geometry `MSPageContainer` applies: width cap, horizontal edge margins, vertical rhythm. It defaults to `MagicStarterManager.defaultPageContainerClassName` (`'max-w-7xl px-4 lg:px-8 pt-6 sm:pt-8 pb-16'`). Set it once, from the same string the host's own pages use, or starter pages and host pages centre at different widths inside the same shell:
@@ -849,6 +899,7 @@ All controllers use the `Magic.findOrPut(ControllerClass.new)` singleton pattern
 | `MagicStarterNewsletterController` | `.instance` | Newsletter subscription management |
 | `MagicStarterBillingController` | constructed, not `.instance` | Plans, usage meters, the web and store rails, and product-keyed store purchases (`purchaseInStore`, `purchaseInStoreAndWait`; see [Billing](#billing)). It takes `usageCopy` and `formatNumber` as required arguments (and optional `formatPrice` from 0.0.43, `storeFundedTeamReader` / `isOwnerReader`), so the host registers its own instance with `Magic.put`. |
 | `MagicStarterSupportController` | `.instance` | The support desk's conversation list, one thread, and the create, reply and seen writes (0.0.43+; see [Support desk](#support-desk)) |
+| `MagicStarterReleasesController` | `.instance` | The release feed (0.0.48+; see [Releases and app update](#releases-and-app-update-0048)). `fetchReleases()` loads it into the changelog view's state; the static `readFeed()` is the stateless read the banner uses and answers `null` on any failure. |
 
 ### Auth Controller Key Methods
 
