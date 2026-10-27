@@ -1,4 +1,4 @@
-<!-- magic_starter v0.0.53 | Updated: 2026-10-19 -->
+<!-- magic_starter v0.0.58 | Updated: 2026-10-27 -->
 
 # magic_starter Plugin
 
@@ -378,7 +378,7 @@ A stacked route names NO transition, which is the half a host controls. These ro
 | `auth.otp_verify` | `features.phone_otp` | `MagicStarterOtpVerifyView` |
 | `auth.verify_email` | `features.email_verification` | `MagicStarterVerifyEmailView` (0.0.53+). Served at `/auth/verify-email` outside the `guest` group; it replays the mailed `id`, `hash`, `expires` and `signature` against `GET /email/verify/{id}/{hash}` once. Pair with magic-starter-laravel 0.0.41, whose mail opens it. |
 | `settings.hub` | always | `MagicStarterSettingsHubView` |
-| `profile.profile` | always | `MagicStarterProfileSubPageView` |
+| `profile.profile` | always | `MagicStarterProfileSubPageView`. A failed photo upload or removal shows its reason under the buttons: the server's `photo` message, else `profile.photo_update_failed` / `profile.photo_delete_failed` (0.0.58+). A write already in flight (`MagicStarterProfileController.isSubmitting`) is not reported as a failure. Tests pass `pickImage` to stand in for the system picker. |
 | `settings.appearance` | always | `MagicStarterAppearanceView` |
 | `settings.security.password` | always | `MagicStarterPasswordView`. For an account with `has_password` false it renders the Set password form instead of the change form (0.0.39+). |
 | `settings.language` | `features.extended_profile` | `MagicStarterLanguageView` |
@@ -477,7 +477,7 @@ Published files go to `lib/resources/views/starter/` (views) or `lib/resources/l
 | Selection / navigation | `MSSegmentedControl`, `MSTabs`, `MSAccordion`, `MSNavbar`, `MSDropdownMenu` |
 | Overlay | `MSDialog`, `MSBottomSheet`, `MSConfirmDialog` |
 | Composition | `MSFormField`, `MSFormActions`, `MSCard`, `MSPageHeader`, `MSHeaderAction`, `MSSocialDivider` |
-| Page geometry | `MSPageContainer`, `MSPageScaffold` |
+| Page geometry | `MSPageContainer`, `MSPageScaffold`, `MSMasterDetail` |
 | Settings surface | `MSSettingsSection`, `MSSettingsRow`, `MSSettingsNavRow` |
 | Billing surface | `MSUsageMeter`, `MSUpgradeDialog`, `MSUpgradeNudge` |
 | App chrome | `MSUserProfileDropdown`, `MSTeamSelector`, `MSAvatar`, `MSUpdateBanner` |
@@ -493,6 +493,14 @@ Since 0.0.51 `MSInput` and the `MSSelect` and `MSCombobox` triggers paint 44 px 
 Since 0.0.52 destructive text follows the host's theme: `MagicStarterTokens.role(WindTheme.maybeDataOf(context), 'text-destructive')` returns the token when the host's `WindThemeData` defines it (an alias key or a `destructive` colour) and `text-red-600 dark:text-red-400` otherwise, since the shipped alias map has no destructive text role and a bare `text-destructive` renders neutral where the host omits it. An outlined danger action is `ButtonIntent.secondary` plus `className: buttonDangerOutlineClassName(context)` (that role plus a raw red border); it replaces 0.0.51's `kButtonDangerOutlineClassName`, which is gone. `MSSettingsRow`'s destructive title, the billing dunning notice and the connected accounts error resolve the same role, so a host that maps `text-destructive` to its brand red sees it there.
 
 Since 0.0.53: `MSPageHeader.subtitleSuffix` puts a widget on the subtitle line (it wraps under the subtitle when the line is full); `MSEmptyState` takes the full width, so it centres on a start-aligned page instead of hugging the left edge; `MSBottomSheet(scrollable: false)` hands a body that owns its scrolling the sheet's bounded height (a fixed summary over a paged list) instead of nesting it in the sheet's own scroll view; an `MSSettingsSection` footer sits 12 px under its card; the support composer's Send circle sits flush in its 44 px target, spins while a reply is out and reads as disabled while any support write runs; `MSTabs` and `MSSegmentedControl` reach 44 px below `lg`. Hosts merge the new `magic_starter.titles.verify_email` and `magic_starter.email_verification.*` keys into every locale.
+
+Since 0.0.57, three opt-in layout options (nothing changes until a host sets one):
+
+- `MSPageHeader(size: MSPageHeaderSize.regular | large | compact)`. `large` uses `MagicStarterPageHeaderTheme.largeTitleClassName` (`text-4xl lg:text-3xl`); `compact` is a 44 pt `NavigationToolbar` under the top safe area (leading, centred one-line title, actions; no subtitle or suffixes) on `compactBarClassName` with a `compactBarBlurSigma` backdrop blur, opaque (`compactBarOpaqueClassName`, no blur) under `MediaQuery.highContrast`. `MSPageScaffold(largeTitle: true)` renders the large header and fades the compact bar in over the page once the header has scrolled under it; `MagicStarterPageHeaderTheme(largeTitle: true)` turns both on everywhere, the starter's own pages included. While the bar shows, the title and actions are in the tree twice, so an action with a `GlobalKey` cannot go in a large-title scaffold.
+- `MSMasterDetail(master:, detail:, placeholder:, breakpoint: 'lg')`: list and selected item side by side from the breakpoint (`w-96` list column), `detail ?? master` below it. Keep the selection in the route (`/stock`, `/stock/42`) and a row tap is push navigation on a phone. Layout only, so it goes inside `MSPageScaffold`; `MSMasterDetail.isSplit(context)` answers the same question for the page's header.
+- `MSBottomSheet.show(..., dialogBreakpoint: 'lg')` presents `MSDialog` from that breakpoint with the same arguments; `MSDialog` takes `scrollable` for it.
+
+An unknown breakpoint name throws a `StateError` naming the setting, in all three and in the shell.
 
 `MSButton`, `MSInput` and `MSTextarea` take `bool fullWidth = false`, which wraps the rendered widget in a `SizedBox(width: double.infinity)` rather than adding a className token (Material widgets ignore cross-axis stretch).
 
@@ -541,6 +549,7 @@ MSPageHeader(
   titleSuffix: StatusBadge(status: 'active'), // inline widget after title
   subtitleSuffix: CertificatePill(), // 0.0.53+: on the subtitle line, wraps under it when full
   inlineActions: true, // force single-row layout at every width
+  size: MSPageHeaderSize.large, // 0.0.57+: regular (default), large or compact
   actions: [
     MSButton(onPressed: _onCreate, child: WText(trans('projects.new'))),
   ],
@@ -863,6 +872,10 @@ Five flags on top of `features.support`, all default `false`. The four `support_
 | `store_review` | `MagicStarterStoreReview.maybeRequest()` for a host milestone, never a button: quiet on the web, for a guest, in the first `min_account_days` (7), within `interval_days` (120) of the last prompt, and while the feedback card is due. The menu's "Rate us" calls `openStoreListing()`; iOS and macOS need `magic_starter.store_review.app_store_id`. |
 
 `MagicStarterConfig.supportThreadPath(id)` is the path to one conversation, beside the `supportThreadRoute()` pattern. The copy adds `magic_starter.support.attach_*`, `attachment_*`, `attachments_*`, `feedback_*`, `rating_*`, `screenshot_*`, `support_feedback`, and `magic_starter.nav.feedback` / `nav.rate_us`; a published `en.json` merges them by hand. 0.0.45 adds the `in_app_review` and `package_info_plus` dependencies.
+
+### Knowledge base articles (0.0.54+)
+
+No flag of its own: with `magic-starter-laravel` 0.0.42 and its `support.articles.enabled`, the create form calls `MagicStarterSupportController.suggestArticles()` once the message has 12 characters and typing has paused 600 ms (`GET support/articles?search=&locale=`, the message cut to 200 characters) and shows up to three `MagicStarterSupportArticleCard`s from `articleSuggestions`; a stale, failed or 404 answer shows nothing. An AI message parses `articles` (`slug`, `question`, `url`, as `MagicStarterSupportArticle`) and its bubble renders one card each. A tap runs `Launch.url(url)`; a refused url shows `magic_starter.support.article_open_error`. The copy adds `magic_starter.support.articles_label` and `article_open_error`.
 
 ### Releases and app update (0.0.48+)
 

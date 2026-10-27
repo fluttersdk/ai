@@ -1,4 +1,4 @@
-<!-- magic_notifications v0.3.10 | Updated: 2026-10-14 -->
+<!-- magic_notifications v0.3.11 | Updated: 2026-10-27 -->
 
 # magic_notifications Plugin
 
@@ -535,6 +535,8 @@ Notify.manager.onPushClicked.listen((event) {
 ```
 
 An app that also installs `magic_deeplink` gets this wiring for free: its provider bridges `onPushClicked` into the deep link handler chain.
+
+On the web, a click fires `onPushClicked` only in a tab that is already open. From 0.3.11 the web driver initialises OneSignal with `notificationClickHandlerMatch: 'origin'` and `notificationClickHandlerAction: 'focus'`, so the service worker focuses any open tab of the app and hands it the click. With no tab open the browser loads the push's `web_url` instead, a cold page load that never sees the click, so the backend has to set `web_url` to the page itself (not `url`, which a phone opens in the browser instead of the app). A Typical Site OneSignal app takes the click behaviour from its dashboard rather than from these init options.
 
 ### Custom Channel Registration
 
