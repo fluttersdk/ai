@@ -1,8 +1,8 @@
-<!-- magic_starter v0.0.58 | Updated: 2026-10-27 -->
+<!-- magic_starter v0.0.59 | Updated: 2026-10-28 -->
 
 # magic_starter Plugin
 
-Full-stack Flutter starter kit for Magic Framework: pre-built auth flows, team management, profile settings, billing, and responsive app/guest layouts with an opt-in feature flag system. The notification UI moved to `magic_notifications` in alpha.25; this package mounts it. From 0.0.45 every sibling floor names the newest release at that point: `magic ^0.0.29`, `magic_notifications ^0.3.10`, `magic_payments ^0.0.12`, `fluttersdk_wind ^1.9.0` and `fluttersdk_artisan ^0.0.20`. The `magic_payments` floor carries real requirements underneath: the billing screen purchases by catalogue product key and reads `StoreBillingService.products()`, `store` and `lastChangeTiming`, all new in 0.0.8, so 0.0.40 does not compile against 0.0.7 (see [Billing](#billing)); 0.0.41 needs 0.0.9 for `StoreProductOffer.introEligible`, which the trial copy reads (see [Trials](#trials-0041)); and 0.0.42 needs 0.0.10 for the swap refusal codes (see [Changing a web plan](#changing-a-web-plan-0042)). The Wind floor is a real requirement from 0.0.43 too: the auth forms pass `autofillHints` to `WInput` and `WFormInput`, which Wind 1.8.3 adds. The real `magic` requirement is 0.0.29: views read their route values through `MagicRouter.pathParameterOf` / `queryParameterOf`, and the support thread opens a PDF with `Launch.url(..., webOnlyWindowName: '_self')`. Underneath it sit older ones: `AuthRestored.changed` (magic 0.0.24), which the starter reads to skip the app reload when a restore left the user unchanged, `SessionScope`, `SessionScoped`, the keyed `LatestRead` and `BaseGuard.cacheUser` arrive in magic 0.0.22, `Notify.pushState` in magic_notifications 0.3.5, and `StoreIdentitySync` in magic_payments 0.0.5. Two more carry a requirement older than the batch that set them. Wind is declared DIRECTLY, rather than taken through `magic`, so a floor exists to raise when this package calls a new Wind API: 0.0.28 passes `WSelect.onOpen`, which 1.6.0 adds. And `magic` has needed 0.0.12 since 0.0.29, for two reasons rather than one: `RouteDefinition.stacked()` exists in no release below it, and 0.0.12 is also where a routed page stopped being transparent, which is the defect stacking a route would otherwise expose.
+Full-stack Flutter starter kit for Magic Framework: pre-built auth flows, team management, profile settings, billing, and responsive app/guest layouts with an opt-in feature flag system. The notification UI moved to `magic_notifications` in alpha.25; this package mounts it. From 0.0.45 every sibling floor names a release this package was verified against: `magic ^0.0.29`, `magic_notifications ^0.3.10`, `magic_payments ^0.0.12`, `fluttersdk_wind ^1.10.0` and `fluttersdk_artisan ^0.0.20`. 0.0.59 moves only the Wind floor, in the pubspec from `^1.9.1` to `^1.10.0`. This page quoted `^1.9.0` until then, a floor the pubspec left at 0.0.49. The `magic_payments` floor carries real requirements underneath: the billing screen purchases by catalogue product key and reads `StoreBillingService.products()`, `store` and `lastChangeTiming`, all new in 0.0.8, so 0.0.40 does not compile against 0.0.7 (see [Billing](#billing)); 0.0.41 needs 0.0.9 for `StoreProductOffer.introEligible`, which the trial copy reads (see [Trials](#trials-0041)); and 0.0.42 needs 0.0.10 for the swap refusal codes (see [Changing a web plan](#changing-a-web-plan-0042)). The Wind floor is a real requirement from 0.0.43 too: the auth forms pass `autofillHints` to `WInput` and `WFormInput`, which Wind 1.8.3 adds. The real `magic` requirement is 0.0.29: views read their route values through `MagicRouter.pathParameterOf` / `queryParameterOf`, and the support thread opens a PDF with `Launch.url(..., webOnlyWindowName: '_self')`. Underneath it sit older ones: `AuthRestored.changed` (magic 0.0.24), which the starter reads to skip the app reload when a restore left the user unchanged, `SessionScope`, `SessionScoped`, the keyed `LatestRead` and `BaseGuard.cacheUser` arrive in magic 0.0.22, `Notify.pushState` in magic_notifications 0.3.5, and `StoreIdentitySync` in magic_payments 0.0.5. Two more carry a requirement older than the batch that set them. Wind is declared DIRECTLY, rather than taken through `magic`, so a floor exists to raise when this package calls a new Wind API: 0.0.28 passes `WSelect.onOpen`, which 1.6.0 adds. And `magic` has needed 0.0.12 since 0.0.29, for two reasons rather than one: `RouteDefinition.stacked()` exists in no release below it, and 0.0.12 is also where a routed page stopped being transparent, which is the defect stacking a route would otherwise expose.
 
 0.0.39 is BREAKING in three places, all from the redesigned social login and account deletion, and it needs a `magic-starter-laravel` with its `social-login` feature on. `MagicStarter.useSocialAuth(bridge)` replaces the old social login builder hook, with no alias. Every gated `MagicStarterProfileController` method takes a `proof` map where it took a `password`. `doDeleteAccount` schedules the deletion (a grace period a sign-in cancels), or runs it immediately when asked, rather than removing the account in the request. See [Social login and connected accounts](#social-login-and-connected-accounts) and [Identity confirmation and account deletion](#identity-confirmation-and-account-deletion).
 
@@ -154,7 +154,35 @@ MagicStarter.useNavigation(
 );
 ```
 
-`MagicStarterNavItem` fields: `icon` (required), `labelKey` (required, passed through `trans()`), `path` (required), `activeIcon` (optional).
+`MagicStarterNavItem` fields: `icon` (required), `labelKey` (required, passed through `trans()`), `path` (required), `activeIcon` (optional), and since 0.0.59 `badgeCount` and `badgeLabelKey` (see below).
+
+### A count on a destination (0.0.59+)
+
+`MagicStarterNavItem(badgeCount: ValueListenable<int?>?)` draws a live count badge on the item. The shell listens to the notifier itself, so the host moves the number by updating it and never rebuilds the navigation config.
+
+```dart
+// Owned by whatever loads the number: a controller, a repository, a stream.
+final ValueNotifier<int?> unticked = ValueNotifier<int?>(null);
+
+MagicStarter.useNavigation(
+  mainItems: [
+    MagicStarterNavItem(
+      icon: Icons.shopping_cart_outlined,
+      labelKey: 'nav.shopping',
+      path: '/shopping',
+      badgeCount: unticked,
+      badgeLabelKey: 'nav.shopping_open', // optional, default 'nav.badge_count'
+    ),
+  ],
+);
+```
+
+- Hidden while the value is `null` or not above zero; `99+` above 99. The pill is the neutral `MSBadge`, so its dark-mode pair comes from the semantic aliases.
+- Drawn in the sidebar and the drawer at the trailing edge of the labelled row, and on the corner of the icon on the compact rail and the bottom bar. It takes no room from the item, and a hidden badge costs the label nothing. The profile menu ignores it.
+- Not colour alone: a screen reader gets the `badgeLabelKey` sentence in place of the drawn number, added to the item's own label, read through `transChoice` with the REAL count (above 99 too). Give the key both plural forms and a `:count` placeholder (`"One line to buy|:count lines to buy"`). The default key `nav.badge_count` ships in the install stub (`"One item|:count items"`); a host installed before 0.0.59 adds it, or an item that omits `badgeLabelKey` reads the raw key.
+- An item that holds a notifier is not `const`, so the list carrying it is `final`; an item without a badge stays `const`.
+- `MagicStarterNavigationTheme.badgeClassName` (default `''`) is appended to the badge recipe, so Wind's per-family last-wins recolours it (`'bg-primary text-on-primary'`; a raw colour needs its `dark:` peer, a semantic alias already has one). On the compact rail the pill overhangs the icon by 16 px, so a `sidebarCompactWidth` under 52 would cut it; the default is 80.
+- `MagicStarterNavBadge(count:, labelKey:, className:)` is the same badge as an exported widget, for a host that registers its own layout. It owns no position.
 
 ### Theme System
 
@@ -164,7 +192,7 @@ The manager holds 7 sub-theme objects. Set all at once via `useTheme()` or indiv
 |:------------------|:----------|:------------|
 | `useTheme(theme)` | `void` | Set all 7 sub-themes at once via `MagicStarterTheme`. |
 | `theme` | `MagicStarterTheme` | Get unified theme (constructs from individual fields). |
-| `useNavigationTheme(theme)` | `void` | Override active nav items, brand, bottom nav, avatar colors (the dropdown trigger's initial and glyph via `dropdownAvatarTextClassName`, 0.0.36+). |
+| `useNavigationTheme(theme)` | `void` | Override active nav items, brand, bottom nav, avatar colors (the dropdown trigger's initial and glyph via `dropdownAvatarTextClassName`, 0.0.36+), and the nav item count badge (`badgeClassName`, 0.0.59+). |
 | `useModalTheme(theme)` | `void` | Override modal container, buttons, inputs, typography tokens. |
 | `useFormTheme(theme)` | `void` | Override form input, label, button, link tokens across all forms. |
 | `useAuthTheme(theme)` | `void` | Override auth card, title, error banner, social divider tokens. |
@@ -574,6 +602,7 @@ The starter-specific widgets, exported from the same barrel. These are not desig
 | `MagicStarterBottomNavScope` | Goes at a layout's root. It is what `MagicStarterHideBottomNav` talks to; a layout without one ignores the hide request. |
 | `MagicStarterBottomNavSlot` | Wraps the layout's bottom nav, so it collapses and expands with the wrapped page's transition. |
 | `MagicStarterHideChrome` | Since 0.0.32. The same shape for the WHOLE shell: no sidebar, no drawer, no header, no bottom bar, no safe-area inset and no scroll container. For a media player or a map, which sizes itself and cannot use the scroll container's unbounded height. Its group is a separate shell, so entering it rebuilds the layout and leaving it rebuilds the layout again. |
+| `MagicStarterNavBadge` | 0.0.59+. The live count on a `MagicStarterNavItem`: takes `count` (a `ValueListenable<int?>`), `labelKey` (the screen-reader sentence, `transChoice` with the real count) and an optional `className`. Draws nothing for `null` or a count not above zero, `99+` above 99. The shell mounts one per item that carries `badgeCount`; a host with its own layout can mount it too. |
 | `MagicStarterAppVersion` | 0.0.48+. One-line caption naming the running build. See [MagicStarterAppVersion](#magicstarterappversion). |
 | `MagicStarterAppUpdateBanner` | 0.0.48+. Non-modal strip offering a newer web deploy or store build. See [MagicStarterAppUpdateBanner](#magicstarterappupdatebanner). |
 | `MagicStarterConfirmDialog` | Thin alias of `MSConfirmDialog`, kept for existing callers. New code writes `MSConfirmDialog`. |
@@ -671,6 +700,7 @@ bottom bar, and it can render the sidebar as an icon rail:
 | `MagicStarterLayoutTheme.contentClassName` | `'flex-1 min-h-0'` | Since 0.0.33; the default stopped scrolling in 0.0.37 (BREAKING, it was `'flex-1 overflow-y-auto'`). The box the route child is handed. In a go_router shell the route child is the nested Navigator, so a scrolling box laid its Overlay out under an unbounded height: a page left under a `.stacked()` route was never laid out again and failed `_debugRelayoutBoundaryAlreadyMarkedNeedsLayout` in debug. Every routed page now scrolls itself: through `MSPageScaffold`, or `SingleChildScrollView(primary: false)`. A page of your own that relied on the shell renders cut off at the window, and so does a `DashboardView` from a pre-0.0.37 install stub. |
 | `MagicStarterLayoutTheme.contentScrollPrimary` | `false` | Since 0.0.33 (was `true` until 0.0.37). Follows `contentClassName`. Setting the old pair back (`'flex-1 overflow-y-auto'`, `true`) through `useLayoutTheme` restores the old behaviour with the stacked-route hazard. Lost either way: tapping the iOS status bar no longer scrolls a shell page to the top. |
 | `MagicStarterNavigationTheme.focusItemClassName` | `''` | Applied to every sidebar, drawer and bottom-bar item, so a host driven by arrow keys or a remote can light the destination that holds focus. Tokens carry the `focus:` prefix. |
+| `MagicStarterNavigationTheme.badgeClassName` | `''` | Since 0.0.59. Appended to the neutral `MSBadge` recipe of a nav item's count badge (`MagicStarterNavItem.badgeCount`), so a token written here wins its Wind family. Empty keeps the recipe's neutral tone. |
 | `MagicStarterLayoutTheme.sidebarCollapsible` | `false` | Since 0.0.34. A toggle above the user menu collapses the labelled sidebar to the compact form and back. Shown only at or above `sidebarExpandedBreakpoint`, where an expansion is possible. The choice is remembered through `Cache` under `magic_starter.sidebar_collapsed` (ten year TTL, since the cache has no `forever` and its default is an hour) when the host binds a cache, and in memory otherwise. |
 | `MagicStarterLayoutTheme.sidebarCollapsedByDefault` | `false` | Since 0.0.34. The state before the viewer has chosen; a remembered choice wins. Ignored unless `sidebarCollapsible` is set. |
 | `MagicStarterNavigationTheme.compactBrandBuilder` | `null` | Since 0.0.34. What the compact rail's brand bar shows, for a wordmark that does not fit 80 pixels. Unset, the rail shows `brandBuilder`. The rail's bar appends `justify-around` to `brandBarClassName`, which centres a lone brand on the icon line and keeps Wind's own child wrapping, so a brand wider than the rail stays bounded. A custom widget whose root is a `flex-1` `WDiv` is still wrapped and throws "Incorrect use of ParentDataWidget": give the brand no flex share at its root. |
