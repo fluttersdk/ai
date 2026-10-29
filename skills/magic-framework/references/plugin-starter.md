@@ -1,10 +1,12 @@
-<!-- magic_starter v0.0.59 | Updated: 2026-10-28 -->
+<!-- magic_starter v0.0.60 | Updated: 2026-10-29 -->
 
 # magic_starter Plugin
 
-Full-stack Flutter starter kit for Magic Framework: pre-built auth flows, team management, profile settings, billing, and responsive app/guest layouts with an opt-in feature flag system. The notification UI moved to `magic_notifications` in alpha.25; this package mounts it. From 0.0.45 every sibling floor names a release this package was verified against: `magic ^0.0.29`, `magic_notifications ^0.3.10`, `magic_payments ^0.0.12`, `fluttersdk_wind ^1.10.0` and `fluttersdk_artisan ^0.0.20`. 0.0.59 moves only the Wind floor, in the pubspec from `^1.9.1` to `^1.10.0`. This page quoted `^1.9.0` until then, a floor the pubspec left at 0.0.49. The `magic_payments` floor carries real requirements underneath: the billing screen purchases by catalogue product key and reads `StoreBillingService.products()`, `store` and `lastChangeTiming`, all new in 0.0.8, so 0.0.40 does not compile against 0.0.7 (see [Billing](#billing)); 0.0.41 needs 0.0.9 for `StoreProductOffer.introEligible`, which the trial copy reads (see [Trials](#trials-0041)); and 0.0.42 needs 0.0.10 for the swap refusal codes (see [Changing a web plan](#changing-a-web-plan-0042)). The Wind floor is a real requirement from 0.0.43 too: the auth forms pass `autofillHints` to `WInput` and `WFormInput`, which Wind 1.8.3 adds. The real `magic` requirement is 0.0.29: views read their route values through `MagicRouter.pathParameterOf` / `queryParameterOf`, and the support thread opens a PDF with `Launch.url(..., webOnlyWindowName: '_self')`. Underneath it sit older ones: `AuthRestored.changed` (magic 0.0.24), which the starter reads to skip the app reload when a restore left the user unchanged, `SessionScope`, `SessionScoped`, the keyed `LatestRead` and `BaseGuard.cacheUser` arrive in magic 0.0.22, `Notify.pushState` in magic_notifications 0.3.5, and `StoreIdentitySync` in magic_payments 0.0.5. Two more carry a requirement older than the batch that set them. Wind is declared DIRECTLY, rather than taken through `magic`, so a floor exists to raise when this package calls a new Wind API: 0.0.28 passes `WSelect.onOpen`, which 1.6.0 adds. And `magic` has needed 0.0.12 since 0.0.29, for two reasons rather than one: `RouteDefinition.stacked()` exists in no release below it, and 0.0.12 is also where a routed page stopped being transparent, which is the defect stacking a route would otherwise expose.
+Full-stack Flutter starter kit for Magic Framework: pre-built auth flows, team management, profile settings, billing, and responsive app/guest layouts with an opt-in feature flag system. The notification UI moved to `magic_notifications` in alpha.25; this package mounts it. From 0.0.45 every sibling floor names a release this package was verified against: `magic ^0.0.35`, `magic_notifications ^0.3.11`, `magic_payments ^0.0.12`, `fluttersdk_wind ^1.10.0` and `fluttersdk_artisan ^0.0.20`. 0.0.59 moves only the Wind floor, in the pubspec from `^1.9.1` to `^1.10.0`. This page quoted `^1.9.0` until then, a floor the pubspec left at 0.0.49. 0.0.60 moves `magic` from `^0.0.29` to `^0.0.35` and `magic_notifications` from `^0.3.10` to `^0.3.11`: both name releases it was verified against, with no new API requirement (the real `magic` requirement stays 0.0.29, below). The `magic_payments` floor carries real requirements underneath: the billing screen purchases by catalogue product key and reads `StoreBillingService.products()`, `store` and `lastChangeTiming`, all new in 0.0.8, so 0.0.40 does not compile against 0.0.7 (see [Billing](#billing)); 0.0.41 needs 0.0.9 for `StoreProductOffer.introEligible`, which the trial copy reads (see [Trials](#trials-0041)); and 0.0.42 needs 0.0.10 for the swap refusal codes (see [Changing a web plan](#changing-a-web-plan-0042)). The Wind floor is a real requirement from 0.0.43 too: the auth forms pass `autofillHints` to `WInput` and `WFormInput`, which Wind 1.8.3 adds. The real `magic` requirement is 0.0.29: views read their route values through `MagicRouter.pathParameterOf` / `queryParameterOf`, and the support thread opens a PDF with `Launch.url(..., webOnlyWindowName: '_self')`. Underneath it sit older ones: `AuthRestored.changed` (magic 0.0.24), which the starter reads to skip the app reload when a restore left the user unchanged, `SessionScope`, `SessionScoped`, the keyed `LatestRead` and `BaseGuard.cacheUser` arrive in magic 0.0.22, `Notify.pushState` in magic_notifications 0.3.5, and `StoreIdentitySync` in magic_payments 0.0.5. Two more carry a requirement older than the batch that set them. Wind is declared DIRECTLY, rather than taken through `magic`, so a floor exists to raise when this package calls a new Wind API: 0.0.28 passes `WSelect.onOpen`, which 1.6.0 adds. And `magic` has needed 0.0.12 since 0.0.29, for two reasons rather than one: `RouteDefinition.stacked()` exists in no release below it, and 0.0.12 is also where a routed page stopped being transparent, which is the defect stacking a route would otherwise expose.
 
 0.0.39 is BREAKING in three places, all from the redesigned social login and account deletion, and it needs a `magic-starter-laravel` with its `social-login` feature on. `MagicStarter.useSocialAuth(bridge)` replaces the old social login builder hook, with no alias. Every gated `MagicStarterProfileController` method takes a `proof` map where it took a `password`. `doDeleteAccount` schedules the deletion (a grace period a sign-in cancels), or runs it immediately when asked, rather than removing the account in the request. See [Social login and connected accounts](#social-login-and-connected-accounts) and [Identity confirmation and account deletion](#identity-confirmation-and-account-deletion).
+
+0.0.60 is BREAKING in two places, both from the new button and field themes. The `inputRecipe` and `buttonRecipe` consts are gone from the barrel, replaced by `buildInputRecipe(MagicStarterFieldTheme)` and `buildButtonRecipe(MagicStarterButtonTheme)`. And the auth and form buttons now follow the button theme, so an app that ran `starter:publish` for the auth or invitation views must make three edits there or its buttons change look on upgrade. See [The auth and form buttons follow the button theme](#the-auth-and-form-buttons-follow-the-button-theme-0060-breaking).
 
 Versions left the alpha rail at 0.0.27: `0.0.1-alpha.26` is followed by `0.0.27`, carrying the counter rather than resetting it. An existing `^0.0.1-alpha.N` pin already covers it, since a caret on a zero major ends at `0.1.0`, and `flutter pub add magic_starter` now takes the current release without a prerelease pin.
 
@@ -186,11 +188,11 @@ MagicStarter.useNavigation(
 
 ### Theme System
 
-The manager holds 7 sub-theme objects. Set all at once via `useTheme()` or individually. Bidirectional sync: the `theme` getter constructs a `MagicStarterTheme` from all fields, the setter distributes to each.
+The manager holds ten sub-theme objects (seven until 0.0.60). Set all at once via `useTheme()` or individually. Bidirectional sync: the `theme` getter constructs a `MagicStarterTheme` from all fields, the setter distributes to each.
 
 | Method / Property | Signature | Description |
 |:------------------|:----------|:------------|
-| `useTheme(theme)` | `void` | Set all 7 sub-themes at once via `MagicStarterTheme`. |
+| `useTheme(theme)` | `void` | Set all ten sub-themes at once via `MagicStarterTheme`; one it omits goes back to its default, the button and field themes included. |
 | `theme` | `MagicStarterTheme` | Get unified theme (constructs from individual fields). |
 | `useNavigationTheme(theme)` | `void` | Override active nav items, brand, bottom nav, avatar colors (the dropdown trigger's initial and glyph via `dropdownAvatarTextClassName`, 0.0.36+), and the nav item count badge (`badgeClassName`, 0.0.59+). |
 | `useModalTheme(theme)` | `void` | Override modal container, buttons, inputs, typography tokens. |
@@ -199,7 +201,10 @@ The manager holds 7 sub-theme objects. Set all at once via `useTheme()` or indiv
 | `useCardTheme(theme)` | `void` | Override `MSCard` variant backgrounds, border radius, padding. |
 | `usePageHeaderTheme(theme)` | `void` | Override page header container, title, subtitle tokens. |
 | `useLayoutTheme(theme)` | `void` | Override sidebar, header, content/drawer background, brand bar tokens. |
-| `useWindTheme(theme)` | `void` | Derive all 7 sub-themes from a `WindThemeData`'s semantic aliases (`MagicStarterTheme.fromWind`) and delegate to `useTheme()`. One call instead of 7 structs; individual setters still override afterwards. |
+| `useDropdownTheme(theme)` | `void` | 0.0.60+. Override the colours of the team switcher and user menu panels: fill and edge, dividers, hovered row, icon tile, text, destructive row. |
+| `useButtonTheme(theme)` | `void` | 0.0.60+. Override the shape, the sm/md/lg size and label type, and the secondary border of every `MSButton`. |
+| `useFieldTheme(theme)` | `void` | 0.0.60+. Override the height and type of `MSInput`, `MSSelect`, `MSCombobox` and `MSSegmentedControl`. |
+| `useWindTheme(theme)` | `void` | Derive eight of the ten sub-themes (every one but button and field) from a `WindThemeData`'s semantic aliases (`MagicStarterTheme.fromWind`) and delegate to `useTheme()`, which resets the button and field themes to their defaults. One call instead of 8 structs; individual setters still override afterwards, and `useButtonTheme()` and `useFieldTheme()` must come after it. |
 
 ```dart
 // Set everything at once
@@ -238,7 +243,45 @@ MagicStarter.useCardTheme(
 
 All sub-theme classes live in `lib/src/configuration/magic_starter_theme.dart`. `MagicStarterTheme` supports `copyWith()` for partial overrides.
 
-**Ordering rule**: `useTheme()` sets all 7 sub-themes at once. Individual `useFormTheme()` etc. can override after. Call unified first if using both.
+**Ordering rule**: `useTheme()` and `useWindTheme()` set all ten sub-themes at once. Individual `useFormTheme()` etc. can override after. Call unified first if using both; `useButtonTheme()` and `useFieldTheme()` especially, since the unified call resets them (see below).
+
+### Control standard, buttons and panel colours (0.0.60+)
+
+A host with one control standard (44 px tall, 17 on 22 type, a capsule button) could only draw raw Wind controls beside the starter's. Three sub-themes of their own close that. Each is its own sub-theme rather than more fields on an existing one, because every `use*Theme()` setter assigns its whole struct and would hand a newly added field back to its default. The defaults are the previous classes, so a host that sets none of them sees no change on a control of its own (the auth and form buttons moved, see [The auth and form buttons follow the button theme](#the-auth-and-form-buttons-follow-the-button-theme-0060-breaking)).
+
+```dart
+const standard = 'px-5 py-[11px] text-[17px] leading-[22px] font-semibold';
+
+MagicStarter.useWindTheme(windTheme); // derives eight sub-themes, resets button and field
+
+MagicStarter.useButtonTheme(
+  const MagicStarterButtonTheme(
+    shapeClassName: 'rounded-full',
+    smClassName: standard,
+    mdClassName: standard,
+    lgClassName: standard,
+    secondaryBorderClassName: '', // '' drops the border; border-0 would still paint a hairline
+  ),
+);
+
+MagicStarter.useFieldTheme(
+  const MagicStarterFieldTheme(
+    inputSizeClassName: 'py-[11px] text-[17px] leading-[22px]',
+    selectSizeClassName: 'py-2.5 text-[17px] leading-[22px]',
+    segmentedSmClassName: 'py-[7px] text-[17px] leading-[22px]',
+    segmentedMdClassName: 'py-[7px] text-[17px] leading-[22px]',
+    segmentedPaddingClassName: 'px-1 py-0 lg:py-1',
+  ),
+);
+```
+
+- **`MagicStarterFieldTheme`** (`useFieldTheme`, `MagicStarterTheme(field:)`): `inputSizeClassName` is the padding and type of the text in `MSInput` (the placeholder and the typed value inherit it, so there is no placeholder field); `selectSizeClassName` is the trigger of `MSSelect`, `MSCombobox` and `MagicStarterTimezoneSelect`; `segmentedSmClassName` and `segmentedMdClassName` are the pill of `MSSegmentedControl`; `segmentedPaddingClassName` is its root around the pills. Each field REPLACES one run of tokens in its recipe, so a host string states the whole size (the input's default `lg:py-2.5` goes when `inputSizeClassName` is set); side padding, colours and border stay in the recipe. A `className` on a control is appended after the theme and wins.
+- **The 44 px arithmetic differs per control.** A text input paints its border inside its padding: `py-[11px] text-[17px] leading-[22px]` is 44, `py-2.5` is 42. A select or combobox trigger adds its border: `py-2.5 text-[17px] leading-[22px]` is 44. A segmented pill of `py-[7px] text-[17px] leading-[22px]` is 36 px, and below `lg` every segment sits in a 44 px hit cell, so the default `p-1` root makes the control 52 px there; `segmentedPaddingClassName: 'px-1 py-0 lg:py-1'` makes it 44 px at every width.
+- **The auth, profile and settings forms are not on the field theme.** They draw `WFormInput`s on `MagicStarterFormTheme.inputClassName` (which carries its own `py-3`), and the starter's own `WFormSelect`s (the team settings role select, the profile settings language select, the language preference view) read the same string for their trigger. One `py-*` cannot make an input and a select both 44 px, because the input paints its border inside the padding and the select adds it. `py-[10px] min-h-11 text-[17px] leading-[22px]` does (the minimum height lifts the input to 44 and it centres its one line); write it into that string with `MagicStarter.formTheme.copyWith(inputClassName: ...)`. `MSTextarea` and the option rows of the select and combobox menus are not on the field theme either.
+- **`MagicStarterButtonTheme`** (`useButtonTheme`, `MagicStarterTheme(button:)`): `shapeClassName` is where `rounded-lg` sat, `smClassName`, `mdClassName` and `lgClassName` are the padding, minimum height and label type of that size, and `secondaryBorderClassName` is the border width and colour of the secondary intent. Reach 44 px with vertical padding around a fixed `leading-*` (as in the sample), never `min-h-11` alone: Wind lays the label out at the top of a box that only has a minimum height. A size already 44 px tall gets a hit area exactly its own size, so it adds no layout below `lg`. A `className` on an `MSButton` still wins on any family it names. The dialogs draw raw `WButton`s on the modal theme and never read it. `useWindTheme()` does not derive it, because the recipe writes its own semantic aliases.
+- **`MagicStarterDropdownTheme`** (`useDropdownTheme`, `MagicStarterTheme(dropdown:)`) holds the colours of the `MSTeamSelector` and `MSUserProfileDropdown` panels, which hard-coded Tailwind greys before: `panelClassName` (fill, border width and colour), `dividerClassName`, `itemClassName` (the hovered row, every token `hover:`), `tileClassName`, `textClassName`, `mutedTextClassName`, `dangerTextClassName` and `dangerTileClassName` (every token `danger:`). Colour only: the radius, the shadow and the `overflow-hidden` clip stay in the widgets. `useWindTheme()` derives it from `bg-surface-container`, `bg-surface-container-high`, `bg-surface`, `text-fg`, `text-fg-muted`, `border-color-border` and the destructive roles. Keep a border in `panelClassName`, even `border border-transparent`: Wind clips a bordered box inside the border, while a borderless one gets a `ClipRRect` that cuts the panel's shadow off.
+- **Ordering.** `useWindTheme()` and `useTheme()` assign every sub-theme, so they reset the button and field themes (`useWindTheme()` derives the other eight). Call `useButtonTheme()` and `useFieldTheme()` after them, or the host's standard is lost with no error.
+- **`copyWith` on the form and modal themes.** `useFormTheme()` and `useModalTheme()` assign the whole struct, so a new `MagicStarterFormTheme(inputClassName: ...)` hands every field it omits back to its default, the ones `useWindTheme()` derived included. `MagicStarter.useFormTheme(MagicStarter.formTheme.copyWith(inputClassName: ...))` changes one string and keeps the rest; `MagicStarterModalTheme.copyWith` works the same way (`maxWidth` too). Only these two sub-themes have one. `MagicStarterTheme.copyWith` takes `dropdown`, `button` and `field` as well.
 
 ### Custom Behaviors
 
@@ -491,6 +534,8 @@ dart run magic:artisan starter:publish --tag=layouts
 
 Published files go to `lib/resources/views/starter/` (views) or `lib/resources/layouts/starter/` (layouts). Auto-wire adds `MagicStarter.view.register()` calls to `AppServiceProvider`.
 
+A published view is a copy, so it does not follow a later release: when a release changes how a view builds its widgets, the copy needs the edits that release names. 0.0.60 is one such release, for the auth and invitation views (see [The auth and form buttons follow the button theme](#the-auth-and-form-buttons-follow-the-button-theme-0060-breaking)).
+
 ## Design-system components
 
 45 atomic components (39 until 0.0.37, 44 until 0.0.48), all `MS`-prefixed, exported from `package:magic_starter/magic_starter.dart`. Each lives in a 4-file folder under `lib/src/ui/components/` (`<name>.dart`, `<name>.recipe.dart`, `<name>.preview.dart`, `index.dart`) and styles through a `WindRecipe` that reads `MagicStarterTokens.defaultAliases`, so a consumer's theme drives them.
@@ -530,6 +575,14 @@ Since 0.0.57, three opt-in layout options (nothing changes until a host sets one
 
 An unknown breakpoint name throws a `StateError` naming the setting, in all three and in the shell.
 
+Since 0.0.60 (the control, button and panel themes are under [Control standard, buttons and panel colours](#control-standard-buttons-and-panel-colours-0060)):
+
+- `MSToast(actionLabel:, onAction:)` adds a trailing text action, for an Undo after a write. The two come together (one without the other is an assertion error). The action is a text button in the tone of the variant, in a cell at least 44 px tall and wide at every width, named by `actionLabel` for assistive technology, reachable with Tab (a ring shows inside the toast), and pressed by Enter or Space as well as a tap. `MSToast` still presents nothing and never dismisses itself, and `Magic.toast(String)` cannot show an action (it takes a message and a duration, no widget, and its overlay ignores pointers): a host that wants one presents the `MSToast` through its own `OverlayEntry` and decides how long it stays and what the action does. `messageClassName` is appended after the message's `text-sm font-medium`, so `'text-[15px] leading-5 font-normal'` is 15 on 20 at weight 400; it styles the message only, the colour stays the toast's.
+- The success, warning and error toasts read the on-colour role of their fill (`text-on-success`, `text-on-warning`, `text-on-destructive`) where they had a literal `text-white`, so a host whose dark fills are light no longer gets white on them. A host defines the two new roles beside its `bg-success` and `bg-warning`. Without them `MagicStarterTokens.role()` answers near-black (`text-gray-950`), and a component with a build context calls `MagicStarterTokens.readableOn(context, fill:, role:)`: a role the host defines comes back as written, otherwise it measures the fill in the current mode and picks white or near-black by WCAG contrast. **The stock success and warning toasts now paint near-black text** (white does not read on the stock green and amber); the error toast stays white, and its stock dark pairing (white on red-500, about 3.8:1) stays under AA until a host defines its own `text-on-destructive`. `buildToastRecipe` takes optional `theme:` and `onClassName:`; a host calling it directly passes the class `readableOn` returns, or gets the role's fallback pair.
+- `MSSegmentedControl` scrolls the nearest horizontal scroller just far enough to show the selected segment whole, once after the first frame and again when `selectedIndex` changes, without animation. It moves nothing when the segment is in view, on a rebuild that keeps the same index, with no horizontal scroller above it, or when a vertical list or a page view sits in between, and it never scrolls the page's vertical scroll view. Only a scroller that is the root's own, or has the control as its whole content, is moved. The widget is now a `StatefulWidget`; its constructor is unchanged.
+- The title of `MSPageHeader` and `MSPageScaffold` is a heading for assistive technology in all three sizes (only the compact bar's was). While the compact bar shows, the large title behind it gives up the role, so a page offers one heading.
+- Smaller fixes: a hovered row no longer paints over the rounded corners of the team switcher and user menu panels (`overflow-hidden` is in the widget, so a host cannot lose it by re-skinning); the switcher's settings and create-team labels truncate; the timezone select keeps its height while its list loads; and `useWindTheme()` scopes the whole role of every derived hover field (`hoverItemClassName` and six more) to `hover:`, where a theme that left a role undefined filled the item at rest in dark mode. A few hairlines and text tones of the two panels moved by one step in the default theme (dark-mode fills, hover fills and borders are unchanged).
+
 `MSButton`, `MSInput` and `MSTextarea` take `bool fullWidth = false`, which wraps the rendered widget in a `SizedBox(width: double.infinity)` rather than adding a className token (Material widgets ignore cross-axis stretch).
 
 `MSAvatar` (0.0.28+) is the one answer to "show this person's photo, and something sensible when there is not one". It owns exactly two things, clipping the photo to the box and choosing between the photo and the fallback, and it owns no size, no shape and no colour: those differ per surface and arrive as `className`. The fallback is a WIDGET rather than a string, because the initials rule is not shared (this package takes one letter, a host app commonly takes two). A photo that fails to load falls back too, so an expired signed link shows the initial rather than a grey box.
@@ -567,6 +620,8 @@ MSPageScaffold(
 )
 ```
 
+The one exception is a pushed screen under a bar of its own, which trims the top padding through `containerClassName` and `headerClassName` (see [MSPageHeader props](#mspageheader-props)).
+
 ### MSPageHeader props
 
 ```dart
@@ -578,6 +633,7 @@ MSPageHeader(
   subtitleSuffix: CertificatePill(), // 0.0.53+: on the subtitle line, wraps under it when full
   inlineActions: true, // force single-row layout at every width
   size: MSPageHeaderSize.large, // 0.0.57+: regular (default), large or compact
+  className: 'lg:pt-0', // 0.0.60+: appended after the theme's container class
   actions: [
     MSButton(onPressed: _onCreate, child: WText(trans('projects.new'))),
   ],
@@ -585,6 +641,35 @@ MSPageHeader(
 ```
 
 `inlineActions` is `bool?` and falls back to `MagicStarterPageHeaderTheme.inlineActions`. It does two things and both are required together: it swaps `containerClassName` for `containerInlineClassName`, AND it gives the title row `flex-1 min-w-0` instead of `sm:flex-1`. Theming the container into a row at every width without setting the flag leaves the title column a loose fit below `sm`, so a long title takes its intrinsic width and overflows. `MSPageScaffold` does not expose the argument, which is why the theme field exists.
+
+**Under a bar of its own (0.0.60+).** A pushed screen draws its own bar above the page, so the host's page padding and the header's own top padding (`p-2`, `lg:p-4` by default) stack on the bar's height and the title sits far below it. `MSPageHeader.className` is appended after the theme's `containerClassName` (or `containerInlineClassName`), so the last class of a family wins as it does for `MSPageContainer.className`: `pt-0` takes the top padding off and keeps the other sides, `lg:pt-0` does it from `lg` up. `MSPageScaffold` hands `headerClassName` to the headers it builds, and appends `containerClassName` to its page container the same way, so `pt-4` replaces the host's top padding. Neither reaches the compact bar a large title collapses into: it is a 44 pt row under the safe area with fixed geometry. Without them the classes are the theme's, unchanged.
+
+```dart
+MSPageScaffold(
+  title: trans('projects.title'),
+  containerClassName: 'pt-4', // replaces the host's top padding
+  headerClassName: 'pt-0', // takes the header's own top padding off
+  children: [ /* ... */ ],
+)
+```
+
+### The auth and form buttons follow the button theme (0.0.60+, BREAKING)
+
+Two things break. First, `inputRecipe` and `buttonRecipe` are gone from the barrel, because a const cannot read a theme: use `buildInputRecipe(MagicStarterFieldTheme)` and `buildButtonRecipe(MagicStarterButtonTheme)`. `selectRecipe`, `comboboxRecipe` and `segmentedControlRecipe` keep their names and take an optional `theme:` that defaults to the stock look; the widgets pass `MagicStarter.fieldTheme` and `MagicStarter.buttonTheme`. The default input className has the same tokens in a new order (`text-fg` moved ahead of the padding and type run), which parses to the same style.
+
+Second, the submit buttons of sign-in, register, forgot and reset password, the two-factor challenge, the phone code request and verification, email verification and the team invitation are `MSButton`s of `ButtonSize.lg` (the invitation one was a raw `WButton`), and the social, guest and step-up provider buttons are `ButtonIntent.secondary` buttons of `ButtonSize.md`. A caller `className` is appended after the theme, so strings that carried their own geometry kept a host's 44 px capsule from reaching them. `MagicStarterFormTheme.primaryButtonClassName`, `MagicStarterFormTheme.secondaryButtonClassName` and `MagicStarterAuthTheme.guestButtonClassName` therefore LOST their geometry (no `rounded-lg`, `py-3`, `text-base` or `text-sm`, and no `font-medium` on the secondary ones) and the secondary border, which is `MagicStarterButtonTheme.secondaryBorderClassName` now. They keep `w-full`, the colours, `font-semibold` on the primary and `hover:opacity-90` on the secondary ones.
+
+- With nothing themed, sign-in and register keep their height, radius and label (47 px, `rounded-lg`, 16 px semibold); the side padding moves from `px-4` to `px-5`. The secondary, social and guest buttons keep their 14 px medium label, radius and border but are 38 px tall instead of 46 (`md` is `py-2` where they were `py-3`), and their border reads `border-color-border` (`gray-200` / `gray-700` with the default aliases, where the stock string said `gray-300` / `gray-600`).
+- A host with its OWN `useFormTheme()` or `useAuthTheme()` strings keeps whatever geometry it wrote in them, since a caller `className` still wins. Drop the shape, padding and label size from them to follow the button theme, and change one string with `MagicStarter.formTheme.copyWith(...)`. A family such a string does not name now comes from `lg` and the secondary intent: a string that names only `py-3 rounded-xl` takes its label size and side padding from `lg` (`text-base`, `px-5`), and a secondary string with no `bg-` or `text-` token takes the secondary intent's fill.
+- `MagicStarterButtonTheme.lgClassName` does not reach the weight of the submit buttons: the stock and derived primary string keeps `font-semibold` and is appended after it.
+
+**A published copy of an auth view does not follow, and its buttons change look until three edits are made.** `starter:publish` copies the view sources, so an app that published `auth.login`, `auth.register`, `auth.forgot_password`, `auth.reset_password`, `auth.verify_email`, `auth.two_factor_challenge`, `auth.otp_verify` or `teams.invitation_accept` (or ran `--tag=views` or `all`) keeps buttons that name no size or intent while the strings they pass lost their geometry. A published submit button falls to `md` (36 px with a 14 px label, where it was 47 px and 16 px), a published guest button stays on the primary intent with no border, and the published invitation button, a raw `WButton`, has no padding or radius. Each published view needs:
+
+1. `size: ButtonSize.lg` on every submit `MSButton` (sign-in, register, forgot and reset password, email verification, the two-factor challenge and both steps of the phone code).
+2. `intent: ButtonIntent.secondary, size: ButtonSize.md` on the guest button of the sign-in view.
+3. In the invitation view, `WButton(onTap: ...)` becomes `MSButton(onPressed: ..., size: ButtonSize.lg)`.
+
+Add `ButtonSize` (and `ButtonIntent` in the sign-in view) to the `package:magic_starter/magic_starter.dart` import. The invitation view has no such import (it reaches the button through relative paths), so import `MSButton` and `ButtonSize` from there. The social buttons need no edit: `MagicStarterSocialButtons` is not copied by `starter:publish` and follows on its own. Re-publishing with `--force` and re-applying your own changes works too.
 
 ## Reusable Widgets
 
@@ -1147,7 +1232,7 @@ Realtime is NOT wired here: the layout arms the poller only. Call `Notify.startR
 | `onSwitch` calling `MagicStarterTeamController.instance.switchTeam` directly | Works, but skips the store-rail re-identify. Use `MagicStarter.switchTeam('$teamId')`. |
 | A `Gate.define()` override silently lost | The starter defines its nine abilities in `boot()`, and a same-key define is replaced by whichever provider boots last. Override AFTER `MagicStarterServiceProvider`. View defaults are register-if-absent, so they are not order-sensitive. |
 | `two_factor` view key missing at runtime | The view is only registered when `MagicStarterConfig.hasTwoFactorFeatures()` is `true` at boot time. Feature flags must be set before `Magic.init()`. |
-| Theme sub-theme ordering | `useTheme()` sets all 7 sub-themes at once; individual `useFormTheme()` etc. can override after. Call unified first if using both. |
+| Theme sub-theme ordering | `useTheme()` and `useWindTheme()` set all ten sub-themes at once; individual `useFormTheme()` etc. can override after. Call unified first if using both. The unified call resets the button and field themes (0.0.60+), so `useButtonTheme()` and `useFieldTheme()` come after it. |
 | Slot not rendering | `MagicStarter.view.slot(viewKey, slotName, builder)` must be called before the view is built. Views call `buildSlot()` at build time. |
 | Published view not loading | `dart run magic:artisan starter:publish` copies views to `lib/resources/views/starter/`. Auto-wire adds `MagicStarter.view.register()` to AppServiceProvider. |
 | `Icons.*` in `build()` | Extract as `static const _iconName = Icons.xxx`. Required for Flutter web tree-shaking. |

@@ -515,9 +515,24 @@ void main() {
 }
 ```
 
+### A Few Real Providers — `MagicTest.bootProviders()`
+
+Registers every provider, then boots every provider, in list order (the `Magic.init` order), with no env file or config. `MagicTest.disposeBooted()` is its teardown: it disposes registered controllers newest first, detaches `SessionScope`, resets `MagicRouter`, then flushes the container.
+
+```dart
+setUp(() => MagicTest.bootProviders([
+  AppServiceProvider(Magic.app),
+  AuthServiceProvider(Magic.app),
+]));
+tearDown(MagicTest.disposeBooted);
+```
+
+App statics a provider's `boot()` touches (timers, singletons) stay the app's to reset.
+
 **When to use which:**
 - `MagicTest.init()` — unit tests, controller tests, validation tests, facade faking
 - `MagicTest.boot()` — integration tests that exercise the full provider lifecycle
+- `MagicTest.bootProviders()` — widget tests that need a handful of real providers booted without config
 
 ## Http Faking
 

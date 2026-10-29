@@ -32,6 +32,7 @@
                 "references/forms-validation.md",
                 "references/http-network.md",
                 "references/plugin-deeplink.md",
+                "references/plugin-device.md",
                 "references/plugin-devtools.md",
                 "references/plugin-notifications.md",
                 "references/plugin-payments.md",

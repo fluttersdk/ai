@@ -1,11 +1,11 @@
 ---
 name: magic-framework
 description: "Write correct, idiomatic code in a Flutter app that depends on the `magic` framework (Laravel-inspired: IoC container, 18 facades, Eloquent-style ORM, service providers, reactive controllers, GoRouter routing, validation, auth, broadcasting, MagicAction writes, Repository row caches, SessionScope tenant resets). Use whenever code imports `package:magic/magic.dart` or `package:magic/testing.dart`, or the work touches Magic.init, MagicApp, a facade (Auth/Http/Cache/DB/Echo/Event/Gate/Config/Lang/Launch/Log/Pick/MagicRoute/Schema/Session/Storage/Vault/Crypt), a Model, MagicController, a MagicView, MagicFormData, FormRequest, MagicAction, MagicFormObject, Repository, SessionScope, BroadcastListeners, a ServiceProvider, a migration, or the artisan make:* CLI. UI styling is Wind (separate wind-ui skill). Do NOT use for plain Flutter or Wind-only work with no magic import."
-when_to_use: "Use proactively when editing or scaffolding a magic app: Magic.init / a facade / a Model / a MagicController or MagicView / a form (MagicFormData, FormRequest, Validator, MagicFormObject) / a write (MagicAction, RunsActions) / a resource cache (Repository, RepositoryQuery) / a tenant boundary (SessionScope, SessionScoped) / a shared realtime channel (BroadcastListeners, ListensToBroadcasts) / a ServiceProvider / a route or MagicMiddleware / a migration / MagicStateMixin + RxStatus + fetchList / Session flash + old() + trans() / testing with MagicTest + Http.fake/Auth.fake / the artisan make:* CLI / the magic_deeplink, magic_notifications, magic_social_auth, magic_starter, magic_payments, magic_devtools, or magic_sentry plugins. Trigger even when the user does not say the word 'magic'. Do NOT trigger for plain Flutter or Wind-only UI with no package:magic import."
-version: 0.1.72
+when_to_use: "Use proactively when editing or scaffolding a magic app: Magic.init / a facade / a Model / a MagicController or MagicView / a form (MagicFormData, FormRequest, Validator, MagicFormObject) / a write (MagicAction, RunsActions) / a resource cache (Repository, RepositoryQuery) / a tenant boundary (SessionScope, SessionScoped) / a shared realtime channel (BroadcastListeners, ListensToBroadcasts) / a ServiceProvider / a route or MagicMiddleware / a migration / MagicStateMixin + RxStatus + fetchList / Session flash + old() + trans() / testing with MagicTest + Http.fake/Auth.fake / the artisan make:* CLI / the magic_deeplink, magic_notifications, magic_social_auth, magic_starter, magic_payments, magic_devtools, magic_sentry, or magic_device plugins. Trigger even when the user does not say the word 'magic'. Do NOT trigger for plain Flutter or Wind-only UI with no package:magic import."
+version: 0.1.74
 ---
 
-<!-- magic 0.0.35 | Skill v0.1.72 (2026-10-28). API surface verified against lib/src. -->
+<!-- magic 0.0.36 | Skill v0.1.74 (2026-10-29). API surface verified against lib/src. -->
 
 # Magic Framework
 
@@ -111,7 +111,7 @@ The five assumptions a Laravel developer gets wrong most: (1) the container auto
 | `Vault` | `vault` | `put(key, value)`, `get`, `delete`, `flush`, `fake([initial])` |
 | `Storage` | (manager) | `disk([name])`, `put`, `get`, `getFile`, `exists`, `delete`, `url`, `download`, `setManager`, `flush` |
 | `Pick` | (static) | `image`, `images`, `camera`, `media`, `video`, `recordVideo`, `file`, `files`, `directory`, `saveFile` |
-| `Crypt` | `encrypter` | `encrypt`, `decrypt`, `encryptWithDeviceKey`, `decryptWithDeviceKey`, `hasDeviceKey`, `generateDeviceKey`, `clearDeviceKey` |
+| `Crypt` | `encrypter` | `encrypt`, `decrypt`, `encryptWithDeviceKey`, `decryptWithDeviceKey`, `hasDeviceKey`, `generateDeviceKey`, `clearDeviceKey`; a bad payload throws `MagicDecryptException` (exported from `magic.dart`) |
 | `Launch` | `launch` | `url(u, {mode})`, `email`, `phone`, `sms`, `canLaunch` |
 
 Global helper functions exist and are idiomatic: `env<T>(key, [default])`, `trans(key, [replace])`, `transChoice(key, count, [replace])`, `old(field, [fallback])`, `error(field)`, `carbonNow()`, `carbonToday()`, `carbonParse(s)`. Full per-facade signatures: `${CLAUDE_SKILL_DIR}/references/facades-api.md`.
@@ -339,7 +339,7 @@ void main() {
 }
 ```
 
-Six facades fake without any mock library: `Http.fake` (`FakeNetworkDriver`: `assertSent/assertNotSent/assertSentCount/assertNothingSent`), `Auth.fake` (`assertLoggedIn/assertLoggedOut/assertLoginAttempted/assertLoginCount`), `Cache.fake` (`assertHas/assertMissing/assertPut`), `Vault.fake` (`assertWritten/assertDeleted/assertContains/assertMissing`), `Log.fake` (`assertLogged/assertLoggedError/assertNothingLogged/assertLoggedCount`), `Echo.fake` (`assertConnected/assertDisconnected/assertSubscribed/assertNotSubscribed/assertInterceptorAdded`, `driver.setSubscribed` for `isSubscribed`). Every `setUp` must reset the container (`MagicTest.init()` does this); skipping it leaks state and produces false passes. Full patterns: `${CLAUDE_SKILL_DIR}/references/testing-patterns.md`.
+Six facades fake without any mock library: `Http.fake` (`FakeNetworkDriver`: `assertSent/assertNotSent/assertSentCount/assertNothingSent`), `Auth.fake` (`assertLoggedIn/assertLoggedOut/assertLoginAttempted/assertLoginCount`), `Cache.fake` (`assertHas/assertMissing/assertPut`), `Vault.fake` (`assertWritten/assertDeleted/assertContains/assertMissing`), `Log.fake` (`assertLogged/assertLoggedError/assertNothingLogged/assertLoggedCount`), `Echo.fake` (`assertConnected/assertDisconnected/assertSubscribed/assertNotSubscribed/assertInterceptorAdded`, `driver.setSubscribed` for `isSubscribed`). Every `setUp` must reset the container (`MagicTest.init()` does this); skipping it leaks state and produces false passes. A widget test that needs a few real providers uses `MagicTest.bootProviders(providers)` (register all, then boot all, as `Magic.init` does) with `MagicTest.disposeBooted()` in `tearDown`. Full patterns: `${CLAUDE_SKILL_DIR}/references/testing-patterns.md`.
 
 ## 7. Common rationalizations (close the escape hatch)
 
@@ -430,6 +430,7 @@ Official plugins, each its own package + service provider + config. When a user 
 | Subscriptions + billing (Stripe on web, store IAP on mobile) | `magic_payments` | `Payments` facade | `references/plugin-payments.md` |
 | E2E (dusk) + runtime inspection (telescope) + component previews | `magic_devtools` | `MagicDevtools`, `MagicPreview` | `references/plugin-devtools.md` |
 | Error + performance monitoring (Sentry) | `magic_sentry` | `MagicSentry.run`, `SentryServiceProvider` | `references/plugin-sentry.md` |
+| Mains power + viewer-away gate, macOS window fullscreen | `magic_device` | `DevicePower`, `WindowFullscreen.instance` | `references/plugin-device.md` |
 
 ### Installing a magic plugin into an existing app
 
@@ -481,5 +482,5 @@ Every path below is relative to this skill's own directory, `${CLAUDE_SKILL_DIR}
 | `references/testing-patterns.md` | tests: `MagicTest`, facade fakes, fetch helpers, controller/model/middleware testing |
 | `references/cli-commands.md` | the artisan `make:*` generators, `magic:install`, `make:component`, `previews:refresh`, `design:sync`, `design:lint` |
 | `references/community.md` | the star / issue CTA flow (load before surfacing either) |
-| `references/plugin-deeplink.md` / `-notifications.md` / `-social-auth.md` / `-starter.md` / `-payments.md` / `-devtools.md` / `-sentry.md` | the matching ecosystem plugin |
+| `references/plugin-deeplink.md` / `-notifications.md` / `-social-auth.md` / `-starter.md` / `-payments.md` / `-devtools.md` / `-sentry.md` / `-device.md` | the matching ecosystem plugin |
 | `references/templates.md` | full copy-paste templates: Model, Controller, View, FormData, Provider, Middleware |
