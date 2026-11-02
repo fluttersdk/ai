@@ -1,4 +1,4 @@
-<!-- magic_notifications v0.3.11 | Updated: 2026-10-27 -->
+<!-- magic_notifications v0.3.12 | Updated: 2026-10-31 -->
 
 # magic_notifications Plugin
 
@@ -360,8 +360,8 @@ The package owns the notification UI since 0.1.0. `magic_starter` used to ship i
 | Symbol | Shape |
 |:-------|:------|
 | `NotificationDropdown` | The bell. `{required notificationStream, onMarkAsRead, onMarkAllAsRead, onNotificationTap, onViewAll}` plus five className overrides (`panelClassName`, `triggerClassName`, `triggerIconClassName`, `badgeClassName`, `badgeTextClassName`). 0.3.10 adds `triggerHitClassName`, a tap box around a trigger drawn smaller than a finger needs (null builds the trigger as before), and `panelOffset` (default `Offset(0, 4)`): with a hit box the panel anchors to the box, so pass its inset back, `Offset(-4, 0)` for a 36px trigger in a 44px box. Rows and the footer show keyboard focus. |
-| `NotificationsListView` | `{onMarkAsRead, onMarkAllAsRead, onDelete, onNavigate, perPage = 15, contentClassName = 'p-4 lg:p-6'}`. `onDelete` is `Future<bool> Function(String id)?` (0.2.0): `true` means the row is gone and the page reloads, `false` means the host declined and nothing is re-read. The per-row delete control renders only when it is non-null. |
-| `NotificationPreferencesView` | `{pushProvisioned, backRoute, contentClassName = 'p-4 lg:p-6'}`. The per-type channel matrix plus a bulk row per channel. |
+| `NotificationsListView` | `{onMarkAsRead, onMarkAllAsRead, onDelete, onNavigate, perPage = 15, contentClassName = 'p-4 lg:p-6', headerBuilder}` (`headerBuilder` is 0.3.12, see below). `onDelete` is `Future<bool> Function(String id)?` (0.2.0): `true` means the row is gone and the page reloads, `false` means the host declined and nothing is re-read. The per-row delete control renders only when it is non-null. |
+| `NotificationPreferencesView` | `{pushProvisioned, backRoute, contentClassName = 'p-4 lg:p-6', headerBuilder}`. The per-type channel matrix plus a bulk row per channel. |
 | `NotificationsListController` | `.instance`; owns the page and its rows. `loadPage(int page)`, `refresh()`, `currentPage`. |
 | `NotificationPreferencesController` | `.instance`; `fetchPreferences()`, `updateTypePreference(String type, String channel, bool isEnabled)`, `updateChannelAcrossTypes(String channel, bool isEnabled)`, plus `matrixNotifier`, `pushProvisionedNotifier`, `bulkSavingNotifier`. |
 
@@ -384,6 +384,15 @@ Notify.view.slot(NotificationViewRegistry.typeIconSlotView, 'monitor_down',
 // package's padding off.
 Notify.view.register('notifications.list',
     () => const NotificationsListView(contentClassName: ''));
+```
+
+**A host that draws the page header (0.3.12).** Both screens draw a title, a subtitle and (preferences) a back chevron of their own, so a host whose app bar already shows the page name and the back control shows them twice. Pass `headerBuilder`, a `NotificationsPageHeaderBuilder` (`Widget Function(BuildContext, NotificationsPageHeader)`): the `NotificationsPageHeader` carries the translated `title` and `subtitle`, the wired `actions`, and `backLabel` with `backRoute`, and the widget you return takes the header's place inside the screen's scroll view and content column. The inbox hands over its mark-all-as-read action only while a row is unread; the preferences screen hands over no actions, and its `backLabel` and `backRoute` are null without a `backRoute`. Null (the default) draws each header exactly as before. magic_starter mounts both screens this way, drawing the header as an `MSPageHeader` so it reports to a host bar.
+
+```dart
+NotificationsListView(
+  headerBuilder: (BuildContext context, NotificationsPageHeader header) =>
+      MyHeader(title: header.title, actions: header.actions),
+)
 ```
 
 Ask `hasOverride(key)`, not `has(key)`, before installing your own default: reading `Notify.view` is what seeds the package's screens, so `has` is true from the first read. Register `'default'` (`NotificationViewRegistry.typeIconFallbackSlot`) as the slot name to answer for every remaining type.

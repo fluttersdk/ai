@@ -581,6 +581,33 @@ await Storage.disk('public').put('uploads/file.pdf', bytes);
 | `url()` | Returns `file://` path | Returns `blob:` URL |
 | `download()` | Opens share sheet | Triggers browser download |
 
+### Excluding a Disk from Backup
+
+A local disk lives under the app's documents directory, which iOS and macOS back up. `'exclude_from_backup': true` in the disk config marks the root with `kCFURLIsExcludedFromBackupKey` on the first path the disk resolves (iOS and macOS only; default `false`, a no-op elsewhere). A refused mark throws a `FileSystemException`.
+
+```dart
+'downloads': {
+  'driver': 'local',
+  'root': 'downloads',
+  'exclude_from_backup': true,
+},
+```
+
+### Cached Network Images
+
+`MagicImage.of(url, {fallback, cacheWidth})` answers an `ImageProvider?` (null for no address) that reads the image from a copy on the device and fetches it once when none is held. The copies live on the local disk `images` (declare it in the app's `filesystems` config with `'exclude_from_backup': true`; `defaultFilesystemsConfig` carries the entry but `Magic.init` does not merge it by itself); `MagicImageCache(disk: 'x')` assigned to `MagicImageCache.instance` before the first draw uses another disk. A disk that cannot be opened is not an error: images draw with no copy kept, and one warning is logged.
+
+```dart
+final ImageProvider? poster = MagicImage.of(item.catalogueUrl, fallback: item.listedUrl, cacheWidth: 300);
+```
+
+- `fallback` is the stand-in: drawn at once when held, replaced by the address's picture when it lands, fetched and kept when the address fails. The address is asked again after `retryAfter` (5 minutes, constructor argument).
+- `cacheWidth` is part of the provider's identity and never upscales.
+- The folder is capped at 300 MiB and trimmed LRU on the first use of a launch and after every quarter-cap of writes. `MagicImageCache.instance.clear()` empties it and keeps the root (sign-out; a no-op on the web).
+- A fetched image the disk will not keep is drawn from memory (`MagicImageNotStored` carries the bytes) and is not remembered as a host failure; bytes that do not decode are refused for `retryAfter`.
+- `MagicImageWire` refuses non-http(s), non-image bodies and bodies over 8 MiB; `MagicImageException` never carries the address.
+- Web: a plain `NetworkImage`, no stand-in. Tests assign `MagicImageCache.instance = MagicImageCache(store: ..., fetch: ...)` and restore it in `tearDown`.
+
 ## Encryption (Crypt Facade)
 
 AES-256-CBC encryption for sensitive data. Two modes: config-based (using app key) and device-based (using Vault-stored key).
