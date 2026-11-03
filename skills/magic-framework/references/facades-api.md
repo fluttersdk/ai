@@ -681,7 +681,7 @@ await Vault.delete('refresh_token');
 await Vault.flush(); // Danger: clears all secure data
 ```
 
-**macOS has two keychains and you may have to choose.** The default is the data protection keychain, which requires the restricted `keychain-access-groups` entitlement and therefore a build signed with an App ID: on an unsigned or ad-hoc build every `Vault.put` fails with `PlatformException(-34018, errSecMissingEntitlement)`. One config key moves the items to the legacy login keychain, which needs no entitlement:
+**macOS has two keychains and the vault chooses on first use.** The data protection keychain requires the restricted `keychain-access-groups` entitlement and therefore a build signed with an App ID and a provisioning profile; on an ad-hoc or unprofiled build every write to it fails with `errSecMissingEntitlement` (-34018). With no config the service writes and deletes a throwaway item in it once, keeps it when that works, and otherwise uses the legacy login keychain (no entitlement needed) and logs one warning. The probe has to write, because a read of the data protection keychain on such a build finds nothing instead of failing. `MagicVaultService.usesDataProtectionKeychain` reports the result (`null` until the first operation), and `MagicVaultException.statusCode` / `isMissingEntitlement` name a failed write's cause. One config key skips the probe and forces a keychain, which an app that already holds items in one of them needs:
 
 ```dart
 // lib/config/security.dart, only consulted on macOS
@@ -703,7 +703,7 @@ The file does nothing until `Magic.init` is given it:
 await Magic.init(configFactories: [() => appConfig, () => securityConfig]);
 ```
 
-There is **no migration between the two keychains in either direction**, and a miss reads as "never stored" rather than as an error, so flipping it after the app has stored anything silently orphans every existing item: `Crypt.encryptWithDeviceKey` generates a fresh device key on the null read and everything encrypted under the old one becomes unreadable, and `BaseGuard` loses its token and logs the user out. Set it once, before first storage.
+There is **no migration between the two keychains in either direction**, and a miss reads as "never stored" rather than as an error, so a switch after the app has stored anything silently orphans every existing item: `Crypt.encryptWithDeviceKey` generates a fresh device key on the null read and everything encrypted under the old one becomes unreadable, and `BaseGuard` loses its token and logs the user out. The probe can open that split by itself when an app that fell back to the legacy keychain is later signed with a profile: pin `false` for an app that already holds items there.
 
 ---
 

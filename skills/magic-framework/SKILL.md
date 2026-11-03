@@ -2,10 +2,10 @@
 name: magic-framework
 description: "Write correct, idiomatic code in a Flutter app that depends on the `magic` framework (Laravel-inspired: IoC container, 18 facades, Eloquent-style ORM, service providers, reactive controllers, GoRouter routing, validation, auth, broadcasting, MagicAction writes, Repository row caches, SessionScope tenant resets). Use whenever code imports `package:magic/magic.dart` or `package:magic/testing.dart`, or the work touches Magic.init, MagicApp, a facade (Auth/Http/Cache/DB/Echo/Event/Gate/Config/Lang/Launch/Log/Pick/MagicRoute/Schema/Session/Storage/Vault/Crypt), a Model, MagicController, a MagicView, MagicFormData, FormRequest, MagicAction, MagicFormObject, Repository, SessionScope, BroadcastListeners, a ServiceProvider, a migration, or the artisan make:* CLI. UI styling is Wind (separate wind-ui skill). Do NOT use for plain Flutter or Wind-only work with no magic import."
 when_to_use: "Use proactively when editing or scaffolding a magic app: Magic.init / a facade / a Model / a MagicController or MagicView / a form (MagicFormData, FormRequest, Validator, MagicFormObject) / a write (MagicAction, RunsActions) / a resource cache (Repository, RepositoryQuery) / a tenant boundary (SessionScope, SessionScoped) / a shared realtime channel (BroadcastListeners, ListensToBroadcasts) / a ServiceProvider / a route or MagicMiddleware / a migration / MagicStateMixin + RxStatus + fetchList / Session flash + old() + trans() / testing with MagicTest + Http.fake/Auth.fake / the artisan make:* CLI / the magic_deeplink, magic_notifications, magic_social_auth, magic_starter, magic_payments, magic_devtools, magic_sentry, or magic_device plugins. Trigger even when the user does not say the word 'magic'. Do NOT trigger for plain Flutter or Wind-only UI with no package:magic import."
-version: 0.1.76
+version: 0.1.78
 ---
 
-<!-- magic 0.0.37 | Skill v0.1.76 (2026-11-02). API surface verified against lib/src. -->
+<!-- magic 0.0.38 | Skill v0.1.78 (2026-11-03). API surface verified against lib/src. -->
 
 # Magic Framework
 
@@ -315,6 +315,7 @@ Full reference: `${CLAUDE_SKILL_DIR}/references/secondary-systems.md` (Support h
 MagicRoute.page('/dashboard', () => const DashboardPage()).title('Dashboard').middleware(['auth']);
 MagicRoute.resource('users', UserRoutes());                 // index/create/show/edit
 MagicRoute.resource('posts', PostRoutes(), only: ['index', 'show']);
+MagicRoute.page('/stock/add', () => AddItemSheet()).overlay(base: '/stock'); // URL-backed bottom sheet
 ```
 
 `ResourceController` supplies `index()`, `create()`, `show(id)`, `edit(id)`; `resource()` wires `GET /name`, `/name/create`, `/name/:id`, `/name/:id/edit` with auto names `{name}.{method}`. Middleware extends `MagicMiddleware` (`handle(next)`, call `next()` to allow), registered with `Kernel.register('name', () => Mw())` from a provider's `register()` or `boot()`, both of which run before the router pre-builds; an alias nothing registered throws a `StateError` out of `Magic.init` naming every offending route, rather than leaving the route ungated. Read path/query params via `Request.route('id')` / `Request.query('q')`.
@@ -475,7 +476,7 @@ Every path below is relative to this skill's own directory, `${CLAUDE_SKILL_DIR}
 | `doc/eloquent/repositories.md` | `Repository`, `RepositoryQuery`, `showOnlyKeys`, session-reset behaviour |
 | `doc/digging-deeper/session-scope.md` | `SessionScope`, `SessionScoped`, the identity resolver, `attach`/`detach` |
 | `doc/digging-deeper/perf-hooks.md` | `MagicPerfHooks.sink`, the `MagicPerfEvent` kinds, `MagicNotifyCause`, pairing HTTP by `MagicResponse.id` |
-| `references/routing-navigation.md` | routes, `resource()`, middleware, params, stacking + back gestures, URL strategy, page titles, `Session.tick` wiring |
+| `references/routing-navigation.md` | routes, `resource()`, middleware, params, stacking + back gestures, bottom sheet (`overlay`) routes, URL strategy, page titles, `Session.tick` wiring |
 | `references/http-network.md` | `Http`, `MagicResponse`, `MagicNetworkInterceptor`, `configureDriver`, network config, `MagicPaginator` (url + fetcher) + `MagicPage` + `MagicPaginatedListView` |
 | `references/auth-system.md` | `Auth`, guards, `Gate`, policies, `authorize()`, `Vault`, `Crypt` |
 | `references/secondary-systems.md` | `Cache`, `Event`, `Log`, `Lang`, `Storage`, `Launch`, `Pick`, `Carbon`, `Echo` |

@@ -68,6 +68,7 @@ After calling `MagicRoute.page()`, chain these methods:
 | `.transition(RouteTransition)` | Set page transition animation | `.transition(RouteTransition.slideUp)` |
 | `.stacked([bool])` | Push instead of replacing the stack, so the route can be popped | `.stacked()` |
 | `.swipeBack(bool)` | Allow or refuse the platform back gesture on this route | `.swipeBack(false)` |
+| `.overlay(base:, canDismiss:)` | Open as a bottom sheet over `base`, with its own URL | `.overlay(base: '/stock')` |
 
 ## Route Groups
 
@@ -289,9 +290,9 @@ MagicRouter.instance.defaultStacked = true;
 MagicRouter.instance.defaultTransition = RouteTransition.platform;
 ```
 
-Leave `defaultStacked` off on web: `go()` already gives a working browser Back. A route you do stack still owns the address bar there, because the router turns on go_router's `optionURLReflectsImperativeAPIs`, so a pushed detail page shows its own url and can be deep-linked. That flag covers every push (`MagicRoute.push()`, a go_router `context.push`), and a reload brings back only the path: no go_router `extra`, and no page beneath for `back()` without a `fallback`.
+Leave `defaultStacked` off on web: `go()` already gives a working browser Back. A route you do stack still owns the address bar there, because the router turns on go_router's `optionURLReflectsImperativeAPIs`, so a pushed detail page shows its own url and can be deep-linked. That flag covers every push (`MagicRoute.push()`, a go_router `context.push`), and a reload brings back only the path: no go_router `extra`, and no page beneath for `back()` without a `fallback`. On the web `back()` closes a page pushed by `to()` / `MagicRoute.push()` through the browser's own Back rather than adding an entry, so a later browser Back does not reopen it, only while the router can vouch for the entry before (pushed over a reported stack, browser still on that push's entry). `Navigator.pop`/`popUntil`, a go_router `context.push`, two pushes in one frame, and anything after an in-app close close the old way and add an entry. No route gets an `onExit` for this (measured in Chrome only).
 
-`back()` is unchanged and still prefers the native pop, so the history fallback keeps covering unstacked routes.
+`back()` still prefers the native pop (after the web step back above), so the history fallback keeps covering unstacked routes. A second `back()` before the browser answers a step back does nothing, and a `to()`/`push()`/`replace()` issued meanwhile waits for it.
 
 `toNamed()` resolves the name to a location and hands it to `to()`, so a stacked route pushes whichever verb reaches it. The page type is `MagicPlatformPage`, exported for a type check and never constructed by hand.
 
@@ -302,6 +303,24 @@ The swap REBUILDS the screen rather than remounting it, which is what a query ch
 `swipeBack(false)` refuses the gesture ALONE; the route is still popped by Android back, by your own chrome and by `back()`. Use `PopScope` when the route should not be left at all, which Flutter's gesture already honours.
 
 A drawer and the swipe do not fight over the left edge: the gesture is refused on a route with nothing under it, so the detector never enters the arena on the drawer's own screen.
+
+## Bottom Sheet Routes
+
+```dart
+MagicRoute.page('/stock', () => StockPage());
+MagicRoute.page('/stock/add', () => AddItemSheet())
+    .title('Add item')
+    .overlay(base: '/stock', canDismiss: () => !form.isDirty);
+```
+
+- `to()` ALWAYS PUSHES the sheet over the page on screen, including from a deep link handler or a post-login intended-URL redirect; `back()`, Android back and browser Back return to that page with its state. The address bar shows the sheet's URL.
+- A replacing arrival (initial location, platform route information such as a reload, go_router `go()`) builds `base` first, then pushes the sheet in the next frame. `MagicRoute.replace(overlay)` is NOT a cold entry (it can replace the only page).
+- `base` is the FULL path of a registered page route (group prefix included). Parameters are allowed and filled from the overlay location, so the overlay path must declare them all (`/locations/:id/count` over `/locations/:id`). Unknown base, overlay base, or a missing parameter throws a `StateError` when the router builds.
+- `canDismiss` is asked before every close (scrim, drag, system back, browser Back, `back()`, a `to()` that replaces the stack; a `to()` to a `stacked()` route pushes over the sheet and asks nothing); `false` turns scrim and drag off and keeps the sheet. A drag allowed before the guard turned slides back up. A refused browser Back keeps the sheet and its URL.
+- Web history (measured in Chrome only): a cold load on the sheet's URL leaves `[base, sheet]`, so Back #1 closes the sheet and Back #2 leaves, best effort until the user interacts (Chrome's real Back may skip a script-added entry; Playwright's `goBack` does not test that); a reload with the sheet open leaves `base` twice. Closing with `MagicRoute.back()`, the scrim or a drag steps the browser back; `Navigator.pop` adds an entry, so close a sheet with `MagicRoute.back()` and leave it with `MagicRoute.back(); MagicRoute.to(...)`. A panel's `PopScope(canPop: false)` keeps a scrim tap or Escape off the browser; a `DraggableScrollableSheet` closing at its min extent adds an entry. A `replace()` or query swap gives up the page's claim; a step back unanswered for 1 s is given up and the page stays.
+- A guarded sheet has a go_router `onExit` on every platform: never `popUntil` over it (it does not terminate), and a navigation issued while it is on top runs one event later.
+- Frame only: a `ModalBottomSheetRoute` on the ROOT navigator, `backgroundColor: Colors.transparent`, `isScrollControlled: true`, no drag handle, no safe area, no `constraints` (M3 640dp cap). Same frame as `showModalBottomSheet(..., useRootNavigator: true)`, so a self-styled panel (`MSBottomSheet`) gets the same frame by URL or by hand. No captured themes: the sheet inherits app-level themes, not a layout's local `Theme`/`DefaultTextStyle`. Do not wrap the panel in a `Scaffold`.
+- Declared inside a layout group, it keeps prefix and middleware but opens above the shell, and it is matched BEFORE the layout's pages (so it beats a trailing `/:path(.*)` catch-all). An overlay path must not also match a page path. `transition()`, `stacked()`, `swipeBack()` do not apply.
 
 ## Context-Free Navigation
 
