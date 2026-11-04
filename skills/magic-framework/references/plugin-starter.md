@@ -1,4 +1,4 @@
-<!-- magic_starter v0.0.65 | Updated: 2026-11-03 -->
+<!-- magic_starter v0.0.69 | Updated: 2026-11-04 -->
 
 # magic_starter Plugin
 
@@ -197,7 +197,7 @@ The manager holds ten sub-theme objects (seven until 0.0.60). Set all at once vi
 | `useTheme(theme)` | `void` | Set all ten sub-themes at once via `MagicStarterTheme`; one it omits goes back to its default, the button and field themes included. |
 | `theme` | `MagicStarterTheme` | Get unified theme (constructs from individual fields). |
 | `useNavigationTheme(theme)` | `void` | Override active nav items, brand, bottom nav, avatar colors (the dropdown trigger's initial and glyph via `dropdownAvatarTextClassName`, 0.0.36+), and the nav item count badge (`badgeClassName`, 0.0.59+). |
-| `useModalTheme(theme)` | `void` | Override modal container, buttons, inputs, typography tokens. |
+| `useModalTheme(theme)` | `void` | Override modal container, buttons, inputs, typography tokens, and (0.0.66+) `presentation`: `dialog` (default) or `sheet`. |
 | `useFormTheme(theme)` | `void` | Override form input, label, button, link tokens across all forms. |
 | `useAuthTheme(theme)` | `void` | Override auth card, title, error banner, social divider tokens. |
 | `useCardTheme(theme)` | `void` | Override `MSCard` variant backgrounds, border radius, padding. |
@@ -283,7 +283,8 @@ MagicStarter.useFieldTheme(
 - **`MagicStarterButtonTheme`** (`useButtonTheme`, `MagicStarterTheme(button:)`): `shapeClassName` is where `rounded-lg` sat, `smClassName`, `mdClassName` and `lgClassName` are the padding, minimum height and label type of that size, and `secondaryBorderClassName` is the border width and colour of the secondary intent. Reach 44 px with vertical padding around a fixed `leading-*` (as in the sample), never `min-h-11` alone: Wind lays the label out at the top of a box that only has a minimum height. A size already 44 px tall gets a hit area exactly its own size, so it adds no layout below `lg`. A `className` on an `MSButton` still wins on any family it names. The dialogs draw raw `WButton`s on the modal theme and never read it. `useWindTheme()` does not derive it, because the recipe writes its own semantic aliases.
 - **`MagicStarterDropdownTheme`** (`useDropdownTheme`, `MagicStarterTheme(dropdown:)`) holds the colours of the `MSTeamSelector` and `MSUserProfileDropdown` panels, which hard-coded Tailwind greys before: `panelClassName` (fill, border width and colour), `dividerClassName`, `itemClassName` (the hovered row, every token `hover:`), `tileClassName`, `textClassName`, `mutedTextClassName`, `dangerTextClassName` and `dangerTileClassName` (every token `danger:`). Colour only: the radius, the shadow and the `overflow-hidden` clip stay in the widgets. `useWindTheme()` derives it from `bg-surface-container`, `bg-surface-container-high`, `bg-surface`, `text-fg`, `text-fg-muted`, `border-color-border` and the destructive roles. Keep a border in `panelClassName`, even `border border-transparent`: Wind clips a bordered box inside the border, while a borderless one gets a `ClipRRect` that cuts the panel's shadow off.
 - **Ordering.** `useWindTheme()` and `useTheme()` assign every sub-theme, so they reset the button and field themes (`useWindTheme()` derives the other eight). Call `useButtonTheme()` and `useFieldTheme()` after them, or the host's standard is lost with no error.
-- **`copyWith` on the form and modal themes.** `useFormTheme()` and `useModalTheme()` assign the whole struct, so a new `MagicStarterFormTheme(inputClassName: ...)` hands every field it omits back to its default, the ones `useWindTheme()` derived included. `MagicStarter.useFormTheme(MagicStarter.formTheme.copyWith(inputClassName: ...))` changes one string and keeps the rest; `MagicStarterModalTheme.copyWith` works the same way (`maxWidth` too). Only these two sub-themes have one. `MagicStarterTheme.copyWith` takes `dropdown`, `button` and `field` as well.
+- **`copyWith` on the form and modal themes.** `useFormTheme()` and `useModalTheme()` assign the whole struct, so a new `MagicStarterFormTheme(inputClassName: ...)` hands every field it omits back to its default, the ones `useWindTheme()` derived included. `MagicStarter.useFormTheme(MagicStarter.formTheme.copyWith(inputClassName: ...))` changes one string and keeps the rest; `MagicStarterModalTheme.copyWith` works the same way (`maxWidth` and, since 0.0.66, `presentation` too). Only these two sub-themes have one. `MagicStarterTheme.copyWith` takes `dropdown`, `button` and `field` as well.
+- **`MagicStarterModalTheme.presentation` (0.0.66+).** `MagicStarterModalPresentation.dialog` (default) keeps the centered dialog; `sheet` opens every modal the starter shows as one bottom sheet, at every width: `MSDialog.show`, `MSConfirmDialog.show` (and `MagicStarterConfirmDialog.show`), `MagicStarterPasswordConfirmDialog.show`, `MagicStarterStepUpDialog.show` and `MagicStarterTwoFactorModal.show`. `UpgradePrompt` opens through magic's `MagicFeedback.showCustomDialog` and stays a dialog. Set it with `MagicStarter.useModalTheme(MagicStarter.modalTheme.copyWith(presentation: MagicStarterModalPresentation.sheet))`, after `useWindTheme()` / `useTheme()`, which reset it. Return values do not change. The confirm, password confirm and step up modals still refuse a scrim tap and, as sheets, a drag down. A sheet is capped at 640 px on a wide screen by Flutter's Material 3 default (only with `useMaterial3` and no host `bottomSheetTheme.constraints`); `maxWidth` applies to the dialog only. In both presentations the footer stays fixed and the header and body share one scroll view: the header is pinned while it takes at most half of the room the body scrolls in, and scrolls with the body past that. Since 0.0.66 the two factor wizard resolves `true` once `onConfirm` accepted a code, however it is closed (closed mid-check, it resolves when that call settles), and back no longer closes password confirm and step up while their request is in flight.
 
 ### Custom Behaviors
 
@@ -347,6 +348,7 @@ Copy from `lib/config/magic_starter.dart` into your app config:
     'social_login': true,      // buttons, Connected accounts page and provider confirmation; needs a bridge (0.0.39+)
     'notifications': true,
     'timezones': false,
+    'handoff': false,          // /auth/handoff?code=&next= signs in with a one-time code from another surface (0.0.68+)
     'billing': false,          // gates `teams.billing` (alpha.23+ ships it in the generated stub)
     'support': false,          // the support desk screens and the dropdown's Support item (0.0.43+)
     'support_csat': false,         // thumbs rating under a resolved thread (0.0.45+)
@@ -454,6 +456,7 @@ A stacked route names NO transition, which is the half a host controls. These ro
 | `profile.profile` | always | `MagicStarterProfileSubPageView`. A failed photo upload or removal shows its reason under the buttons: the server's `photo` message, else `profile.photo_update_failed` / `profile.photo_delete_failed` (0.0.58+). A write already in flight (`MagicStarterProfileController.isSubmitting`) is not reported as a failure. Tests pass `pickImage` to stand in for the system picker. |
 | `settings.appearance` | always | `MagicStarterAppearanceView` |
 | `settings.security.password` | always | `MagicStarterPasswordView`. For an account with `has_password` false it renders the Set password form instead of the change form (0.0.39+). |
+| `auth.handoff` | `features.handoff` | `MagicStarterHandoffView` (0.0.68+), `/auth/handoff?code=&next=`, outside the `guest` and `auth` groups. Trades the code at `POST auth/handoff/exchange`, asks "Sign in as ...?" (also with no session; `handoff.confirm_without_session`), then signs in and opens the code's own `next`. Pair with magic-starter-laravel 0.0.59, which mints and exchanges the code. Login and register also honour `?next=<path>`. |
 | `settings.language` | `features.extended_profile` | `MagicStarterLanguageView` |
 | `settings.timezone` | `features.timezones` | `MagicStarterTimezoneView` |
 | `settings.newsletter` | `features.newsletter` | `MagicStarterNewsletterView` |
@@ -573,7 +576,8 @@ Since 0.0.57, three opt-in layout options (nothing changes until a host sets one
 
 - `MSPageHeader(size: MSPageHeaderSize.regular | large | compact)`. `large` uses `MagicStarterPageHeaderTheme.largeTitleClassName` (`text-4xl lg:text-3xl`); `compact` is a 44 pt `NavigationToolbar` under the top safe area (leading, centred one-line title, actions; no subtitle or suffixes) on `compactBarClassName` with a `compactBarBlurSigma` backdrop blur, opaque (`compactBarOpaqueClassName`, no blur) under `MediaQuery.highContrast`. `MSPageScaffold(largeTitle: true)` renders the large header and fades the compact bar in over the page once the header has scrolled under it; `MagicStarterPageHeaderTheme(largeTitle: true)` turns both on everywhere, the starter's own pages included. While the bar shows, the title and actions are in the tree twice, so an action with a `GlobalKey` cannot go in a large-title scaffold.
 - `MSMasterDetail(master:, detail:, placeholder:, breakpoint: 'lg')`: list and selected item side by side from the breakpoint (`w-96` list column), `detail ?? master` below it. Keep the selection in the route (`/stock`, `/stock/42`) and a row tap is push navigation on a phone. Layout only, so it goes inside `MSPageScaffold`; `MSMasterDetail.isSplit(context)` answers the same question for the page's header.
-- `MSBottomSheet.show(..., dialogBreakpoint: 'lg')` presents `MSDialog` from that breakpoint with the same arguments; `MSDialog` takes `scrollable` for it.
+- `MSBottomSheet.show(..., dialogBreakpoint: 'lg')` presents `MSDialog` from that breakpoint with the same arguments; `MSDialog` takes `scrollable` for it. With `MagicStarterModalTheme.presentation` set to `sheet` (0.0.66+) the argument is ignored and the sheet stays a sheet at every width.
+- `MSBottomSheet.show(..., canDismiss:, onDismissBlocked:)` (0.0.67+) holds a sheet with unsaved input open. `canDismiss` is a `ValueListenable<bool>` read when the gesture lands, so a field that turns dirty after the sheet opened holds the next one. While it is false a drag down is off (the handle stays drawn), and a scrim tap, Back and Escape leave the sheet open and call `onDismissBlocked(sheetContext)`, where the app asks whether to discard (the package draws no question). The dialog `dialogBreakpoint` swaps in is held the same way, barrier tap included. After a confirmed discard close it with `Navigator.of(sheetContext).pop()`: a `pop` skips the guard, a `maybePop` stays refused, and the opener's context would pop the wrong navigator because the sheet sits on the root one. A null `canDismiss` (the default) lets every gesture close it.
 
 An unknown breakpoint name throws a `StateError` naming the setting, in all three and in the shell.
 
@@ -724,7 +728,7 @@ The starter-specific widgets, exported from the same barrel. These are not desig
 | `MagicStarterAppVersion` | 0.0.48+. One-line caption naming the running build. See [MagicStarterAppVersion](#magicstarterappversion). |
 | `MagicStarterAppUpdateBanner` | 0.0.48+. Non-modal strip offering a newer web deploy or store build. See [MagicStarterAppUpdateBanner](#magicstarterappupdatebanner). |
 | `MagicStarterConfirmDialog` | Thin alias of `MSConfirmDialog`, kept for existing callers. New code writes `MSConfirmDialog`. |
-| `MagicStarterDialogShell` | Thin alias of `MSDialog` (sticky header/footer, scrollable body). New code writes `MSDialog`. |
+| `MagicStarterDialogShell` | Thin alias of `MSDialog` (sticky footer, header and body in one scroll view). New code writes `MSDialog`. Since 0.0.66 the widget draws the sheet panel when its route is a bottom sheet (`presentation: sheet`, or a host's own `showModalBottomSheet`) and the dialog shell otherwise. |
 
 ### MagicStarterAppVersion
 
