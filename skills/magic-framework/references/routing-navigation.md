@@ -68,7 +68,7 @@ After calling `MagicRoute.page()`, chain these methods:
 | `.transition(RouteTransition)` | Set page transition animation | `.transition(RouteTransition.slideUp)` |
 | `.stacked([bool])` | Push instead of replacing the stack, so the route can be popped | `.stacked()` |
 | `.swipeBack(bool)` | Allow or refuse the platform back gesture on this route | `.swipeBack(false)` |
-| `.overlay(base:, canDismiss:)` | Open as a bottom sheet over `base`, with its own URL | `.overlay(base: '/stock')` |
+| `.overlay(base:, canDismiss:)` | Open as a bottom sheet (or a dialog, per `MagicRoute.useOverlayPresentation`) over `base`, with its own URL | `.overlay(base: '/stock')` |
 
 ## Route Groups
 
@@ -320,6 +320,7 @@ MagicRoute.page('/stock/add', () => AddItemSheet())
 - Web history (measured in Chrome only): a cold load on the sheet's URL leaves `[base, sheet]`, so Back #1 closes the sheet and Back #2 leaves, best effort until the user interacts (Chrome's real Back may skip a script-added entry; Playwright's `goBack` does not test that); a reload with the sheet open leaves `base` twice. Closing with `MagicRoute.back()`, the scrim or a drag steps the browser back; `Navigator.pop` adds an entry, so close a sheet with `MagicRoute.back()` and leave it with `MagicRoute.back(); MagicRoute.to(...)`. A panel's `PopScope(canPop: false)` keeps a scrim tap or Escape off the browser; a `DraggableScrollableSheet` closing at its min extent adds an entry. A `replace()` or query swap gives up the page's claim; a step back unanswered for 1 s is given up and the page stays.
 - A guarded sheet has a go_router `onExit` on every platform: never `popUntil` over it (it does not terminate), and a navigation issued while it is on top runs one event later.
 - Frame only: a `ModalBottomSheetRoute` on the ROOT navigator, `backgroundColor: Colors.transparent`, `isScrollControlled: true`, no drag handle, no safe area, no `constraints` (M3 640dp cap). Same frame as `showModalBottomSheet(..., useRootNavigator: true)`, so a self-styled panel (`MSBottomSheet`) gets the same frame by URL or by hand. No captured themes: the sheet inherits app-level themes, not a layout's local `Theme`/`DefaultTextStyle`. Do not wrap the panel in a `Scaffold`.
+- Dialog instead of sheet: `MagicRoute.useOverlayPresentation((context) => ... ? MagicOverlayPresentation.dialog : MagicOverlayPresentation.sheet)`, installed once in a provider. Asked ONCE per open with the root navigator's context (has `MediaQuery`); an open frame never swaps. No resolver = sheet. Magic has no breakpoint logic, the app decides. The dialog is a bare `DialogRoute` (root navigator, sheet's scrim colour, `useSafeArea: false`, no themes): the panel draws its own dialog surface. URL, cold entry, `canDismiss` (scrim + Escape off while false) and browser-history steps are identical; no drag. `MagicRouter.reset()` clears the resolver.
 - Declared inside a layout group, it keeps prefix and middleware but opens above the shell, and it is matched BEFORE the layout's pages (so it beats a trailing `/:path(.*)` catch-all). An overlay path must not also match a page path. `transition()`, `stacked()`, `swipeBack()` do not apply.
 
 ## Context-Free Navigation
