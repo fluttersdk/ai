@@ -15,19 +15,25 @@
         "repo": "anilcancakir/dowel",
         "branch": "master",
         "skill": "dowel",
-        "replaces": ["fluttersdk-artisan"]
+        "replaces": [
+            "fluttersdk-artisan"
+        ]
     },
     "tapir": {
         "repo": "anilcancakir/tapir",
         "branch": "master",
         "skill": "tapir",
-        "replaces": ["fluttersdk-dusk"]
+        "replaces": [
+            "fluttersdk-dusk"
+        ]
     },
     "crumbs": {
         "repo": "anilcancakir/crumbs",
         "branch": "master",
         "skill": "crumbs",
-        "replaces": ["fluttersdk-telescope"]
+        "replaces": [
+            "fluttersdk-telescope"
+        ]
     },
     "magic_deeplink": {
         "repo": "anilcancakir/magic_deeplink",
