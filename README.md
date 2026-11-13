@@ -33,7 +33,7 @@ AI coding assistants are strong, but they do not know your frameworks: they inve
 | Registry | `https://anilcancakir.github.io/ai/` (GitHub Pages, `skills/index.json`) |
 | Install | `npx skills add anilcancakir/ai` |
 | Claude Code plugin | `anilcancakir@anilcancakir-marketplace` |
-| Skills | `wind-ui`, `magic-framework`, `fluttersdk-dusk`, `fluttersdk-telescope`, `fluttersdk-artisan`, plus the owned `flutter-review` |
+| Skills | `wind-ui`, `magic-framework`, `dowel`, `fluttersdk-dusk`, `fluttersdk-telescope`, plus the owned `flutter-review` |
 | Subagents and commands | `anilcancakir:flutter-reviewer`, `anilcancakir:flutter-reviewer-deep`, `/anilcancakir:flutter-test` |
 | Tools served | OpenCode, Claude Code, Cursor, Gemini CLI, Codex CLI, Antigravity CLI, Cline, Roo Code |
 | Freshness | A source repo publishes a release, `sync.yml` mirrors its `skills/<name>/` here and bumps the registry version |
@@ -69,7 +69,7 @@ Moving from the old `fluttersdk@fluttersdk-marketplace` install: remove that mar
 
 The plugin registers:
 
-- the skills (`/anilcancakir:wind-ui`, `/anilcancakir:magic-framework`, `/anilcancakir:fluttersdk-dusk`, `/anilcancakir:fluttersdk-telescope`, `/anilcancakir:fluttersdk-artisan`)
+- the skills (`/anilcancakir:wind-ui`, `/anilcancakir:magic-framework`, `/anilcancakir:fluttersdk-dusk`, `/anilcancakir:fluttersdk-telescope`, `/anilcancakir:dowel`)
 - `/anilcancakir:flutter-review`, a review that runs in a subagent as an independent second pair of eyes and then fixes what it finds, plus `/anilcancakir:flutter-test`
 - the `anilcancakir:flutter-reviewer` and `anilcancakir:flutter-reviewer-deep` subagents, invokable with `@`
 - the bundled MCP server from `.mcp.json` (HTTP transport to `mcp.fluttersdk.com`)
@@ -137,9 +137,9 @@ bash scripts/install.sh --project               # into the current Flutter proje
 | `magic-framework` | [anilcancakir/magic](https://github.com/anilcancakir/magic) | IoC container, 18 facades, Eloquent ORM, GoRouter routing, forms, auth, testing |
 | `fluttersdk-dusk` | [anilcancakir/tapir](https://github.com/anilcancakir/tapir) | E2E driver: tools and CLI commands to snap, tap, type and screenshot a running Flutter app |
 | `fluttersdk-telescope` | [anilcancakir/crumbs](https://github.com/anilcancakir/crumbs) | Runtime inspector: ring buffers for HTTP, logs, exceptions, events, gates, DB queries |
-| `fluttersdk-artisan` | [anilcancakir/dowel](https://github.com/anilcancakir/dowel) | CLI framework and stdio MCP server: start, reload, inspect and tinker a running app |
+| `dowel` | [anilcancakir/dowel](https://github.com/anilcancakir/dowel) | CLI framework and stdio MCP server: start, reload, inspect and tinker a running app |
 
-The three `fluttersdk-*` skills are renamed `tapir`, `crumbs` and `dowel` on the first sync after each source repo ships its renamed package; the old directory and index entry leave with it. The synced version is the `version:` field in `skills/<name>/SKILL.md`, and [`skills/index.json`](skills/index.json) is the machine-readable index. Full descriptions: [docs/SKILLS.md](docs/SKILLS.md).
+`dowel` replaced `fluttersdk-artisan` on its first sync (v1.4.85). The two remaining `fluttersdk-*` skills are renamed `tapir` and `crumbs` on the first sync after each source repo ships its renamed package; the old directory and index entry leave with it. The synced version is the `version:` field in `skills/<name>/SKILL.md`, and [`skills/index.json`](skills/index.json) is the machine-readable index. Full descriptions: [docs/SKILLS.md](docs/SKILLS.md).
 
 ## MCP server
 
