@@ -3,7 +3,7 @@
 # tapir, crumbs and the Magic plugins).
 # This file lives under docs/templates/ (NOT .github/workflows/) so GitHub does not
 # execute it in anilcancakir/ai. Copy it into the upstream repo's .github/workflows/
-# directory and replace <SOURCE_NAME> with: wind | magic | dusk | telescope | artisan.
+# directory and replace <SOURCE_NAME> with the key registry-sources.json has for the repo.
 #
 # Fires on a published release only. An earlier version of this template also
 # fired on every push touching the skill path, which cost the registry a version

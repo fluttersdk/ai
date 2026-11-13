@@ -102,8 +102,14 @@ jobs:
                   [[ "$REPO" =~ ^anilcancakir/[A-Za-z0-9._-]+$ ]] || { echo "::error::invalid repo in map: $REPO"; exit 1; }
                   [[ "$BRANCH" =~ ^[A-Za-z0-9._/-]+$ ]] || { echo "::error::invalid branch in map: $BRANCH"; exit 1; }
                   [[ "$SKILL" =~ ^[a-z0-9-]+$ ]] || { echo "::error::invalid skill in map: $SKILL"; exit 1; }
+                  # A replaced skill must not be one the map still serves, nor the
+                  # skill this repository owns itself.
                   for OLD in $REPLACES; do
                       [[ "$OLD" =~ ^[a-z0-9-]+$ ]] || { echo "::error::invalid replaced skill in map: $OLD"; exit 1; }
+                      if [[ "$OLD" == "flutter-review" ]] || jq -e --arg o "$OLD" 'any(.[]; .skill == $o)' "${RUNNER_TEMP}/sources.json" > /dev/null; then
+                          echo "::error::replaced skill is still served or owned here: $OLD"
+                          exit 1
+                      fi
                   done
 
                   {
@@ -176,7 +182,7 @@ jobs:
                       for OLD in ${REPLACES}; do
                           rm -rf "skills/${OLD}"
                       done
-                      node scripts/update-skill-index.mjs
+                      SKILL="${SKILL}" REPLACES="${REPLACES}" node scripts/update-skill-index.mjs
 
                       CUR=$(jq -r .version .claude-plugin/plugin.json)
                       MAJ=${CUR%%.*}

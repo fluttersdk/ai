@@ -134,6 +134,8 @@ Skills are fetched automatically and cached locally.
 /plugin install anilcancakir@anilcancakir-marketplace
 ```
 
+Moving from the old `fluttersdk@fluttersdk-marketplace` install: remove that marketplace (`/plugin marketplace remove fluttersdk-marketplace`) and add the new one; the plugin and marketplace names changed.
+
 The plugin auto-registers:
 - 5 skills (`/anilcancakir:wind-ui`, `/anilcancakir:magic-framework`, `/anilcancakir:fluttersdk-dusk`, `/anilcancakir:fluttersdk-telescope`, `/anilcancakir:fluttersdk-artisan`)
 - `/anilcancakir:flutter-review`, a review that runs in a subagent as an independent second pair of eyes and then fixes what it finds, plus `/anilcancakir:flutter-test`

@@ -1,6 +1,6 @@
 # Dart and Flutter style core
 
-The style rules the FlutterSDK reviewer enforces when the session has no personal style skill loaded. Every rule here is checkable from the source: it names what to look for and what makes a violation, so a reviewer can cite `file:line` rather than express a preference.
+The style rules the Magic and Wind reviewer enforces when the session has no personal style skill loaded. Every rule here is checkable from the source: it names what to look for and what makes a violation, so a reviewer can cite `file:line` rather than express a preference.
 
 Two rules govern how this file is used:
 

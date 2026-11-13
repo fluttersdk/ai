@@ -1,6 +1,6 @@
 # Flutter review core
 
-Every FlutterSDK reviewer reads this file in full and runs every stage in it, in order, on every review. The reviewers differ in depth and in the stages they add on top; the four stages below and the reporting contract are shared, so two reviewers cannot drift into two different definitions of the same check.
+Every Magic and Wind reviewer reads this file in full and runs every stage in it, in order, on every review. The reviewers differ in depth and in the stages they add on top; the four stages below and the reporting contract are shared, so two reviewers cannot drift into two different definitions of the same check.
 
 ## Contents
 
