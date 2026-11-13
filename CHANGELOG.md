@@ -13,6 +13,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **CI follows the repo standard.** Every action is pinned by commit SHA, `ci.yml` has no `paths:` filter and ends in the `Lint & Test` aggregator, and a `Changelog` workflow asks for an entry when shipped files change.
 - **The README, `CLAUDE.md` and the issue and pull request templates were rewritten** for the new names, the standard layout and the For AI coding agents rules.
 
+- **The bundled MCP server is `https://mcp.anilcancakir.com/`.** `.mcp.json` (loaded with the Claude Code plugin) no longer points at `mcp.fluttersdk.com`; its server key is `anilcancakir` and it serves the read-only docs of the packages on anilcancakir.com (`list_packages`, `list_docs`, `search_docs`, `read_doc`). `scripts/install.sh --with-mcp` writes the same URL and key for every tool, and `docs/MCP.md` is rewritten around the new tools. Clients that only speak stdio use `npx -y mcp-remote https://mcp.anilcancakir.com/`; the `@fluttersdk/mcp` bridge under `mcps/` is no longer documented.
+
 ### Added
 
 - `registry-sources.json`, `SECURITY.md`, this changelog, a pull request template and issue forms.

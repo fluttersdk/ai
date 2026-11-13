@@ -1,8 +1,8 @@
 {
     "mcpServers": {
-        "fluttersdk": {
+        "anilcancakir": {
             "type": "http",
-            "url": "https://mcp.fluttersdk.com/"
+            "url": "https://mcp.anilcancakir.com/"
         }
     }
 }

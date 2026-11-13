@@ -36,7 +36,7 @@ Hosted via GitHub Pages at `anilcancakir.github.io/ai/`
 
 > `skills/flutter-review/` is the one skill this repo owns rather than mirrors, and it is deliberately absent from `skills/index.json`: it orchestrates Claude Code subagents, which the other tools the registry serves cannot spawn. Everything else under `skills/` is a mirror and belongs in the index.
 - `tool-templates/`: Cross-tool command templates (`cursor/`, `gemini/`, `opencode/`) consumed by `scripts/install.sh`
-- `.mcp.json`: Bundled MCP server config (HTTP transport to `mcp.fluttersdk.com`); auto-loaded on plugin install
+- `.mcp.json`: Bundled MCP server config (HTTP transport to `mcp.anilcancakir.com`); auto-loaded on plugin install
 - `.github/workflows/deploy-registry.yml`: Auto-deploys `skills/` to Pages on push to master; also writes `.well-known/skills/index.json` for OpenCode forward-compat
 - `.github/workflows/sync.yml`: Receives `repository_dispatch` from a source repo, validates the source key against `registry-sources.json`, mirrors the skill, bumps the version triplet and pushes to master as the `anilcancakir-ai-registry` App. To add a source, add one entry to `registry-sources.json`; `replaces` lists skill directories the source supersedes (they are deleted on its first sync)
 - `registry-sources.json`: Allowed sync sources, one key per source repo: `repo`, `branch`, `skill`, `replaces`

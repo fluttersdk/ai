@@ -1,24 +1,21 @@
-# FlutterSDK Docs MCP Server
+# anilcancakir.com Docs MCP Server
 
-`mcp.fluttersdk.com` is the FlutterSDK Docs MCP server. It exposes a single
-tool, `search-docs`, via the Streamable HTTP MCP transport. The server is
-**public** — no credentials required after production redeploy
-(rate limit: 60 requests/minute per source IP, soft cap).
+`https://mcp.anilcancakir.com/` is the docs MCP server of anilcancakir.com. It gives an agent read-only access to the documentation of the packages published there (`wind_kit`, `dowel`, `magic_device` and the rest as they land), over the Streamable HTTP MCP transport. It is public: no account and no token.
+
+The Claude Code plugin from this repository registers it for you through `.mcp.json`. Use the snippets below to add it to a client that does not install the plugin.
 
 ---
 
-## `search-docs` tool
+## Tools
 
-Search Flutter and Dart package documentation across the FlutterSDK ecosystem.
+| Tool | Input | Use it to |
+|:-----|:------|:----------|
+| `list_packages` | none | See every package with its current version, the readable minor series and the docs URL. Call it first: its slugs and series are the `package` and `version` inputs of the other tools |
+| `list_docs` | `package` (required), `version` | List the pages of one package, grouped by section, each with an id (`section/page`) |
+| `search_docs` | `query` (required, at most six words), `package`, `version`, `limit` (at most 20) | Find the pages that contain every word of the query, best first, with an excerpt |
+| `read_doc` | `package` (required), `page` (required, `section/page`), `version` | Read the full markdown of one page |
 
-### Input schema
-
-| Parameter | Type | Required | Default | Notes |
-|-----------|------|----------|---------|-------|
-| `queries` | string[] | yes | — | One or more search queries |
-| `packages` | string[] | no | all | Filter by package name(s) |
-| `version` | string | no | latest | Semver string, e.g. `1.0.0-alpha.6` |
-| `token_limit` | integer | no | 3000 | Max tokens in response. Hard ceiling: 100000 |
+`version` is a minor series such as `1.10`; omit it for the current one. The server also lists resources and prompts through the standard MCP calls.
 
 ### Example call
 
@@ -28,11 +25,10 @@ Search Flutter and Dart package documentation across the FlutterSDK ecosystem.
     "id": 1,
     "method": "tools/call",
     "params": {
-        "name": "search-docs",
+        "name": "search_docs",
         "arguments": {
-            "queries": ["WDiv flex layout", "className responsive"],
-            "packages": ["wind_ui"],
-            "token_limit": 5000
+            "package": "wind_kit",
+            "query": "flex responsive"
         }
     }
 }
@@ -44,35 +40,32 @@ Search Flutter and Dart package documentation across the FlutterSDK ecosystem.
 
 ### 1. Claude Code (native HTTP)
 
-> **Plugin install auto-registers this.** If you installed `fluttersdk-ai` via `/plugin marketplace add ...`, the plugin ships its own `.mcp.json` at the plugin root and Claude Code auto-loads it. The manual config below is the fallback for users who add the MCP server outside the plugin (e.g., adding only the MCP without the skills/commands).
+> **The plugin registers this for you.** If you installed `anilcancakir@anilcancakir-marketplace`, the plugin ships its own `.mcp.json` and Claude Code loads it. The manual config below is for adding only the MCP server.
 
-Claude Code supports Streamable HTTP natively. Add the server to your
-`.mcp.json` at the project root:
-
-**File:** `.mcp.json`
+**File:** `.mcp.json` at the project root
 
 ```json
 {
     "mcpServers": {
-        "fluttersdk": {
+        "anilcancakir": {
             "type": "http",
-            "url": "https://mcp.fluttersdk.com/"
+            "url": "https://mcp.anilcancakir.com/"
         }
     }
 }
 ```
 
-Or add via CLI:
+Or add it with the CLI:
 
 ```bash
-claude mcp add --transport http fluttersdk https://mcp.fluttersdk.com/
+claude mcp add --transport http anilcancakir https://mcp.anilcancakir.com/
 ```
 
 ---
 
-### 2. Claude Desktop (npx bridge)
+### 2. Claude Desktop (stdio bridge)
 
-Claude Desktop only supports stdio transport. Use the npx bridge:
+Claude Desktop speaks stdio only. Bridge the HTTP server with `mcp-remote`:
 
 **File:** `~/Library/Application Support/Claude/claude_desktop_config.json`
 (macOS) or `%APPDATA%\Claude\claude_desktop_config.json` (Windows)
@@ -80,15 +73,15 @@ Claude Desktop only supports stdio transport. Use the npx bridge:
 ```json
 {
     "mcpServers": {
-        "fluttersdk": {
+        "anilcancakir": {
             "command": "npx",
-            "args": ["@fluttersdk/mcp"]
+            "args": ["-y", "mcp-remote", "https://mcp.anilcancakir.com/"]
         }
     }
 }
 ```
 
-See the [npx bridge section](#npx-bridge) for environment variable options.
+The same bridge serves any other client that only supports stdio, such as an older Codex CLI.
 
 ---
 
@@ -99,9 +92,9 @@ See the [npx bridge section](#npx-bridge) for environment variable options.
 ```json
 {
     "mcpServers": {
-        "fluttersdk": {
+        "anilcancakir": {
             "type": "http",
-            "url": "https://mcp.fluttersdk.com/"
+            "url": "https://mcp.anilcancakir.com/"
         }
     }
 }
@@ -116,9 +109,9 @@ See the [npx bridge section](#npx-bridge) for environment variable options.
 ```json
 {
     "mcp": {
-        "fluttersdk": {
+        "anilcancakir": {
             "type": "remote",
-            "url": "https://mcp.fluttersdk.com/"
+            "url": "https://mcp.anilcancakir.com/"
         }
     }
 }
@@ -131,12 +124,9 @@ See the [npx bridge section](#npx-bridge) for environment variable options.
 **File:** `~/.codex/config.toml`
 
 ```toml
-[mcp_servers.fluttersdk]
-url = "https://mcp.fluttersdk.com/"
+[mcp_servers.anilcancakir]
+url = "https://mcp.anilcancakir.com/"
 ```
-
-Older Codex CLI versions that do not support native HTTP should use the
-[npx bridge](#npx-bridge) instead.
 
 ---
 
@@ -147,26 +137,26 @@ Older Codex CLI versions that do not support native HTTP should use the
 ```json
 {
     "mcpServers": {
-        "fluttersdk": {
-            "serverUrl": "https://mcp.fluttersdk.com/"
+        "anilcancakir": {
+            "serverUrl": "https://mcp.anilcancakir.com/"
         }
     }
 }
 ```
 
-Note: use `serverUrl`, not `httpUrl`.
+Use `serverUrl`, not `httpUrl`.
 
 ---
 
-### 7. Gemini CLI (enterprise tier)
+### 7. Gemini CLI
 
 **File:** `~/.gemini/settings.json`
 
 ```json
 {
     "mcpServers": {
-        "fluttersdk": {
-            "url": "https://mcp.fluttersdk.com/"
+        "anilcancakir": {
+            "url": "https://mcp.anilcancakir.com/"
         }
     }
 }
@@ -174,16 +164,16 @@ Note: use `serverUrl`, not `httpUrl`.
 
 ---
 
-### 8. VS Code Copilot
+### 8. VS Code
 
 **File:** `.vscode/mcp.json`
 
 ```json
 {
     "servers": {
-        "fluttersdk": {
+        "anilcancakir": {
             "type": "http",
-            "url": "https://mcp.fluttersdk.com/"
+            "url": "https://mcp.anilcancakir.com/"
         }
     }
 }
@@ -191,14 +181,13 @@ Note: use `serverUrl`, not `httpUrl`.
 
 ### 9. Cline (VS Code extension)
 
-**File:** `cline_mcp_settings.json` (path varies by OS; check Cline docs for the
-current location; on macOS it lives under `~/Library/Application Support/Code/User/globalStorage/saoudrizwan.claude-dev/settings/`).
+**File:** `cline_mcp_settings.json` (the path varies by OS; on macOS it lives under `~/Library/Application Support/Code/User/globalStorage/saoudrizwan.claude-dev/settings/`).
 
 ```json
 {
     "mcpServers": {
-        "fluttersdk": {
-            "url": "https://mcp.fluttersdk.com/"
+        "anilcancakir": {
+            "url": "https://mcp.anilcancakir.com/"
         }
     }
 }
@@ -211,8 +200,8 @@ current location; on macOS it lives under `~/Library/Application Support/Code/Us
 ```json
 {
     "mcpServers": {
-        "fluttersdk": {
-            "url": "https://mcp.fluttersdk.com/"
+        "anilcancakir": {
+            "url": "https://mcp.anilcancakir.com/"
         }
     }
 }
@@ -220,61 +209,27 @@ current location; on macOS it lives under `~/Library/Application Support/Code/Us
 
 ---
 
-## npx bridge
-
-Use `npx @fluttersdk/mcp` when your client only supports stdio transport (e.g.
-Claude Desktop, older Codex CLI without native HTTP, any shell-based MCP host).
-
-The bridge is a thin HTTP-to-stdio proxy. It connects lazily: no upstream
-connection is made until the first `tools/list` or `tools/call` arrives.
-
-### Environment variables
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `FLUTTERSDK_MCP_URL` | `https://mcp.fluttersdk.com/` | Upstream MCP server URL |
-| `BRIDGE_ALLOW_TOOLS` | `search-docs` | Comma-separated tool names. Use `*` for all. |
-
-### Examples
-
-```bash
-# Default: expose search-docs only
-npx @fluttersdk/mcp
-
-# Expose all upstream tools
-BRIDGE_ALLOW_TOOLS=* npx @fluttersdk/mcp
-
-# Point at a local upstream during development
-FLUTTERSDK_MCP_URL=http://localhost:8000/ npx @fluttersdk/mcp
-```
-
-Full bridge documentation: [mcps/fluttersdk-mcp/README.md](../mcps/fluttersdk-mcp/README.md)
-
----
-
 ## Verification
 
-Confirm the server is reachable and exposes `search-docs`:
+Confirm the server is reachable and lists its tools:
 
 ```bash
-curl -sS -X POST https://mcp.fluttersdk.com/ \
+curl -sS -X POST https://mcp.anilcancakir.com/ \
     -H 'Accept: application/json,text/event-stream' \
     -H 'Content-Type: application/json' \
     -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
 ```
 
-Expected: HTTP 200 with a `tools` array containing an entry with `name: "search-docs"`.
+Expected: HTTP 200 with a `tools` array holding `list_packages`, `list_docs`, `search_docs` and `read_doc`.
 
 ---
 
 ## Troubleshooting
 
 | Symptom | Cause | Fix |
-|---------|-------|-----|
-| HTTP 403 with `missing_token` body | Production not yet redeployed with public access | Wait for deployment or report at [GitHub Issues](https://github.com/fluttersdk/ai/issues) |
-| Tool not found after adding config | Client cache stale | Restart the MCP client or reload the window |
-| `npx @fluttersdk/mcp` hangs | No incoming MCP request yet | The bridge connects lazily; send a `tools/list` to trigger the connection |
-| 429 Too Many Requests | Exceeded 60 req/min soft limit | Add a delay between calls or batch queries into a single `search-docs` call |
+|:--------|:------|:----|
+| Tools missing after adding the config | The client cached its tool list | Restart the MCP client or reload the window |
+| `mcp-remote` hangs on first start | It waits for the first MCP request | Send any request; it connects lazily |
+| An unknown `package` or `version` error | The slug or series is not listed | Call `list_packages` and use its slugs and series |
 
-For issues not listed here, open a ticket at
-[github.com/fluttersdk/ai/issues](https://github.com/fluttersdk/ai/issues).
+For anything else, open an issue at [github.com/anilcancakir/ai/issues](https://github.com/anilcancakir/ai/issues).
