@@ -1,20 +1,22 @@
 name: Sync Skill From Upstream
 
-# Receives repository_dispatch events from upstream skill source repos
-# (fluttersdk/wind, magic, dusk, telescope, artisan). Pulls the per-source
-# subtree, rsyncs into skills/<name>/, updates index.json + bumps the
-# version triplet, and pushes to main. Push triggers deploy-registry.yml
-# via paths:["skills/**"].
+# Receives repository_dispatch events from upstream skill source repos. The
+# allowed sources, and where each skill lives, are listed in
+# registry-sources.json (one key per source repo). Pulls the per-source subtree,
+# rsyncs it into skills/<name>/, removes the skill directories the source
+# replaces, updates index.json, bumps the version triplet, and pushes to main.
+# Push triggers deploy-registry.yml via paths:["skills/**"].
 #
-# Security model (oracle CRITICAL 1 + IMPORTANT 3 + IMPORTANT 5):
+# Security model:
 #   - All client_payload.* values pass through step-level env: blocks;
 #     never inlined into run: scripts.
-#   - Source name validated against a fixed case allowlist BEFORE any
-#     checkout step runs.
-#   - Version and sha validated against regex BEFORE checkout.
-#   - Upstream read and registry push both use the fluttersdk-registry
-#     GitHub App. Two separate tokens are minted per run, each scoped
-#     to its specific repo at mint time (least-privilege). No PATs.
+#   - The source key, version and sha are validated against fixed patterns
+#     BEFORE any checkout or token step runs; the source key must also exist in
+#     registry-sources.json as read from main. Repo, branch and skill come from
+#     that file, never from the payload.
+#   - Upstream repositories are public, so they are read with the default
+#     token. The registry push uses the anilcancakir-ai-registry GitHub App,
+#     whose token is minted per run and scoped to this repository. No PATs.
 
 on:
     repository_dispatch:
@@ -22,7 +24,7 @@ on:
     workflow_dispatch:
         inputs:
             source:
-                description: "Source name: wind | magic | dusk | telescope | artisan"
+                description: "Source key from registry-sources.json (for example dowel)"
                 required: true
                 type: string
             version:
@@ -50,22 +52,6 @@ jobs:
     sync:
         runs-on: ubuntu-latest
         steps:
-            - name: Validate source
-              id: src
-              env:
-                  SRC: ${{ github.event.client_payload.source || inputs.source }}
-              run: |
-                  set -euo pipefail
-                  case "$SRC" in
-                      wind|magic|dusk|telescope|artisan)
-                          echo "source=$SRC" >> "$GITHUB_OUTPUT"
-                          ;;
-                      *)
-                          echo "::error::invalid source: $SRC"
-                          exit 1
-                          ;;
-                  esac
-
             - name: Validate version
               env:
                   VER: ${{ github.event.client_payload.version || inputs.version }}
@@ -90,49 +76,47 @@ jobs:
               id: cfg
               env:
                   SRC: ${{ github.event.client_payload.source || inputs.source }}
+                  GH_TOKEN: ${{ github.token }}
               run: |
                   set -euo pipefail
-                  case "$SRC" in
-                      wind)
-                          echo "repo=fluttersdk/wind" >> "$GITHUB_OUTPUT"
-                          echo "repo_name=wind" >> "$GITHUB_OUTPUT"
-                          echo "branch=master" >> "$GITHUB_OUTPUT"
-                          echo "subpath=skills/wind-ui" >> "$GITHUB_OUTPUT"
-                          echo "skill=wind-ui" >> "$GITHUB_OUTPUT"
-                          ;;
-                      magic)
-                          echo "repo=fluttersdk/magic" >> "$GITHUB_OUTPUT"
-                          echo "repo_name=magic" >> "$GITHUB_OUTPUT"
-                          echo "branch=master" >> "$GITHUB_OUTPUT"
-                          echo "subpath=skills/magic-framework" >> "$GITHUB_OUTPUT"
-                          echo "skill=magic-framework" >> "$GITHUB_OUTPUT"
-                          ;;
-                      dusk)
-                          echo "repo=fluttersdk/dusk" >> "$GITHUB_OUTPUT"
-                          echo "repo_name=dusk" >> "$GITHUB_OUTPUT"
-                          echo "branch=master" >> "$GITHUB_OUTPUT"
-                          echo "subpath=skills/fluttersdk-dusk" >> "$GITHUB_OUTPUT"
-                          echo "skill=fluttersdk-dusk" >> "$GITHUB_OUTPUT"
-                          ;;
-                      telescope)
-                          echo "repo=fluttersdk/telescope" >> "$GITHUB_OUTPUT"
-                          echo "repo_name=telescope" >> "$GITHUB_OUTPUT"
-                          echo "branch=master" >> "$GITHUB_OUTPUT"
-                          echo "subpath=skills/fluttersdk-telescope" >> "$GITHUB_OUTPUT"
-                          echo "skill=fluttersdk-telescope" >> "$GITHUB_OUTPUT"
-                          ;;
-                      artisan)
-                          echo "repo=fluttersdk/artisan" >> "$GITHUB_OUTPUT"
-                          echo "repo_name=artisan" >> "$GITHUB_OUTPUT"
-                          echo "branch=master" >> "$GITHUB_OUTPUT"
-                          echo "subpath=skills/fluttersdk-artisan" >> "$GITHUB_OUTPUT"
-                          echo "skill=fluttersdk-artisan" >> "$GITHUB_OUTPUT"
-                          ;;
-                  esac
+                  if ! [[ "$SRC" =~ ^[a-z][a-z0-9_]*$ ]]; then
+                      echo "::error::invalid source: $SRC"
+                      exit 1
+                  fi
+
+                  # The map is read from main through the API, so nothing is
+                  # checked out before the source is known to be allowed.
+                  gh api "repos/${GITHUB_REPOSITORY}/contents/registry-sources.json?ref=main" \
+                      --jq .content | base64 --decode > "${RUNNER_TEMP}/sources.json"
+
+                  if ! jq -e --arg s "$SRC" 'has($s)' "${RUNNER_TEMP}/sources.json" > /dev/null; then
+                      echo "::error::source not allowed: $SRC"
+                      exit 1
+                  fi
+
+                  REPO=$(jq -r --arg s "$SRC" '.[$s].repo' "${RUNNER_TEMP}/sources.json")
+                  BRANCH=$(jq -r --arg s "$SRC" '.[$s].branch' "${RUNNER_TEMP}/sources.json")
+                  SKILL=$(jq -r --arg s "$SRC" '.[$s].skill' "${RUNNER_TEMP}/sources.json")
+                  REPLACES=$(jq -r --arg s "$SRC" '.[$s].replaces | join(" ")' "${RUNNER_TEMP}/sources.json")
+
+                  [[ "$REPO" =~ ^anilcancakir/[A-Za-z0-9._-]+$ ]] || { echo "::error::invalid repo in map: $REPO"; exit 1; }
+                  [[ "$BRANCH" =~ ^[A-Za-z0-9._/-]+$ ]] || { echo "::error::invalid branch in map: $BRANCH"; exit 1; }
+                  [[ "$SKILL" =~ ^[a-z0-9-]+$ ]] || { echo "::error::invalid skill in map: $SKILL"; exit 1; }
+                  for OLD in $REPLACES; do
+                      [[ "$OLD" =~ ^[a-z0-9-]+$ ]] || { echo "::error::invalid replaced skill in map: $OLD"; exit 1; }
+                  done
+
+                  {
+                      echo "repo=$REPO"
+                      echo "branch=$BRANCH"
+                      echo "skill=$SKILL"
+                      echo "subpath=skills/$SKILL"
+                      echo "replaces=$REPLACES"
+                  } >> "$GITHUB_OUTPUT"
 
             - name: Mint App token (registry write)
               id: app-token
-              uses: tibdex/github-app-token@v2.1.0
+              uses: tibdex/github-app-token@3beb63f4bd073e61482598c45c71c1019b59b73a # v2.1.0
               with:
                   app_id: ${{ secrets.REGISTRY_BOT_APP_ID }}
                   private_key: ${{ secrets.REGISTRY_BOT_PRIVATE_KEY }}
@@ -140,31 +124,21 @@ jobs:
                   installation_retrieval_payload: ${{ github.repository }}
                   repositories: '["${{ github.event.repository.name }}"]'
 
-            - name: Mint App token (upstream read, least-privilege)
-              id: upstream-token
-              uses: tibdex/github-app-token@v2.1.0
-              with:
-                  app_id: ${{ secrets.REGISTRY_BOT_APP_ID }}
-                  private_key: ${{ secrets.REGISTRY_BOT_PRIVATE_KEY }}
-                  installation_retrieval_mode: repository
-                  installation_retrieval_payload: ${{ steps.cfg.outputs.repo }}
-                  repositories: '["${{ steps.cfg.outputs.repo_name }}"]'
-
             - name: Checkout registry
-              uses: actions/checkout@v7
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
               with:
                   token: ${{ steps.app-token.outputs.token }}
                   fetch-depth: 0
 
             - name: Checkout upstream subtree
-              uses: actions/checkout@v7
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
               with:
                   repository: ${{ steps.cfg.outputs.repo }}
                   ref: ${{ steps.cfg.outputs.branch }}
                   sparse-checkout: ${{ steps.cfg.outputs.subpath }}
                   sparse-checkout-cone-mode: false
                   path: tmp-upstream-${{ steps.cfg.outputs.skill }}
-                  token: ${{ steps.upstream-token.outputs.token }}
+                  token: ${{ github.token }}
                   persist-credentials: false
 
             - name: Sync, bump, and push
@@ -172,17 +146,18 @@ jobs:
               env:
                   SKILL: ${{ steps.cfg.outputs.skill }}
                   SUBPATH: ${{ steps.cfg.outputs.subpath }}
+                  REPLACES: ${{ steps.cfg.outputs.replaces }}
                   VER: ${{ github.event.client_payload.version || inputs.version }}
                   TOKEN: ${{ steps.app-token.outputs.token }}
                   BOT_USER_EMAIL: ${{ vars.REGISTRY_BOT_USER_EMAIL }}
               run: |
                   set -euo pipefail
 
-                  git config user.name "fluttersdk-registry[bot]"
+                  git config user.name "anilcancakir-ai-registry[bot]"
                   # BOT_USER_EMAIL must be set as a repo variable, format:
-                  # "<bot-installation-id>+fluttersdk-registry[bot]@users.noreply.github.com"
+                  # "<bot-user-id>+anilcancakir-ai-registry[bot]@users.noreply.github.com"
                   # Falls back to a placeholder that any sane App owner will replace post-install.
-                  git config user.email "${BOT_USER_EMAIL:-fluttersdk-registry[bot]@users.noreply.github.com}"
+                  git config user.email "${BOT_USER_EMAIL:-anilcancakir-ai-registry[bot]@users.noreply.github.com}"
                   git remote set-url origin "https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
 
                   # Rebuild the whole change on top of the live main on every attempt.
@@ -198,6 +173,9 @@ jobs:
 
                       mkdir -p "skills/${SKILL}"
                       rsync -a --delete "tmp-upstream-${SKILL}/${SUBPATH}/" "skills/${SKILL}/"
+                      for OLD in ${REPLACES}; do
+                          rm -rf "skills/${OLD}"
+                      done
                       node scripts/update-skill-index.mjs
 
                       CUR=$(jq -r .version .claude-plugin/plugin.json)
@@ -261,12 +239,12 @@ jobs:
                   ## Install
 
                   \`\`\`bash
-                  # All FlutterSDK skills, all detected AI tools
-                  npx skills add fluttersdk/ai
+                  # All skills, all detected AI tools
+                  npx skills add anilcancakir/ai
 
                   # Or via Claude Code plugin marketplace
-                  /plugin marketplace add fluttersdk/ai
-                  /plugin install fluttersdk@fluttersdk-marketplace
+                  /plugin marketplace add anilcancakir/ai
+                  /plugin install anilcancakir@anilcancakir-marketplace
                   \`\`\`
 
                   ## What changed
@@ -274,7 +252,7 @@ jobs:
                   See the commit on \`main\`: https://github.com/${GITHUB_REPOSITORY}/commit/$(git rev-parse HEAD)
 
                   ---
-                  *This release was created automatically by the [\`fluttersdk-registry\`](https://github.com/apps/fluttersdk-registry) App when upstream \`${REPO_UP}\` published an update.*
+                  *This release was created automatically by the [\`anilcancakir-ai-registry\`](https://github.com/apps/anilcancakir-ai-registry) App when upstream \`${REPO_UP}\` published an update.*
                   EOF
                   gh release create "v${NEW}" \
                       --repo "$GITHUB_REPOSITORY" \
