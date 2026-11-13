@@ -79,6 +79,13 @@
                 "references/state-and-recovery.md",
                 "references/tinker-eval.md"
             ]
+        },
+        {
+            "name": "magic-device",
+            "description": "Gate background work on mains power and viewer idle, and drive macOS window fullscreen, with the magic_device package.",
+            "files": [
+                "SKILL.md"
+            ]
         }
     ]
 }
