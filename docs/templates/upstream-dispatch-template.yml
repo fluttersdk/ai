@@ -1,9 +1,9 @@
 # pragma: example
-# Template workflow, installed in the upstream skill source repos (fluttersdk/wind,
-# magic, dusk, telescope, artisan).
+# Template workflow, installed in the upstream skill source repos (wind_kit, magic, dowel,
+# tapir, crumbs and the Magic plugins).
 # This file lives under docs/templates/ (NOT .github/workflows/) so GitHub does not
-# execute it in fluttersdk/ai. Copy it into the upstream repo's .github/workflows/
-# directory and replace <SOURCE_NAME> with: wind | magic | dusk | telescope | artisan.
+# execute it in anilcancakir/ai. Copy it into the upstream repo's .github/workflows/
+# directory and replace <SOURCE_NAME> with the key registry-sources.json has for the repo.
 #
 # Fires on a published release only. An earlier version of this template also
 # fired on every push touching the skill path, which cost the registry a version
@@ -11,9 +11,9 @@
 # content. Skill edits now ride the release that carries them, and
 # workflow_dispatch is the manual path when a fix has to ship sooner.
 #
-# Auth: uses the fluttersdk-registry GitHub App (1-hour mint-on-demand tokens) instead
+# Auth: uses the anilcancakir-ai-registry GitHub App (1-hour mint-on-demand tokens) instead
 # of a personal PAT. Requires REGISTRY_BOT_APP_ID + REGISTRY_BOT_PRIVATE_KEY secrets
-# on each upstream repo (same values as on fluttersdk/ai).
+# on each upstream repo (same values as on anilcancakir/ai).
 
 name: Dispatch skill update to registry
 
@@ -51,21 +51,21 @@ jobs:
           fi
           echo "version=$VER" >> "$GITHUB_OUTPUT"
 
-      - name: Mint App token scoped to fluttersdk/ai
+      - name: Mint App token scoped to anilcancakir/ai
         id: app-token
         uses: tibdex/github-app-token@v2.1.0
         with:
           app_id: ${{ secrets.REGISTRY_BOT_APP_ID }}
           private_key: ${{ secrets.REGISTRY_BOT_PRIVATE_KEY }}
           installation_retrieval_mode: repository
-          installation_retrieval_payload: fluttersdk/ai
+          installation_retrieval_payload: anilcancakir/ai
           repositories: '["ai"]'
 
-      - name: Fire repository_dispatch to fluttersdk/ai
+      - name: Fire repository_dispatch to anilcancakir/ai
         uses: peter-evans/repository-dispatch@v4
         with:
           token: ${{ steps.app-token.outputs.token }}
-          repository: fluttersdk/ai
+          repository: anilcancakir/ai
           event-type: skill-updated
           client-payload: |
             {

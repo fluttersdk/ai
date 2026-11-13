@@ -4,6 +4,9 @@
 // frontmatter (single-line scalar required) and recomputes files[] from
 // disk listing.
 //
+// `process.env.REPLACES` (space separated, optional) names skills this one
+// supersedes: their entries leave the index together with their directories.
+//
 // Called by .github/workflows/sync.yml after rsync drops new upstream
 // content into skills/<skill>/. Run manually with `SKILL=<name> node
 // scripts/update-skill-index.mjs`.
@@ -15,6 +18,8 @@ const skill = process.env.SKILL;
 if (!skill) {
     throw new Error("SKILL env var is required");
 }
+
+const replaced = (process.env.REPLACES ?? "").split(/\s+/).filter(Boolean);
 
 const skillDir = join("skills", skill);
 const indexPath = join("skills", "index.json");
@@ -77,8 +82,10 @@ try {
     }
 }
 
-// 3. Patch the matching entry in skills/index.json (or append if missing).
+// 3. Drop the replaced skills, then patch the matching entry in
+//    skills/index.json (or append if missing).
 const index = JSON.parse(readFileSync(indexPath, "utf8"));
+index.skills = index.skills.filter((s) => !replaced.includes(s.name));
 const entry = index.skills.find((s) => s.name === skill);
 if (entry) {
     entry.description = description;

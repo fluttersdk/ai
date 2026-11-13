@@ -1,0 +1,86 @@
+{
+    "wind_kit": {
+        "repo": "anilcancakir/wind_kit",
+        "branch": "master",
+        "skill": "wind-ui",
+        "replaces": []
+    },
+    "magic": {
+        "repo": "anilcancakir/magic",
+        "branch": "master",
+        "skill": "magic-framework",
+        "replaces": []
+    },
+    "dowel": {
+        "repo": "anilcancakir/dowel",
+        "branch": "master",
+        "skill": "dowel",
+        "replaces": [
+            "fluttersdk-artisan"
+        ]
+    },
+    "tapir": {
+        "repo": "anilcancakir/tapir",
+        "branch": "master",
+        "skill": "tapir",
+        "replaces": [
+            "fluttersdk-dusk"
+        ]
+    },
+    "crumbs": {
+        "repo": "anilcancakir/crumbs",
+        "branch": "master",
+        "skill": "crumbs",
+        "replaces": [
+            "fluttersdk-telescope"
+        ]
+    },
+    "magic_deeplink": {
+        "repo": "anilcancakir/magic_deeplink",
+        "branch": "master",
+        "skill": "magic-deeplink",
+        "replaces": []
+    },
+    "magic_device": {
+        "repo": "anilcancakir/magic_device",
+        "branch": "master",
+        "skill": "magic-device",
+        "replaces": []
+    },
+    "magic_devtools": {
+        "repo": "anilcancakir/magic_devtools",
+        "branch": "master",
+        "skill": "magic-devtools",
+        "replaces": []
+    },
+    "magic_notifications": {
+        "repo": "anilcancakir/magic_notifications",
+        "branch": "master",
+        "skill": "magic-notifications",
+        "replaces": []
+    },
+    "magic_payments": {
+        "repo": "anilcancakir/magic_payments",
+        "branch": "master",
+        "skill": "magic-payments",
+        "replaces": []
+    },
+    "magic_sentry": {
+        "repo": "anilcancakir/magic_sentry",
+        "branch": "master",
+        "skill": "magic-sentry",
+        "replaces": []
+    },
+    "magic_social_auth": {
+        "repo": "anilcancakir/magic_social_auth",
+        "branch": "master",
+        "skill": "magic-social-auth",
+        "replaces": []
+    },
+    "magic_starter": {
+        "repo": "anilcancakir/magic_starter",
+        "branch": "main",
+        "skill": "magic-starter",
+        "replaces": []
+    }
+}

@@ -1,20 +1,20 @@
 {
     "$schema": "https://json.schemastore.org/claude-code-marketplace.json",
-    "name": "fluttersdk-marketplace",
+    "name": "anilcancakir-marketplace",
     "version": "1.4.84",
-    "description": "FlutterSDK community AI skills for Flutter development: Wind UI styling, Magic Framework architecture, and more",
+    "description": "Community AI skills for Flutter development: Wind UI styling, Magic Framework architecture, dowel, tapir, crumbs and more",
     "owner": {
-        "name": "Anilcan Cakir",
+        "name": "Anılcan Çakır",
         "email": "anilcan.cakir@gmail.com"
     },
     "plugins": [
         {
-            "name": "fluttersdk",
-            "description": "FlutterSDK AI skills: Wind UI utility-first styling and Magic Framework Laravel-inspired architecture for Flutter",
+            "name": "anilcancakir",
+            "description": "AI skills: Wind UI utility-first styling and Magic Framework Laravel-inspired architecture for Flutter, plus the dowel dev tooling",
             "source": "./",
             "version": "1.4.84",
             "author": {
-                "name": "Anilcan Cakir",
+                "name": "Anılcan Çakır",
                 "email": "anilcan.cakir@gmail.com"
             },
             "category": "development",
@@ -24,8 +24,8 @@
                 "wind-ui",
                 "magic-framework",
                 "mcp",
+                "dowel",
                 "skills",
-                "fluttersdk",
                 "ui",
                 "framework",
                 "sdk"

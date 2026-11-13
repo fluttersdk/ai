@@ -1,13 +1,13 @@
 {
     "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
-    "name": "fluttersdk",
+    "name": "anilcancakir",
     "version": "1.4.84",
-    "description": "FlutterSDK AI skills, commands, and MCP for Flutter: Wind UI, Magic Framework, Dusk, Telescope, Artisan",
-    "homepage": "https://fluttersdk.github.io/ai/",
-    "repository": "https://github.com/fluttersdk/ai",
+    "description": "AI skills, commands, and MCP for Flutter apps built on Wind UI and the Magic Framework, with the dowel, tapir and crumbs dev tooling",
+    "homepage": "https://anilcancakir.github.io/ai/",
+    "repository": "https://github.com/anilcancakir/ai",
     "license": "MIT",
     "author": {
-        "name": "Anilcan Cakir",
+        "name": "Anılcan Çakır",
         "email": "anilcan.cakir@gmail.com"
     },
     "keywords": [
@@ -16,8 +16,8 @@
         "wind-ui",
         "magic-framework",
         "mcp",
+        "dowel",
         "skills",
-        "fluttersdk",
         "ui",
         "framework",
         "sdk"

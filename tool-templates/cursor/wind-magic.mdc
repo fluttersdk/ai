@@ -1,10 +1,10 @@
 ---
-description: "FlutterSDK conventions for Wind UI and Magic Framework projects"
+description: "Wind UI and Magic conventions for Wind UI and Magic Framework projects"
 globs: "**/*.dart"
 alwaysApply: false
 ---
 
-# FlutterSDK Conventions
+# Wind UI and Magic Conventions
 
 ## Wind UI
 

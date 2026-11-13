@@ -1,4 +1,4 @@
-# FlutterSDK AI Skills
+# AI Skills
 
 Five skills are available in the registry. Each one is a structured knowledge file that an AI coding agent loads to generate correct code on the first try.
 
@@ -11,7 +11,7 @@ Every skill here is a mirror of the upstream package's own `skills/` directory, 
 ## wind-ui
 
 **Package:** `fluttersdk_wind`
-**Upstream repo:** https://github.com/fluttersdk/wind
+**Upstream repo:** https://github.com/anilcancakir/wind_kit
 
 ### Triggers on
 
@@ -34,7 +34,7 @@ Ten reference files: `tokens`, `widgets`, `forms`, `layouts`, `theme`, `tailwind
 ## magic-framework
 
 **Package:** `magic`
-**Upstream repo:** https://github.com/fluttersdk/magic
+**Upstream repo:** https://github.com/anilcancakir/magic
 
 ### Triggers on
 
@@ -42,7 +42,7 @@ Any file that imports `package:magic/magic.dart` or `package:magic/testing.dart`
 
 ### What it provides
 
-The Laravel-inspired half of a FlutterSDK app: IoC container, 18 facades (`Auth`, `Http`, `Cache`, `DB`, `Echo`, `Event`, `Gate`, `Config`, `Lang`, `Launch`, `Log`, `Pick`, `MagicRoute`, `Schema`, `Session`, `Storage`, `Vault`, `Crypt`), an Eloquent-style ORM with migrations and seeders, service providers and the boot lifecycle, reactive controllers with `MagicStateMixin` and `RxStatus`, GoRouter-backed routing with resource routes and middleware, forms and validation including async rules, Gate abilities and policies, and the test surface (`MagicTest`, facade fakes).
+The Laravel-inspired half of a Magic app: IoC container, 18 facades (`Auth`, `Http`, `Cache`, `DB`, `Echo`, `Event`, `Gate`, `Config`, `Lang`, `Launch`, `Log`, `Pick`, `MagicRoute`, `Schema`, `Session`, `Storage`, `Vault`, `Crypt`), an Eloquent-style ORM with migrations and seeders, service providers and the boot lifecycle, reactive controllers with `MagicStateMixin` and `RxStatus`, GoRouter-backed routing with resource routes and middleware, forms and validation including async rules, Gate abilities and policies, and the test surface (`MagicTest`, facade fakes).
 
 The CLI side covers `magic:install`, `key:generate`, the `make:*` generators, `make:component`, `previews:refresh`, `design:sync`, and `design:lint`, all invoked as `dart run magic:artisan <command>`.
 
@@ -57,7 +57,7 @@ Nineteen reference files, including one per ecosystem plugin: `magic_deeplink`, 
 ## fluttersdk-dusk
 
 **Package:** `fluttersdk_dusk`
-**Upstream repo:** https://github.com/fluttersdk/dusk
+**Upstream repo:** https://github.com/anilcancakir/tapir
 
 ### Triggers on
 
@@ -78,7 +78,7 @@ Every gesture passes a six-step actionability gate whose failure reasons are sub
 ## fluttersdk-telescope
 
 **Package:** `fluttersdk_telescope`
-**Upstream repo:** https://github.com/fluttersdk/telescope
+**Upstream repo:** https://github.com/anilcancakir/crumbs
 
 ### Triggers on
 
@@ -99,7 +99,7 @@ It pairs with dusk: dusk drives the app, telescope reads what the app did in res
 ## fluttersdk-artisan
 
 **Package:** `fluttersdk_artisan`
-**Upstream repo:** https://github.com/fluttersdk/artisan
+**Upstream repo:** https://github.com/anilcancakir/dowel
 
 ### Triggers on
 
