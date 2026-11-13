@@ -21,36 +21,9 @@ concurrency:
     cancel-in-progress: true
 
 jobs:
-    mcp-bridge:
-        name: MCP bridge (build + test)
-        runs-on: ubuntu-latest
-        defaults:
-            run:
-                working-directory: mcps/fluttersdk-mcp
-        steps:
-            - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-            - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-              with:
-                  node-version: "20"
-                  cache: npm
-                  cache-dependency-path: mcps/fluttersdk-mcp/package-lock.json
-
-            - name: Install dependencies
-              run: npm ci
-
-            - name: Build (tsc strict)
-              run: npm run build
-
-            - name: Test (vitest)
-              run: npm test
-
-            - name: Package shape (npm pack --dry-run)
-              run: npm pack --dry-run
-
     lint-test:
         name: Lint & Test
-        needs: [mcp-bridge, workflows-lint, plugin-validate]
+        needs: [workflows-lint, plugin-validate]
         if: ${{ always() }}
         runs-on: ubuntu-latest
         steps:

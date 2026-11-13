@@ -31,7 +31,7 @@ jobs:
                   AUTHOR: ${{ github.event.pull_request.user.login }}
                   TITLE: ${{ github.event.pull_request.title }}
                   LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
-                  CODE_PATHS: '^(agents/|commands/|references/|scripts/|tool-templates/|mcps/[^/]+/src/|skills/flutter-review/|registry-sources\.json|\.mcp\.json|\.claude-plugin/|\.github/workflows/(sync|deploy-registry|publish-mcp)\.yml)'
+                  CODE_PATHS: '^(agents/|commands/|references/|scripts/|tool-templates/|skills/flutter-review/|registry-sources\.json|\.mcp\.json|\.claude-plugin/|\.github/workflows/(sync|deploy-registry)\.yml)'
               run: |
                   case "$AUTHOR" in
                       dependabot*) echo "Dependabot pull request: exempt."; exit 0 ;;

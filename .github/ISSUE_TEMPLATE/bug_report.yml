@@ -1,5 +1,5 @@
 name: Bug Report
-description: Report a bug in the skill registry, the plugin, the installer or the MCP bridge
+description: Report a bug in the skill registry, the plugin or the installer
 labels: ["bug"]
 body:
     - type: markdown
@@ -18,7 +18,7 @@ body:
               - scripts/install.sh
               - Tool templates (Cursor, Gemini CLI, OpenCode)
               - OpenCode registry (index.json, Pages)
-              - MCP bridge (@fluttersdk/mcp)
+              - Bundled MCP config (.mcp.json)
               - Documentation
               - Other
       validations:
