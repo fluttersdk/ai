@@ -8,10 +8,8 @@ Hosted via GitHub Pages at `anilcancakir.github.io/ai/`
 
 | Command | Description |
 |---------|-------------|
-| `npm run build` | Compile MCP server (from `mcps/fluttersdk-mcp/`) |
-| `npm run lint` | ESLint check (MCP server) |
-| `npm test` | Run MCP server tests |
-| `cd mcps/fluttersdk-mcp && npm test` | Run bridge-specific tests |
+| `actionlint .github/workflows/*.yml` | Lint the workflows |
+| `jq empty registry-sources.json .claude-plugin/*.json .mcp.json` | Validate the JSON manifests |
 | `node -e "JSON.parse(require('fs').readFileSync('skills/index.json','utf8'))"` | Validate registry JSON |
 | `bash scripts/install.sh --dry-run` | Preview multi-tool installation |
 
@@ -29,7 +27,6 @@ Hosted via GitHub Pages at `anilcancakir.github.io/ai/`
 > The sync fires when an upstream **publishes a release**, not on every upstream push. To pull an unreleased skill fix, run the upstream repo's "Dispatch skill update to registry" workflow manually. Per-skill versions live in each `SKILL.md` frontmatter and in `skills/index.json`; do not copy them into prose here, they drift within a release cycle.
 - `skills/index.json`: OpenCode discovery manifest. Source of truth for file listing
 - `.claude-plugin/`: Plugin manifest (`plugin.json`) + marketplace catalog (`marketplace.json`)
-- `mcps/`: MCP servers (TypeScript, stdio transport, Zod schemas)
 - `commands/`: Claude Code plugin commands (`flutter-test.md`); auto-discovered as `/anilcancakir:<name>`
 - `agents/`: plugin subagents (`flutter-reviewer.md`, `flutter-reviewer-deep.md`); auto-discovered as `anilcancakir:<name>`. Plugin agents support `name`, `description`, `model`, `effort`, `maxTurns`, `tools`, `disallowedTools`, `skills`, `memory`, `background`, `isolation` only; `hooks`, `mcpServers`, and `permissionMode` are ignored for plugin-shipped agents, so do not add them
 - `references/`: plugin-owned reference files the skill and agents read through `${CLAUDE_PLUGIN_ROOT}` (`flutter-review-core.md`, `dart-style-core.md`). Not part of any mirrored skill
@@ -73,7 +70,6 @@ Branch from `master` as `<type>/<topic>` (`feat`, `fix`, `chore`, `docs`, `refac
 
 ## Testing
 
-- MCP bridge: `cd mcps/fluttersdk-mcp && npm ci && npm test` (vitest), `npm run build` (tsc strict), `npm pack --dry-run`.
 - Workflows: `actionlint`. Manifests: the `Plugin manifest + version sync` job (schema, three-way version, frontmatter of every plugin component).
 - `scripts/update-skill-index.mjs`: run it on a scratch tree with `SKILL=<name> REPLACES="<old>"` before changing it.
 
@@ -83,16 +79,15 @@ The registry has no manual release. Every accepted sync patch-bumps the version 
 
 ## CI
 
-- `ci.yml` (`Lint & Test`): aggregator over `MCP bridge (build + test)`, `Workflows lint` and `Plugin manifest + version sync`; no `paths:` filter.
+- `ci.yml` (`Lint & Test`): aggregator over `Workflows lint` and `Plugin manifest + version sync`; no `paths:` filter.
 - `changelog.yml` (`Changelog`): a pull request that changes shipped files needs a `CHANGELOG.md` entry, or the `skip-changelog` label; Dependabot and `release:` titles are exempt.
 - `deploy-registry.yml`: a push to `master` that changes `skills/**` deploys Pages and writes `.well-known/skills/index.json`.
-- `sync.yml`: `repository_dispatch` from a source repo; `publish-mcp.yml`: npm publish of the bridge when its version changes.
+- `sync.yml`: `repository_dispatch` from a source repo, or run by hand with `source` and `version`.
 
 ## Anti-Patterns
 
 - Never put skills inside `.claude-plugin/`: skills live at `skills/` root
 - Never use inline single-line arrays: multi-line with trailing commas
-- Never create MCP tools without Zod input schemas
 - Never hardcode paths in install script: use `$HOME` / `$XDG_CONFIG_HOME`
 - Skill names: lowercase, hyphen-separated only (`wind-ui`, not `WindUI`)
 

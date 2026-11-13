@@ -2,7 +2,7 @@
 
 ## Supported Versions
 
-Only the latest registry version (the newest `vX.Y.Z` release) and the latest `@fluttersdk/mcp` bridge receive fixes.
+Only the latest registry version (the newest `vX.Y.Z` release) receives fixes.
 
 ## Reporting a Vulnerability
 
@@ -13,4 +13,4 @@ The report stays confidential until a fix is ready. Include the affected file or
 
 ## Scope
 
-This policy covers what the repository ships: the sync and deploy workflows, `scripts/install.sh`, the plugin manifests, the owned `flutter-review` skill and subagents, and the MCP bridge in `mcps/`. The content of a mirrored skill belongs to its source repository. Issues in a third-party tool the installer configures belong to its maintainers.
+This policy covers what the repository ships: the sync and deploy workflows, `scripts/install.sh`, the plugin manifests, the owned `flutter-review` skill and subagents, and the bundled MCP server config (`.mcp.json`). The content of a mirrored skill belongs to its source repository. Issues in a third-party tool the installer configures belong to its maintainers.
