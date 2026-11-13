@@ -9,7 +9,7 @@
 #   bash install.sh --global              # Install for all tools (user-level)
 #   bash install.sh --project             # Install into current project
 #   bash install.sh --dry-run             # Preview what would be installed
-#   bash install.sh --with-mcp            # Also inject mcp.fluttersdk.com config
+#   bash install.sh --with-mcp            # Also inject mcp.anilcancakir.com config
 #
 # Author: Anilcan Cakir <anilcan.cakir@gmail.com>
 # License: MIT
@@ -244,7 +244,7 @@ install_global_claude() {
     info "From a Claude Code session, run:"
     info "  /plugin marketplace add https://raw.githubusercontent.com/anilcancakir/ai/master/.claude-plugin/marketplace.json"
     info "  /plugin install anilcancakir@anilcancakir-marketplace"
-    info "The plugin auto-registers skills, commands, and the fluttersdk MCP (HTTP to mcp.fluttersdk.com)."
+    info "The plugin auto-registers skills, commands, and the anilcancakir docs MCP (HTTP to mcp.anilcancakir.com)."
     success "Claude Code: Instructions printed"
 }
 
@@ -296,8 +296,8 @@ install_global_codex() {
     done < <(jq -r '.skills[].name' "${skills_index}")
 
     info "Codex MCP config: add to ~/.codex/config.toml:"
-    info "  [mcp_servers.fluttersdk]"
-    info "  url = \"https://mcp.fluttersdk.com/\""
+    info "  [mcp_servers.anilcancakir]"
+    info "  url = \"https://mcp.anilcancakir.com/\""
     info "  enabled = true"
     info "  (see docs/MCP.md for details)"
     success "Codex CLI: Skills installed (global)"
@@ -320,7 +320,7 @@ install_global_antigravity() {
 
     # Antigravity renamed the MCP field from httpUrl to serverUrl — do not use the legacy name.
     info "Antigravity MCP config: add to ~/.gemini/config/mcp_config.json:"
-    info "  { \"mcpServers\": { \"fluttersdk\": { \"serverUrl\": \"https://mcp.fluttersdk.com/\" } } }"
+    info "  { \"mcpServers\": { \"anilcancakir\": { \"serverUrl\": \"https://mcp.anilcancakir.com/\" } } }"
     info "  Note: field is 'serverUrl' (NOT legacy 'httpUrl')"
     success "Antigravity CLI: Skills installed (global)"
 }
@@ -341,8 +341,8 @@ install_global_cline() {
     done < <(jq -r '.skills[].name' "${skills_index}")
 
     info "Cline MCP config: open Cline settings → MCP Servers → add server:"
-    info "  Name: fluttersdk"
-    info "  URL:  https://mcp.fluttersdk.com/"
+    info "  Name: anilcancakir"
+    info "  URL:  https://mcp.anilcancakir.com/"
     info "  (or edit cline_mcp_settings.json directly — see docs/MCP.md)"
     success "Cline: Skills installed (global)"
 }
@@ -366,7 +366,7 @@ install_global_roo() {
     done < <(jq -r '.skills[].name' "${skills_index}")
 
     info "Roo Code MCP config: add to ~/.config/Roo-Code/GlobalStorage/mcp_settings.json:"
-    info "  { \"mcpServers\": { \"fluttersdk\": { \"url\": \"https://mcp.fluttersdk.com/\" } } }"
+    info "  { \"mcpServers\": { \"anilcancakir\": { \"url\": \"https://mcp.anilcancakir.com/\" } } }"
     success "Roo Code: Skills installed (global)"
 }
 
@@ -374,7 +374,7 @@ install_global_roo() {
 # MCP Config Injection (--with-mcp)
 # ==============================================================================
 
-# Inject mcp.fluttersdk.com config for a given tool.
+# Inject mcp.anilcancakir.com config for a given tool.
 # The server is public (throttle:60,1 only); no credentials required.
 # $1 = tool name, $2 = mode (global|project)
 install_mcp_for_tool() {
@@ -384,7 +384,7 @@ install_mcp_for_tool() {
     case "${tool}" in
         claude)
             # Claude Code: print the command; do not auto-run it.
-            info "Run: claude mcp add --transport http fluttersdk https://mcp.fluttersdk.com/"
+            info "Run: claude mcp add --transport http anilcancakir https://mcp.anilcancakir.com/"
             ;;
 
         cursor)
@@ -394,8 +394,8 @@ install_mcp_for_tool() {
                 local config_file=".cursor/mcp.json"
             fi
             ensure_dir "$(dirname "${config_file}")"
-            merge_json_key "${config_file}" "mcpServers.fluttersdk" "{\"url\":\"https://mcp.fluttersdk.com/\"}"
-            info "Cursor: https://mcp.fluttersdk.com/ added to ${config_file}"
+            merge_json_key "${config_file}" "mcpServers.anilcancakir" "{\"url\":\"https://mcp.anilcancakir.com/\"}"
+            info "Cursor: https://mcp.anilcancakir.com/ added to ${config_file}"
             ;;
 
         opencode)
@@ -406,8 +406,8 @@ install_mcp_for_tool() {
                 local config_file="opencode.json"
             fi
             ensure_dir "$(dirname "${config_file}")"
-            merge_json_key "${config_file}" "mcp.fluttersdk" "{\"type\":\"remote\",\"url\":\"https://mcp.fluttersdk.com/\"}"
-            info "OpenCode: https://mcp.fluttersdk.com/ added to ${config_file}"
+            merge_json_key "${config_file}" "mcp.anilcancakir" "{\"type\":\"remote\",\"url\":\"https://mcp.anilcancakir.com/\"}"
+            info "OpenCode: https://mcp.anilcancakir.com/ added to ${config_file}"
             ;;
 
         gemini)
@@ -417,8 +417,8 @@ install_mcp_for_tool() {
                 local config_file=".gemini/settings.json"
             fi
             ensure_dir "$(dirname "${config_file}")"
-            merge_json_key "${config_file}" "mcpServers.fluttersdk" "{\"url\":\"https://mcp.fluttersdk.com/\"}"
-            info "Gemini CLI: https://mcp.fluttersdk.com/ added to ${config_file}"
+            merge_json_key "${config_file}" "mcpServers.anilcancakir" "{\"url\":\"https://mcp.anilcancakir.com/\"}"
+            info "Gemini CLI: https://mcp.anilcancakir.com/ added to ${config_file}"
             ;;
 
         antigravity)
@@ -426,16 +426,16 @@ install_mcp_for_tool() {
             # Config lives at the shared path regardless of global/project mode.
             local config_file="${HOME}/.gemini/config/mcp_config.json"
             ensure_dir "$(dirname "${config_file}")"
-            merge_json_key "${config_file}" "mcpServers.fluttersdk" "{\"serverUrl\":\"https://mcp.fluttersdk.com/\"}"
-            info "Antigravity: https://mcp.fluttersdk.com/ added to ${config_file}"
+            merge_json_key "${config_file}" "mcpServers.anilcancakir" "{\"serverUrl\":\"https://mcp.anilcancakir.com/\"}"
+            info "Antigravity: https://mcp.anilcancakir.com/ added to ${config_file}"
             ;;
 
         codex)
             # TOML merging is too complex for bash; print the copy-paste snippet instead.
             info "Codex CLI: Add to ~/.codex/config.toml:"
             cat <<'EOF'
-[mcp_servers.fluttersdk]
-url = "https://mcp.fluttersdk.com/"
+[mcp_servers.anilcancakir]
+url = "https://mcp.anilcancakir.com/"
 enabled = true
 EOF
             ;;
@@ -445,10 +445,10 @@ EOF
             if [[ "${mode}" == "project" ]]; then
                 local config_file=".vscode/mcp.json"
                 ensure_dir ".vscode"
-                merge_json_key "${config_file}" "servers.fluttersdk" "{\"type\":\"http\",\"url\":\"https://mcp.fluttersdk.com/\"}"
-                info "VS Code: https://mcp.fluttersdk.com/ added to ${config_file}"
+                merge_json_key "${config_file}" "servers.anilcancakir" "{\"type\":\"http\",\"url\":\"https://mcp.anilcancakir.com/\"}"
+                info "VS Code: https://mcp.anilcancakir.com/ added to ${config_file}"
             else
-                info "VS Code MCP config is project-level; re-run with --project --with-mcp to inject https://mcp.fluttersdk.com/."
+                info "VS Code MCP config is project-level; re-run with --project --with-mcp to inject https://mcp.anilcancakir.com/."
             fi
             ;;
 
@@ -459,8 +459,8 @@ EOF
             cat <<'EOF'
 {
     "mcpServers": {
-        "fluttersdk": {
-            "url": "https://mcp.fluttersdk.com/"
+        "anilcancakir": {
+            "url": "https://mcp.anilcancakir.com/"
         }
     }
 }
@@ -471,13 +471,13 @@ EOF
             if [[ "${mode}" == "project" ]]; then
                 local config_file=".roo/mcp.json"
                 ensure_dir ".roo"
-                merge_json_key "${config_file}" "mcpServers.fluttersdk" "{\"url\":\"https://mcp.fluttersdk.com/\"}"
-                info "Roo Code: https://mcp.fluttersdk.com/ added to ${config_file}"
+                merge_json_key "${config_file}" "mcpServers.anilcancakir" "{\"url\":\"https://mcp.anilcancakir.com/\"}"
+                info "Roo Code: https://mcp.anilcancakir.com/ added to ${config_file}"
             else
                 local config_file="${HOME}/.config/Roo-Code/GlobalStorage/mcp_settings.json"
                 ensure_dir "$(dirname "${config_file}")"
-                merge_json_key "${config_file}" "mcpServers.fluttersdk" "{\"url\":\"https://mcp.fluttersdk.com/\"}"
-                info "Roo Code: https://mcp.fluttersdk.com/ added to ${config_file}"
+                merge_json_key "${config_file}" "mcpServers.anilcancakir" "{\"url\":\"https://mcp.anilcancakir.com/\"}"
+                info "Roo Code: https://mcp.anilcancakir.com/ added to ${config_file}"
             fi
             ;;
     esac
@@ -589,8 +589,8 @@ install_project_codex() {
     done < <(jq -r '.skills[].name' "${skills_index}")
 
     info "Codex MCP config: add to ~/.codex/config.toml:"
-    info "  [mcp_servers.fluttersdk]"
-    info "  url = \"https://mcp.fluttersdk.com/\""
+    info "  [mcp_servers.anilcancakir]"
+    info "  url = \"https://mcp.anilcancakir.com/\""
     info "  enabled = true"
     info "  (see docs/MCP.md for details)"
     success "Codex CLI: Skills installed (project)"
@@ -613,7 +613,7 @@ install_project_antigravity() {
     done < <(jq -r '.skills[].name' "${skills_index}")
 
     info "Antigravity MCP config: add to ~/.gemini/config/mcp_config.json:"
-    info "  { \"mcpServers\": { \"fluttersdk\": { \"serverUrl\": \"https://mcp.fluttersdk.com/\" } } }"
+    info "  { \"mcpServers\": { \"anilcancakir\": { \"serverUrl\": \"https://mcp.anilcancakir.com/\" } } }"
     info "  Note: field is 'serverUrl' (NOT legacy 'httpUrl')"
     success "Antigravity CLI: Skills installed (project)"
 }
@@ -634,8 +634,8 @@ install_project_cline() {
     done < <(jq -r '.skills[].name' "${skills_index}")
 
     info "Cline MCP config: open Cline settings → MCP Servers → add server:"
-    info "  Name: fluttersdk"
-    info "  URL:  https://mcp.fluttersdk.com/"
+    info "  Name: anilcancakir"
+    info "  URL:  https://mcp.anilcancakir.com/"
     info "  (or edit cline_mcp_settings.json directly — see docs/MCP.md)"
     success "Cline: Skills installed (project)"
 }
@@ -656,7 +656,7 @@ install_project_roo() {
     done < <(jq -r '.skills[].name' "${skills_index}")
 
     info "Roo Code MCP config: add to .roo/mcp.json:"
-    info "  { \"mcpServers\": { \"fluttersdk\": { \"url\": \"https://mcp.fluttersdk.com/\" } } }"
+    info "  { \"mcpServers\": { \"anilcancakir\": { \"url\": \"https://mcp.anilcancakir.com/\" } } }"
     success "Roo Code: Skills installed (project)"
 }
 
@@ -709,7 +709,7 @@ Options:
     --global      Install globally (user-level config for all tools)
     --project     Install into current project directory
     --dry-run     Preview changes without writing anything
-    --with-mcp    Also inject mcp.fluttersdk.com config for every detected tool
+    --with-mcp    Also inject mcp.anilcancakir.com config for every detected tool
     --help        Show this help message
 
 Examples:

@@ -72,7 +72,7 @@ The plugin registers:
 - the skills (`/anilcancakir:wind-ui`, `/anilcancakir:magic-framework`, `/anilcancakir:fluttersdk-dusk`, `/anilcancakir:fluttersdk-telescope`, `/anilcancakir:dowel`)
 - `/anilcancakir:flutter-review`, a review that runs in a subagent as an independent second pair of eyes and then fixes what it finds, plus `/anilcancakir:flutter-test`
 - the `anilcancakir:flutter-reviewer` and `anilcancakir:flutter-reviewer-deep` subagents, invokable with `@`
-- the bundled MCP server from `.mcp.json` (HTTP transport to `mcp.fluttersdk.com`)
+- the bundled MCP server from `.mcp.json` (HTTP transport to `mcp.anilcancakir.com`)
 
 ### Other tools
 
@@ -143,10 +143,10 @@ bash scripts/install.sh --project               # into the current Flutter proje
 
 ## MCP server
 
-`mcp.fluttersdk.com` exposes one `search-docs` tool over Streamable HTTP, public and without auth. Client snippets for each tool are in [docs/MCP.md](docs/MCP.md). Clients that only speak stdio use the bridge:
+`https://mcp.anilcancakir.com/` is the read-only docs server of anilcancakir.com: `list_packages`, `list_docs`, `search_docs` and `read_doc` over Streamable HTTP, public and without auth. The plugin registers it; client snippets for each tool are in [docs/MCP.md](docs/MCP.md). Clients that only speak stdio use the `mcp-remote` bridge:
 
 ```bash
-npx @fluttersdk/mcp
+npx -y mcp-remote https://mcp.anilcancakir.com/
 ```
 
 ## For AI coding agents
