@@ -4,7 +4,7 @@ name: Sync Skill From Upstream
 # allowed sources, and where each skill lives, are listed in
 # registry-sources.json (one key per source repo). Pulls the per-source subtree,
 # rsyncs it into skills/<name>/, removes the skill directories the source
-# replaces, updates index.json, bumps the version triplet, and pushes to main.
+# replaces, updates index.json, bumps the version triplet, and pushes to master.
 # Push triggers deploy-registry.yml via paths:["skills/**"].
 #
 # Security model:
@@ -12,7 +12,7 @@ name: Sync Skill From Upstream
 #     never inlined into run: scripts.
 #   - The source key, version and sha are validated against fixed patterns
 #     BEFORE any checkout or token step runs; the source key must also exist in
-#     registry-sources.json as read from main. Repo, branch and skill come from
+#     registry-sources.json as read from master. Repo, branch and skill come from
 #     that file, never from the payload.
 #   - Upstream repositories are public, so they are read with the default
 #     token. The registry push uses the anilcancakir-ai-registry GitHub App,
@@ -84,9 +84,9 @@ jobs:
                       exit 1
                   fi
 
-                  # The map is read from main through the API, so nothing is
+                  # The map is read from master through the API, so nothing is
                   # checked out before the source is known to be allowed.
-                  gh api "repos/${GITHUB_REPOSITORY}/contents/registry-sources.json?ref=main" \
+                  gh api "repos/${GITHUB_REPOSITORY}/contents/registry-sources.json?ref=master" \
                       --jq .content | base64 --decode > "${RUNNER_TEMP}/sources.json"
 
                   if ! jq -e --arg s "$SRC" 'has($s)' "${RUNNER_TEMP}/sources.json" > /dev/null; then
@@ -166,7 +166,7 @@ jobs:
                   git config user.email "${BOT_USER_EMAIL:-anilcancakir-ai-registry[bot]@users.noreply.github.com}"
                   git remote set-url origin "https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
 
-                  # Rebuild the whole change on top of the live main on every attempt.
+                  # Rebuild the whole change on top of the live master on every attempt.
                   # The concurrency group serializes jobs but does not stop a sibling
                   # sync from pushing between this job's checkout and its push, and
                   # the version bump is a read-modify-write on the same two lines, so
@@ -174,8 +174,8 @@ jobs:
                   # on 2026-08-03: four dispatches fired together, one landed, one was
                   # rejected non-fast-forward, and its skill update was silently lost.
                   for attempt in 1 2 3; do
-                      git fetch --quiet origin main
-                      git reset --quiet --hard origin/main
+                      git fetch --quiet origin master
+                      git reset --quiet --hard origin/master
 
                       mkdir -p "skills/${SKILL}"
                       rsync -a --delete "tmp-upstream-${SKILL}/${SUBPATH}/" "skills/${SKILL}/"
@@ -206,13 +206,13 @@ jobs:
                       fi
 
                       git commit --quiet -m "chore: sync ${SKILL} from upstream ${VER}, bump to v${NEW}"
-                      if git push --quiet origin HEAD:main; then
+                      if git push --quiet origin HEAD:master; then
                           echo "new=$NEW" >> "$GITHUB_OUTPUT"
                           echo "committed=true" >> "$GITHUB_OUTPUT"
                           exit 0
                       fi
 
-                      echo "::warning::push rejected on attempt ${attempt}; a sibling sync landed first, rebuilding on the new main"
+                      echo "::warning::push rejected on attempt ${attempt}; a sibling sync landed first, rebuilding on the new master"
                       sleep $((attempt * 5))
                   done
 
@@ -255,7 +255,7 @@ jobs:
 
                   ## What changed
 
-                  See the commit on \`main\`: https://github.com/${GITHUB_REPOSITORY}/commit/$(git rev-parse HEAD)
+                  See the commit on \`master\`: https://github.com/${GITHUB_REPOSITORY}/commit/$(git rev-parse HEAD)
 
                   ---
                   *This release was created automatically by the [\`anilcancakir-ai-registry\`](https://github.com/apps/anilcancakir-ai-registry) App when upstream \`${REPO_UP}\` published an update.*
@@ -264,7 +264,7 @@ jobs:
                       --repo "$GITHUB_REPOSITORY" \
                       --title "v${NEW}: ${SKILL} @ ${VER}" \
                       --notes-file /tmp/release-notes.md \
-                      --target main
+                      --target master
 
             - name: Cleanup upstream checkout
               if: always()

@@ -181,7 +181,7 @@ detect_tools() {
         success "Gemini CLI detected"
     fi
 
-    # 5. VS Code with Copilot
+    # 5. VS Code (MCP config only; no instruction file ships)
     if command -v code &> /dev/null; then
         INSTALLED_TOOLS+=("vscode")
         success "VS Code detected"
@@ -242,7 +242,7 @@ install_global_claude() {
 
     info "Claude Code plugins install via marketplace."
     info "From a Claude Code session, run:"
-    info "  /plugin marketplace add https://raw.githubusercontent.com/anilcancakir/ai/main/.claude-plugin/marketplace.json"
+    info "  /plugin marketplace add https://raw.githubusercontent.com/anilcancakir/ai/master/.claude-plugin/marketplace.json"
     info "  /plugin install anilcancakir@anilcancakir-marketplace"
     info "The plugin auto-registers skills, commands, and the fluttersdk MCP (HTTP to mcp.fluttersdk.com)."
     success "Claude Code: Instructions printed"
@@ -272,11 +272,11 @@ install_global_gemini() {
 }
 
 install_global_vscode() {
-    step "Configuring VS Code Copilot (global)..."
+    step "Configuring VS Code (global)..."
 
-    info "VS Code Copilot instructions are project-level."
-    info "Use --project mode in your Flutter project directory."
-    success "VS Code: Instructions printed"
+    info "VS Code has no global target here: its MCP config is project-level."
+    info "Use --project --with-mcp in your Flutter project directory."
+    success "VS Code: nothing to install globally"
 }
 
 install_global_codex() {
@@ -567,14 +567,10 @@ install_project_gemini() {
 }
 
 install_project_vscode() {
-    step "Configuring VS Code Copilot (project)..."
+    step "Configuring VS Code (project)..."
 
-    local github_dir=".github"
-
-    ensure_dir "${github_dir}"
-    copy_file "${REPO_ROOT}/.github/copilot-instructions.md" "${github_dir}/copilot-instructions.md"
-
-    success "VS Code: Installed copilot-instructions.md"
+    info "No VS Code instruction file ships with this registry; use --with-mcp for the MCP config."
+    success "VS Code: nothing to copy"
 }
 
 install_project_codex() {

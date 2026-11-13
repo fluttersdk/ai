@@ -1,0 +1,26 @@
+# Changelog
+
+All notable changes to what this repository itself ships are recorded here. Mirrored skills and the plugin version triplet change through automated sync commits and GitHub Releases (`vX.Y.Z`), not through this file.
+
+The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
+
+## [Unreleased]
+
+### Changed
+
+- **The registry moved to `anilcancakir/ai` and its default branch is `master`.** Install with `npx skills add anilcancakir/ai`. The Claude Code plugin is `anilcancakir` and the marketplace `anilcancakir-marketplace`, so skills are `/anilcancakir:<skill>` and the subagents `anilcancakir:flutter-reviewer` and `anilcancakir:flutter-reviewer-deep`. Remove the old `fluttersdk-marketplace` and add the new one. Pages moved to `https://anilcancakir.github.io/ai/`.
+- **`sync.yml` is data-driven.** The allowed sources (repo, branch, skill directory, replaced skills) live in `registry-sources.json`; a dispatch whose source is not listed there is rejected before anything is checked out. Upstream repositories are read with the default token, and one App token (`anilcancakir-ai-registry`) writes to the registry. A source's `replaces` entries leave `skills/` and `skills/index.json` on its first sync.
+- **CI follows the repo standard.** Every action is pinned by commit SHA, `ci.yml` has no `paths:` filter and ends in the `Lint & Test` aggregator, and a `Changelog` workflow asks for an entry when shipped files change.
+- **The README, `CLAUDE.md` and the issue and pull request templates were rewritten** for the new names, the standard layout and the For AI coding agents rules.
+
+### Added
+
+- `registry-sources.json`, `SECURITY.md`, this changelog, a pull request template and issue forms.
+
+### Removed
+
+- The VS Code Copilot instruction file (`.github/copilot-instructions.md`) and the Copilot step of `scripts/install.sh`; VS Code keeps its MCP config target.
+
+### Fixed
+
+- `scripts/update-skill-index.mjs` removes the entries of replaced skills (`REPLACES`), so a retired skill no longer stays in the OpenCode index with files that return 404.

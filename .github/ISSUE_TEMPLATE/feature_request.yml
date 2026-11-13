@@ -1,0 +1,44 @@
+name: Feature Request
+description: Suggest a new skill source, tool target or registry improvement
+labels: ["enhancement"]
+body:
+    - type: markdown
+      attributes:
+          value: |
+              Have an idea for the registry? We'd love to hear it.
+
+    - type: dropdown
+      id: area
+      attributes:
+          label: Area
+          options:
+              - New skill source (a package that should be mirrored)
+              - New AI tool target (installer or template)
+              - Claude Code plugin (command, subagent)
+              - flutter-review
+              - Registry sync
+              - Documentation
+              - Other
+      validations:
+          required: true
+
+    - type: textarea
+      id: description
+      attributes:
+          label: Description
+          description: What would you like to see, and why is it needed?
+      validations:
+          required: true
+
+    - type: textarea
+      id: use-case
+      attributes:
+          label: Use Case
+          description: Describe a real scenario where you would use it.
+      validations:
+          required: true
+
+    - type: textarea
+      id: alternatives
+      attributes:
+          label: Alternatives Considered
