@@ -1,9 +1,9 @@
 [command]
-description = "Review Flutter/Dart code for FlutterSDK conventions"
+description = "Review Flutter/Dart code for Wind UI and Magic conventions"
 
 [command.prompt]
 template = """
-Review the following Flutter/Dart code for adherence to FlutterSDK conventions:
+Review the following Flutter/Dart code for adherence to Wind UI and Magic conventions:
 
 1. Wind UI: W-prefix widgets (WDiv, WText, WButton), className-first styling, design token usage
 2. Magic Framework: Facade usage, Eloquent patterns, controller/view structure

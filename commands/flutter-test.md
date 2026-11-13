@@ -22,7 +22,7 @@ Write comprehensive tests for the specified Flutter/Dart code following TDD prin
 4. Mock dependencies using Mockito or manual mocks
 5. Cover edge cases: null inputs, empty collections, error states
 6. Widget tests use `pumpWidget` + `find.byType` / `find.text` patterns
-7. Follow the testing patterns from `/fluttersdk:magic-framework` skill
+7. Follow the testing patterns from `/anilcancakir:magic-framework` skill
 
 ## Code to Test
 

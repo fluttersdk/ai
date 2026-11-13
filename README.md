@@ -1,23 +1,23 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/fluttersdk/ai/main/.github/ai-logo.png" width="120" alt="FlutterSDK AI Logo" />
+  <img src="https://raw.githubusercontent.com/anilcancakir/ai/main/.github/ai-logo.png" width="120" alt="AI skills for Flutter logo" />
 </p>
 
-<h1 align="center">FlutterSDK AI</h1>
+<h1 align="center">AI skills for Flutter</h1>
 
 <p align="center">
-  <strong>AI coding skills for the FlutterSDK ecosystem.</strong><br/>
+  <strong>AI coding skills for Wind UI, the Magic Framework and the dowel dev tooling.</strong><br/>
   Teach your AI assistant Wind UI, Magic Framework, and more, across every major coding tool.
 </p>
 
 <p align="center">
-  <a href="https://github.com/fluttersdk/ai/actions"><img src="https://img.shields.io/github/actions/workflow/status/fluttersdk/ai/deploy-registry.yml?branch=main&label=Registry" alt="Registry"></a>
+  <a href="https://github.com/anilcancakir/ai/actions"><img src="https://img.shields.io/github/actions/workflow/status/anilcancakir/ai/deploy-registry.yml?branch=main&label=Registry" alt="Registry"></a>
   <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT"></a>
-  <a href="https://github.com/fluttersdk/ai/stargazers"><img src="https://img.shields.io/github/stars/fluttersdk/ai?style=flat" alt="GitHub stars"></a>
+  <a href="https://github.com/anilcancakir/ai/stargazers"><img src="https://img.shields.io/github/stars/anilcancakir/ai?style=flat" alt="GitHub stars"></a>
 </p>
 
 <p align="center">
-  <a href="https://fluttersdk.github.io/ai/">Registry</a> ·
-  <a href="https://github.com/fluttersdk/ai/issues">Issues</a> ·
+  <a href="https://anilcancakir.github.io/ai/">Registry</a> ·
+  <a href="https://github.com/anilcancakir/ai/issues">Issues</a> ·
   <a href="#quick-start">Quick Start</a>
 </p>
 
@@ -27,7 +27,7 @@
 
 AI coding assistants are powerful, but they don't know your frameworks. They hallucinate widget names, guess at API patterns, and miss conventions.
 
-**FlutterSDK AI fixes this.** It gives your AI structured knowledge about Wind UI's className system, Magic Framework's Laravel-inspired architecture, and more, so it generates correct code on the first try.
+**These skills fix this.** It gives your AI structured knowledge about Wind UI's className system, Magic Framework's Laravel-inspired architecture, and more, so it generates correct code on the first try.
 
 One install, every tool:
 
@@ -49,11 +49,11 @@ Five skills are available. See [docs/SKILLS.md](docs/SKILLS.md) for full descrip
 
 | Skill | Package | Upstream | What it covers |
 |:------|:--------|:---------|:---------------|
-| `wind-ui` | `fluttersdk_wind` | [fluttersdk/wind](https://github.com/fluttersdk/wind) | W-prefix widgets, the `className` parser pipeline, `WindRecipe` variants, dark mode, responsive breakpoints, design culture |
-| `magic-framework` | `magic` | [fluttersdk/magic](https://github.com/fluttersdk/magic) | IoC container, 18 facades, Eloquent ORM, GoRouter routing, forms, auth, testing, 5 ecosystem plugins |
-| `fluttersdk-dusk` | `fluttersdk_dusk` | [fluttersdk/dusk](https://github.com/fluttersdk/dusk) | E2E driver: `dusk_*` MCP tools and matching CLI commands to snap, tap, type, and screenshot a running Flutter app |
-| `fluttersdk-telescope` | `fluttersdk_telescope` | [fluttersdk/telescope](https://github.com/fluttersdk/telescope) | Runtime inspector: 9 ring buffers for HTTP, logs, exceptions, events, gates, DB queries |
-| `fluttersdk-artisan` | `fluttersdk_artisan` | [fluttersdk/artisan](https://github.com/fluttersdk/artisan) | CLI framework + stdio MCP server: substrate `artisan_*` tools, builtin commands, `artisan_tinker` |
+| `wind-ui` | `fluttersdk_wind` | [anilcancakir/wind_kit](https://github.com/anilcancakir/wind_kit) | W-prefix widgets, the `className` parser pipeline, `WindRecipe` variants, dark mode, responsive breakpoints, design culture |
+| `magic-framework` | `magic` | [anilcancakir/magic](https://github.com/anilcancakir/magic) | IoC container, 18 facades, Eloquent ORM, GoRouter routing, forms, auth, testing, 5 ecosystem plugins |
+| `fluttersdk-dusk` | `fluttersdk_dusk` | [anilcancakir/tapir](https://github.com/anilcancakir/tapir) | E2E driver: `dusk_*` MCP tools and matching CLI commands to snap, tap, type, and screenshot a running Flutter app |
+| `fluttersdk-telescope` | `fluttersdk_telescope` | [anilcancakir/crumbs](https://github.com/anilcancakir/crumbs) | Runtime inspector: 9 ring buffers for HTTP, logs, exceptions, events, gates, DB queries |
+| `fluttersdk-artisan` | `fluttersdk_artisan` | [anilcancakir/dowel](https://github.com/anilcancakir/dowel) | CLI framework + stdio MCP server: substrate `artisan_*` tools, builtin commands, `artisan_tinker` |
 
 Each skill mirrors its upstream package's own `skills/` directory and arrives here when that package publishes a release. The exact synced version is the `version:` field in `skills/<name>/SKILL.md`, and [`skills/index.json`](skills/index.json) is the machine-readable index; neither is duplicated in this table, so neither can drift from it.
 
@@ -79,20 +79,20 @@ The npx bridge proxies stdio to the upstream HTTP server transparently.
 The fastest way. Works with [40+ AI coding agents](https://github.com/vercel-labs/skills).
 
 ```bash
-# Install all FlutterSDK skills to all detected agents
-npx skills add fluttersdk/ai
+# Install all skills to all detected agents
+npx skills add anilcancakir/ai
 
 # Install a specific skill
-npx skills add fluttersdk/ai --skill wind-ui
+npx skills add anilcancakir/ai --skill wind-ui
 
 # Install globally (available across all projects)
-npx skills add fluttersdk/ai -g
+npx skills add anilcancakir/ai -g
 ```
 
 ### Option 2: Universal Installer
 
 ```bash
-git clone https://github.com/fluttersdk/ai.git && cd ai
+git clone https://github.com/anilcancakir/ai.git && cd ai
 
 # Preview what would be installed
 bash scripts/install.sh --dry-run --global
@@ -117,7 +117,7 @@ Add the registry URL to your `opencode.json`:
 ```json
 {
     "skills": {
-        "urls": ["https://fluttersdk.github.io/ai/"]
+        "urls": ["https://anilcancakir.github.io/ai/"]
     }
 }
 ```
@@ -130,14 +130,14 @@ Skills are fetched automatically and cached locally.
 <summary><strong>Claude Code</strong></summary>
 
 ```bash
-/plugin marketplace add https://raw.githubusercontent.com/fluttersdk/ai/main/.claude-plugin/marketplace.json
-/plugin install fluttersdk@fluttersdk-marketplace
+/plugin marketplace add https://raw.githubusercontent.com/anilcancakir/ai/main/.claude-plugin/marketplace.json
+/plugin install anilcancakir@anilcancakir-marketplace
 ```
 
 The plugin auto-registers:
-- 5 skills (`/fluttersdk:wind-ui`, `/fluttersdk:magic-framework`, `/fluttersdk:fluttersdk-dusk`, `/fluttersdk:fluttersdk-telescope`, `/fluttersdk:fluttersdk-artisan`)
-- `/fluttersdk:flutter-review`, a review that runs in a subagent as an independent second pair of eyes and then fixes what it finds, plus `/fluttersdk:flutter-test`
-- `fluttersdk:flutter-reviewer` and `fluttersdk:flutter-reviewer-deep` subagents, invokable directly with `@`
+- 5 skills (`/anilcancakir:wind-ui`, `/anilcancakir:magic-framework`, `/anilcancakir:fluttersdk-dusk`, `/anilcancakir:fluttersdk-telescope`, `/anilcancakir:fluttersdk-artisan`)
+- `/anilcancakir:flutter-review`, a review that runs in a subagent as an independent second pair of eyes and then fixes what it finds, plus `/anilcancakir:flutter-test`
+- `anilcancakir:flutter-reviewer` and `anilcancakir:flutter-reviewer-deep` subagents, invokable directly with `@`
 - `fluttersdk` MCP server (HTTP transport to `mcp.fluttersdk.com`; no manual `.mcp.json` edit required)
 
 </details>
@@ -147,7 +147,7 @@ The plugin auto-registers:
 
 ```bash
 mkdir -p .cursor/rules
-cp tool-templates/cursor/fluttersdk.mdc .cursor/rules/
+cp tool-templates/cursor/wind-magic.mdc .cursor/rules/
 ```
 
 Activates automatically for all `.dart` files.
@@ -186,9 +186,9 @@ skills/index.json              ← OpenCode fetches this from GitHub Pages
   → magic-framework/refs/*.md  ← Controllers, ORM, facades, routing, auth, ...
 ```
 
-**OpenCode**: Fetches `fluttersdk.github.io/ai/index.json`, downloads listed skill files, caches locally.
+**OpenCode**: Fetches `anilcancakir.github.io/ai/index.json`, downloads listed skill files, caches locally.
 
-**Claude Code**: Plugin manifest (`.claude-plugin/plugin.json`) makes the repo installable. Skills in `skills/` are auto-discovered and namespaced under `/fluttersdk:`.
+**Claude Code**: Plugin manifest (`.claude-plugin/plugin.json`) makes the repo installable. Skills in `skills/` are auto-discovered and namespaced under `/anilcancakir:`.
 
 **Deployment**: Push to `main` → GitHub Actions deploys `skills/` to GitHub Pages automatically.
 
@@ -213,6 +213,6 @@ MIT. See [LICENSE](LICENSE) for details.
 ---
 
 <p align="center">
-  <sub>Built with care by <a href="https://github.com/fluttersdk">FlutterSDK</a></sub><br/>
-  <sub>If this saves you time, <a href="https://github.com/fluttersdk/ai">give it a star</a>; it helps others discover it.</sub>
+  <sub>Built with care by <a href="https://github.com/anilcancakir">Anılcan Çakır</a></sub><br/>
+  <sub>If this saves you time, <a href="https://github.com/anilcancakir/ai">give it a star</a>; it helps others discover it.</sub>
 </p>

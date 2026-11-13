@@ -1,6 +1,6 @@
-# FlutterSDK AI — VS Code Copilot Instructions
+# AI skills for Flutter: VS Code Copilot Instructions
 
-You are working in a FlutterSDK ecosystem project. Follow these conventions:
+You are working in a Wind UI and Magic project. Follow these conventions:
 
 ## Flutter / Dart
 - Use `W`-prefixed widgets from Wind UI (`WDiv`, `WText`, `WButton`) — never raw Flutter widgets when Wind equivalents exist

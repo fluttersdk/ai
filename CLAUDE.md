@@ -1,8 +1,8 @@
 # CLAUDE.md
 
-FlutterSDK AI skill registry that distributes AI coding skills, MCP servers, and commands for Wind UI, Magic Framework, and more across OpenCode, Claude Code, Cursor, Gemini CLI, and VS Code Copilot.
+AI skill registry that distributes AI coding skills, MCP servers, and commands for Wind UI, Magic Framework, and more across OpenCode, Claude Code, Cursor, Gemini CLI, and VS Code Copilot.
 
-Hosted via GitHub Pages at `fluttersdk.github.io/ai/`
+Hosted via GitHub Pages at `anilcancakir.github.io/ai/`
 
 ## Commands
 
@@ -24,21 +24,22 @@ Hosted via GitHub Pages at `fluttersdk.github.io/ai/`
   - `fluttersdk-telescope/`: Runtime inspector, 9 ring buffers, from `fluttersdk_telescope`
   - `fluttersdk-artisan/`: CLI framework + stdio MCP server, from `fluttersdk_artisan`
 
-> **Every `skills/<name>/` directory is a MIRROR. Never edit a skill here.** `sync.yml` rsyncs the upstream subtree with `--delete`, so a registry-only file is one sync away from deletion; that is how six hand-written `wind-ui` reference files disappeared before anyone noticed. Edit the skill in its upstream repo (`fluttersdk/wind`, `magic`, `dusk`, `telescope`, `artisan`) and let the sync deliver it.
+> **Every `skills/<name>/` directory is a MIRROR. Never edit a skill here.** `sync.yml` rsyncs the upstream subtree with `--delete`, so a registry-only file is one sync away from deletion; that is how six hand-written `wind-ui` reference files disappeared before anyone noticed. Edit the skill in its upstream repo (`registry-sources.json` lists the repo, branch and skill directory behind each source key) and let the sync deliver it.
 >
 > The sync fires when an upstream **publishes a release**, not on every upstream push. To pull an unreleased skill fix, run the upstream repo's "Dispatch skill update to registry" workflow manually. Per-skill versions live in each `SKILL.md` frontmatter and in `skills/index.json`; do not copy them into prose here, they drift within a release cycle.
 - `skills/index.json`: OpenCode discovery manifest. Source of truth for file listing
 - `.claude-plugin/`: Plugin manifest (`plugin.json`) + marketplace catalog (`marketplace.json`)
 - `mcps/`: MCP servers (TypeScript, stdio transport, Zod schemas)
-- `commands/`: Claude Code plugin commands (`flutter-test.md`); auto-discovered as `/fluttersdk:<name>`
-- `agents/`: plugin subagents (`flutter-reviewer.md`, `flutter-reviewer-deep.md`); auto-discovered as `fluttersdk:<name>`. Plugin agents support `name`, `description`, `model`, `effort`, `maxTurns`, `tools`, `disallowedTools`, `skills`, `memory`, `background`, `isolation` only; `hooks`, `mcpServers`, and `permissionMode` are ignored for plugin-shipped agents, so do not add them
+- `commands/`: Claude Code plugin commands (`flutter-test.md`); auto-discovered as `/anilcancakir:<name>`
+- `agents/`: plugin subagents (`flutter-reviewer.md`, `flutter-reviewer-deep.md`); auto-discovered as `anilcancakir:<name>`. Plugin agents support `name`, `description`, `model`, `effort`, `maxTurns`, `tools`, `disallowedTools`, `skills`, `memory`, `background`, `isolation` only; `hooks`, `mcpServers`, and `permissionMode` are ignored for plugin-shipped agents, so do not add them
 - `references/`: plugin-owned reference files the skill and agents read through `${CLAUDE_PLUGIN_ROOT}` (`flutter-review-core.md`, `dart-style-core.md`). Not part of any mirrored skill
 
 > `skills/flutter-review/` is the one skill this repo owns rather than mirrors, and it is deliberately absent from `skills/index.json`: it orchestrates Claude Code subagents, which the other tools the registry serves cannot spawn. Everything else under `skills/` is a mirror and belongs in the index.
 - `tool-templates/`: Cross-tool command templates (`cursor/`, `gemini/`, `opencode/`) consumed by `scripts/install.sh`
 - `.mcp.json`: Bundled MCP server config (HTTP transport to `mcp.fluttersdk.com`); auto-loaded on plugin install
 - `.github/workflows/deploy-registry.yml`: Auto-deploys `skills/` to Pages on push to main; also writes `.well-known/skills/index.json` for OpenCode forward-compat
-- `.github/workflows/sync.yml`: Automates skill sync checklist on push to main
+- `.github/workflows/sync.yml`: Receives `repository_dispatch` from a source repo, validates the source key against `registry-sources.json`, mirrors the skill, bumps the version triplet and pushes to main as the `anilcancakir-ai-registry` App. To add a source, add one entry to `registry-sources.json`; `replaces` lists skill directories the source supersedes (they are deleted on its first sync)
+- `registry-sources.json`: Allowed sync sources, one key per source repo: `repo`, `branch`, `skill`, `replaces`
 
 ## Skill Format
 

@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# FlutterSDK AI — Universal Multi-Tool Installer
+# AI skills for Flutter — Universal Multi-Tool Installer
 #
-# Installs FlutterSDK AI skills, commands, and MCP server configuration
+# Installs AI skills, commands, and MCP server configuration
 # into all detected AI coding tools.
 #
 # Usage:
@@ -21,8 +21,8 @@ set -euo pipefail
 # Constants
 # ==============================================================================
 
-REPO_URL="https://github.com/fluttersdk/ai"
-REGISTRY_URL="https://fluttersdk.github.io/ai/"
+REPO_URL="https://github.com/anilcancakir/ai"
+REGISTRY_URL="https://anilcancakir.github.io/ai/"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 VERSION="1.2.0"
@@ -242,8 +242,8 @@ install_global_claude() {
 
     info "Claude Code plugins install via marketplace."
     info "From a Claude Code session, run:"
-    info "  /plugin marketplace add https://raw.githubusercontent.com/fluttersdk/ai/main/.claude-plugin/marketplace.json"
-    info "  /plugin install fluttersdk@fluttersdk-marketplace"
+    info "  /plugin marketplace add https://raw.githubusercontent.com/anilcancakir/ai/main/.claude-plugin/marketplace.json"
+    info "  /plugin install anilcancakir@anilcancakir-marketplace"
     info "The plugin auto-registers skills, commands, and the fluttersdk MCP (HTTP to mcp.fluttersdk.com)."
     success "Claude Code: Instructions printed"
 }
@@ -254,9 +254,9 @@ install_global_cursor() {
     local config_dir="${HOME}/.cursor/rules"
 
     ensure_dir "${config_dir}"
-    copy_file "${REPO_ROOT}/tool-templates/cursor/fluttersdk.mdc" "${config_dir}/fluttersdk.mdc"
+    copy_file "${REPO_ROOT}/tool-templates/cursor/wind-magic.mdc" "${config_dir}/wind-magic.mdc"
 
-    success "Cursor: Installed fluttersdk.mdc rule"
+    success "Cursor: Installed wind-magic.mdc rule"
 }
 
 install_global_gemini() {
@@ -484,7 +484,7 @@ EOF
 }
 
 install_global() {
-    info "Installing FlutterSDK AI globally (user-level)..."
+    info "Installing AI skills globally (user-level)..."
     echo ""
 
     detect_tools
@@ -549,9 +549,9 @@ install_project_cursor() {
     local rules_dir=".cursor/rules"
 
     ensure_dir "${rules_dir}"
-    copy_file "${REPO_ROOT}/tool-templates/cursor/fluttersdk.mdc" "${rules_dir}/fluttersdk.mdc"
+    copy_file "${REPO_ROOT}/tool-templates/cursor/wind-magic.mdc" "${rules_dir}/wind-magic.mdc"
 
-    success "Cursor: Installed fluttersdk.mdc rule"
+    success "Cursor: Installed wind-magic.mdc rule"
 }
 
 install_project_gemini() {
@@ -665,7 +665,7 @@ install_project_roo() {
 }
 
 install_project() {
-    info "Installing FlutterSDK AI into current project..."
+    info "Installing AI skills into current project..."
     info "Target: $(pwd)"
     echo ""
 
@@ -704,7 +704,7 @@ install_project() {
 
 usage() {
     cat <<EOF
-FlutterSDK AI Installer v${VERSION}
+AI skills installer v${VERSION}
 
 Usage:
     bash install.sh [OPTIONS]
@@ -732,7 +732,7 @@ EOF
 main() {
     echo ""
     echo -e "${CYAN}╔══════════════════════════════════════════╗${NC}"
-    echo -e "${CYAN}║   FlutterSDK AI Installer v${VERSION}        ║${NC}"
+    echo -e "${CYAN}║   AI skills installer v${VERSION}            ║${NC}"
     echo -e "${CYAN}╚══════════════════════════════════════════╝${NC}"
     echo ""
 
