@@ -50,7 +50,7 @@ Nineteen reference files, including one per ecosystem plugin: `magic_deeplink`, 
 
 ### Recommended companion skills
 
-`wind-ui` for all UI styling; `fluttersdk-artisan` for the CLI substrate and MCP wiring.
+`wind-ui` for all UI styling; `dowel` for the CLI substrate and MCP wiring.
 
 ---
 
@@ -71,7 +71,7 @@ Every gesture passes a six-step actionability gate whose failure reasons are sub
 
 ### Recommended companion skills
 
-`fluttersdk-artisan` (required substrate), `fluttersdk-telescope` for reading side effects after a gesture.
+`dowel` (required substrate), `fluttersdk-telescope` for reading side effects after a gesture.
 
 ---
 
@@ -92,25 +92,25 @@ It pairs with dusk: dusk drives the app, telescope reads what the app did in res
 
 ### Recommended companion skills
 
-`fluttersdk-artisan` (required substrate), `fluttersdk-dusk` for driving the UI whose side effects you are reading.
+`dowel` (required substrate), `fluttersdk-dusk` for driving the UI whose side effects you are reading.
 
 ---
 
-## fluttersdk-artisan
+## dowel
 
-**Package:** `fluttersdk_artisan`
+**Package:** `dowel` (renamed from `fluttersdk_artisan`)
 **Upstream repo:** https://github.com/anilcancakir/dowel
 
 ### Triggers on
 
-Any `artisan_*` MCP call, a `./bin/fsa` or `dart run artisan` invocation, a mention of `.artisan/state.json`, `bin/dispatcher.dart`, or `_plugins.g.dart`, or a request to start, stop, restart, reload, inspect, or tinker with a Flutter app.
+Any `dowel_*` MCP call, a `./bin/dowel` or `dart run dowel` invocation, a mention of `.dowel/`, `~/.dowel/sessions/`, `bin/dispatcher.dart` or `_plugins.g.dart`, or a request to start, stop, restart, reload, inspect, tinker with a Flutter app or install a dowel plugin.
 
 ### What it provides
 
-The substrate the other two tools plug into: a Dart CLI framework plus a stdio MCP server that boots, inspects, hot-reloads, and evaluates a running Flutter app through ten substrate MCP tools plus its builtin CLI command set. `~/.artisan/state.json` carries the running app's pid, VM Service URI, and FIFO pipe, and lazy reconnect picks it up after `artisan_start`, so a fresh agent session attaches to an app that is already running.
+The substrate the other two tools plug into: a Dart CLI framework plus a stdio MCP server that starts, inspects, hot-reloads and evaluates a running Flutter app through ten substrate MCP tools plus its builtin CLI command set. A per-project session under `~/.dowel/sessions/<hash>/` carries the running app's pid, VM Service URI and FIFO pipe, and the server picks it up lazily after `dowel_start`, so a fresh agent session attaches to an app that is already running.
 
-One wiring detail decides whether plugin tools appear at all: `dusk_*` and `telescope_*` surface only through the dispatcher path (`./bin/fsa mcp:serve`), never through the substrate-only `dart run fluttersdk_artisan:mcp`.
+One wiring detail decides whether plugin tools appear at all: `tapir_*` and `crumbs_*` surface only through the dispatcher path (`./bin/dowel mcp:serve`), never through the substrate-only `dart run dowel:mcp`.
 
 ### Recommended companion skills
 
-`fluttersdk-dusk` and `fluttersdk-telescope` are artisan plugins; load them when the task touches E2E driving or runtime inspection.
+`fluttersdk-dusk` and `fluttersdk-telescope` (becoming `tapir` and `crumbs`) are dowel plugins; load them when the task touches E2E driving or runtime inspection.
