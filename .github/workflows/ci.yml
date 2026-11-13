@@ -1,22 +1,16 @@
 name: CI
 
-# Validates pull requests touching the MCP bridge or any workflow file.
-# Push events on main are already covered by publish-mcp.yml + deploy-registry.yml;
-# this workflow is the PR-time gate so Dependabot updates get build + test feedback
-# before merge.
+# The gate for every pull request and every push to master. No `paths:` filter:
+# a filtered check never reports on a pull request outside the filter, and a
+# required check that never reports leaves the pull request waiting forever.
+# `Lint & Test` is the aggregator the branch ruleset waits for, so the jobs
+# behind it can be renamed or added without touching the required check.
 
 on:
+    push:
+        branches: [master]
     pull_request:
-        branches: [main]
-        paths:
-            - ".claude-plugin/**"
-            - ".github/dependabot.yml"
-            - ".github/workflows/**"
-            - ".mcp.json"
-            - "commands/**"
-            - "mcps/fluttersdk-mcp/**"
-            - "scripts/install.sh"
-            - "tool-templates/**"
+        branches: [master]
     workflow_dispatch:
 
 permissions:
@@ -34,9 +28,9 @@ jobs:
             run:
                 working-directory: mcps/fluttersdk-mcp
         steps:
-            - uses: actions/checkout@v7
+            - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-            - uses: actions/setup-node@v7
+            - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
               with:
                   node-version: "20"
                   cache: npm
@@ -54,11 +48,30 @@ jobs:
             - name: Package shape (npm pack --dry-run)
               run: npm pack --dry-run
 
+    lint-test:
+        name: Lint & Test
+        needs: [mcp-bridge, workflows-lint, plugin-validate]
+        if: ${{ always() }}
+        runs-on: ubuntu-latest
+        steps:
+            - name: Every gate succeeded
+              env:
+                  RESULTS: ${{ join(needs.*.result, ' ') }}
+              run: |
+                  set -euo pipefail
+                  echo "gate results: ${RESULTS}"
+                  for result in ${RESULTS}; do
+                      if [[ "${result}" != "success" ]]; then
+                          echo "::error::a gate did not succeed (${result})"
+                          exit 1
+                      fi
+                  done
+
     workflows-lint:
         name: Workflows lint
         runs-on: ubuntu-latest
         steps:
-            - uses: actions/checkout@v7
+            - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
             - name: actionlint
               uses: docker://rhysd/actionlint:1.7.7
@@ -75,7 +88,7 @@ jobs:
         name: Plugin manifest + version sync
         runs-on: ubuntu-latest
         steps:
-            - uses: actions/checkout@v7
+            - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
             - name: Install check-jsonschema
               run: pipx install check-jsonschema==0.37.2

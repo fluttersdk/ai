@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-AI skill registry that distributes AI coding skills, MCP servers, and commands for Wind UI, Magic Framework, and more across OpenCode, Claude Code, Cursor, Gemini CLI, and VS Code Copilot.
+AI skill registry that distributes AI coding skills, MCP servers, and commands for Wind UI, Magic Framework, and more across OpenCode, Claude Code, Cursor, Gemini CLI, Codex CLI and more.
 
 Hosted via GitHub Pages at `anilcancakir.github.io/ai/`
 
@@ -37,8 +37,8 @@ Hosted via GitHub Pages at `anilcancakir.github.io/ai/`
 > `skills/flutter-review/` is the one skill this repo owns rather than mirrors, and it is deliberately absent from `skills/index.json`: it orchestrates Claude Code subagents, which the other tools the registry serves cannot spawn. Everything else under `skills/` is a mirror and belongs in the index.
 - `tool-templates/`: Cross-tool command templates (`cursor/`, `gemini/`, `opencode/`) consumed by `scripts/install.sh`
 - `.mcp.json`: Bundled MCP server config (HTTP transport to `mcp.fluttersdk.com`); auto-loaded on plugin install
-- `.github/workflows/deploy-registry.yml`: Auto-deploys `skills/` to Pages on push to main; also writes `.well-known/skills/index.json` for OpenCode forward-compat
-- `.github/workflows/sync.yml`: Receives `repository_dispatch` from a source repo, validates the source key against `registry-sources.json`, mirrors the skill, bumps the version triplet and pushes to main as the `anilcancakir-ai-registry` App. To add a source, add one entry to `registry-sources.json`; `replaces` lists skill directories the source supersedes (they are deleted on its first sync)
+- `.github/workflows/deploy-registry.yml`: Auto-deploys `skills/` to Pages on push to master; also writes `.well-known/skills/index.json` for OpenCode forward-compat
+- `.github/workflows/sync.yml`: Receives `repository_dispatch` from a source repo, validates the source key against `registry-sources.json`, mirrors the skill, bumps the version triplet and pushes to master as the `anilcancakir-ai-registry` App. To add a source, add one entry to `registry-sources.json`; `replaces` lists skill directories the source supersedes (they are deleted on its first sync)
 - `registry-sources.json`: Allowed sync sources, one key per source repo: `repo`, `branch`, `skill`, `replaces`
 
 ## Skill Format
@@ -58,10 +58,35 @@ After ANY skill change, ALL of the following must stay in sync:
 3. `.claude-plugin/plugin.json` version must be bumped (patch for content updates)
 4. `.claude-plugin/marketplace.json` version must match, both top-level AND `plugins[0].version`
 
-Run `.github/workflows/sync.yml` (or push to `main`) to automate this checklist.
+`sync.yml` performs this checklist for every mirrored skill; a change you make by hand (the owned `flutter-review`, the manifests, the installer) must keep it true.
 
 > Missing from `index.json` = OpenCode users won't get the file.
 > Missing version bump = Claude Code users won't get the update.
+
+## Post-Change Checklist
+
+A change is not done while any of these is stale: `CHANGELOG.md` `[Unreleased]`, `README.md`, `docs/SKILLS.md` (skill table), `docs/UPSTREAM-SETUP.md` (sources), `registry-sources.json`, and the Architecture list above. Then `actionlint .github/workflows/*.yml`, the JSON files parse (`jq empty`), and `bash -n scripts/install.sh`.
+
+## Development Flow
+
+Branch from `master` as `<type>/<topic>` (`feat`, `fix`, `chore`, `docs`, `refactor`, `release`) and open a pull request into `master`; nothing is pushed to `master` by hand. The registry App pushes sync commits to `master` directly; that is why the branch rules use a ruleset with the App as a bypass actor rather than classic protection.
+
+## Testing
+
+- MCP bridge: `cd mcps/fluttersdk-mcp && npm ci && npm test` (vitest), `npm run build` (tsc strict), `npm pack --dry-run`.
+- Workflows: `actionlint`. Manifests: the `Plugin manifest + version sync` job (schema, three-way version, frontmatter of every plugin component).
+- `scripts/update-skill-index.mjs`: run it on a scratch tree with `SKILL=<name> REPLACES="<old>"` before changing it.
+
+## Release
+
+The registry has no manual release. Every accepted sync patch-bumps the version triplet (`plugin.json`, `marketplace.json` and `plugins[0]`) and creates a GitHub Release `vX.Y.Z`. Repo-owned changes that ship (agents, commands, `flutter-review`, the installer, the manifests) go into `CHANGELOG.md` under `[Unreleased]`; there is no tag per change.
+
+## CI
+
+- `ci.yml` (`Lint & Test`): aggregator over `MCP bridge (build + test)`, `Workflows lint` and `Plugin manifest + version sync`; no `paths:` filter.
+- `changelog.yml` (`Changelog`): a pull request that changes shipped files needs a `CHANGELOG.md` entry, or the `skip-changelog` label; Dependabot and `release:` titles are exempt.
+- `deploy-registry.yml`: a push to `master` that changes `skills/**` deploys Pages and writes `.well-known/skills/index.json`.
+- `sync.yml`: `repository_dispatch` from a source repo; `publish-mcp.yml`: npm publish of the bridge when its version changes.
 
 ## Anti-Patterns
 

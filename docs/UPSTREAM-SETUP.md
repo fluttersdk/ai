@@ -6,7 +6,7 @@ This guide is for the maintainer wiring auto-sync between upstream skill source 
 (wind_kit, magic, dowel, tapir, crumbs and the Magic plugins) and the registry (anilcancakir/ai).
 Each upstream repo needs one workflow file and one secret. Once in place, a published
 release fires `repository_dispatch` to anilcancakir/ai, triggering `sync.yml` to pull the
-updated skill subtree and commit it to main.
+updated skill subtree and commit it to master.
 
 **Release-scoped on purpose.** The dispatch does not fire on ordinary pushes. It used to,
 and the registry paid a version per commit for it: v1.3.75, most of those re-publishing
@@ -95,7 +95,7 @@ git push
 
 1. Go to the upstream repo's Actions tab → "Dispatch skill update to registry" → Run workflow.
 2. Switch to **anilcancakir/ai** Actions and confirm `sync.yml` triggered.
-3. Verify `sync.yml` commits synced files to anilcancakir/ai's main branch.
+3. Verify `sync.yml` commits synced files to anilcancakir/ai's master branch.
 4. Confirm `deploy-registry.yml` fires automatically on that commit.
 
 ## Notes
@@ -121,5 +121,5 @@ git push
   behind the pending one are cancelled outright, with no failure to notice. Measured on
   2026-08-03: four dispatches produced one success, one push rejection, and two silent
   cancellations. The push rejection is handled now (the sync step rebuilds on the live
-  `main` and retries up to three times), but a cancelled run never starts, so nothing can
+  `master` and retries up to three times), but a cancelled run never starts, so nothing can
   recover it except firing again.

@@ -1,118 +1,85 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/anilcancakir/ai/main/.github/ai-logo.png" width="120" alt="AI skills for Flutter logo" />
+  <img src="https://raw.githubusercontent.com/anilcancakir/ai/master/.github/ai-logo.png" width="120" alt="AI skills for Flutter logo" />
 </p>
 
 <h1 align="center">AI skills for Flutter</h1>
 
 <p align="center">
-  <strong>AI coding skills for Wind UI, the Magic Framework and the dowel dev tooling.</strong><br/>
-  Teach your AI assistant Wind UI, Magic Framework, and more, across every major coding tool.
+  <strong>One registry that teaches your AI coding agent Wind UI, the Magic Framework and the dowel dev tooling.</strong><br/>
+  Install once, and Claude Code, Cursor, Gemini CLI, OpenCode, Codex CLI and more write correct code on the first try.
 </p>
 
 <p align="center">
-  <a href="https://github.com/anilcancakir/ai/actions"><img src="https://img.shields.io/github/actions/workflow/status/anilcancakir/ai/deploy-registry.yml?branch=main&label=Registry" alt="Registry"></a>
+  <a href="https://github.com/anilcancakir/ai/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/anilcancakir/ai/ci.yml?branch=master&label=CI" alt="CI"></a>
+  <a href="https://github.com/anilcancakir/ai/actions/workflows/deploy-registry.yml"><img src="https://img.shields.io/github/actions/workflow/status/anilcancakir/ai/deploy-registry.yml?branch=master&label=Registry" alt="Registry"></a>
   <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT"></a>
-  <a href="https://github.com/anilcancakir/ai/stargazers"><img src="https://img.shields.io/github/stars/anilcancakir/ai?style=flat" alt="GitHub stars"></a>
 </p>
 
 <p align="center">
   <a href="https://anilcancakir.github.io/ai/">Registry</a> ·
-  <a href="https://github.com/anilcancakir/ai/issues">Issues</a> ·
-  <a href="#quick-start">Quick Start</a>
+  <a href="#install">Install</a> ·
+  <a href="docs/SKILLS.md">Skills</a> ·
+  <a href="https://github.com/anilcancakir/ai/issues">Issues</a>
 </p>
 
 ---
 
-## Why?
+AI coding assistants are strong, but they do not know your frameworks: they invent widget names, guess API shapes and miss conventions. These skills give the agent structured knowledge of Wind UI's `className` system, the Laravel-inspired Magic Framework and the dowel, tapir and crumbs dev tooling.
 
-AI coding assistants are powerful, but they don't know your frameworks. They hallucinate widget names, guess at API patterns, and miss conventions.
+## At a glance
 
-**These skills fix this.** It gives your AI structured knowledge about Wind UI's className system, Magic Framework's Laravel-inspired architecture, and more, so it generates correct code on the first try.
+| Fact | Value |
+|:-----|:------|
+| Registry | `https://anilcancakir.github.io/ai/` (GitHub Pages, `skills/index.json`) |
+| Install | `npx skills add anilcancakir/ai` |
+| Claude Code plugin | `anilcancakir@anilcancakir-marketplace` |
+| Skills | `wind-ui`, `magic-framework`, `fluttersdk-dusk`, `fluttersdk-telescope`, `fluttersdk-artisan`, plus the owned `flutter-review` |
+| Subagents and commands | `anilcancakir:flutter-reviewer`, `anilcancakir:flutter-reviewer-deep`, `/anilcancakir:flutter-test` |
+| Tools served | OpenCode, Claude Code, Cursor, Gemini CLI, Codex CLI, Antigravity CLI, Cline, Roo Code |
+| Freshness | A source repo publishes a release, `sync.yml` mirrors its `skills/<name>/` here and bumps the registry version |
+| License | MIT |
 
-One install, every tool:
+## Install
 
-| Tool | Integration |
-|:-----|:------------|
-| [OpenCode](https://github.com/opencodetool/opencode) | URL-based skill registry |
-| [Claude Code](https://docs.anthropic.com/en/docs/claude-code) | Plugin + Marketplace |
-| [Cursor](https://cursor.sh) | Rules (`.mdc`) |
-| [Gemini CLI](https://github.com/google-gemini/gemini-cli) | Command templates (`.toml`) |
-| [VS Code Copilot](https://code.visualstudio.com/) | Instructions (`.md`) |
-| [Codex CLI](https://github.com/openai/openai-codex) | MCP config (`~/.codex/config.toml`) |
-| [Antigravity CLI](https://github.com/antigravity-cli/antigravity) | MCP config (`~/.gemini/config/mcp_config.json`) |
-| [Cline](https://github.com/cline/cline) | MCP config (`.mcp.json`) |
-| [Roo Code](https://github.com/RooVetGit/Roo-Code) | MCP config (`.mcp.json`) |
+### `npx skills` (recommended)
 
-## Skills
-
-Five skills are available. See [docs/SKILLS.md](docs/SKILLS.md) for full descriptions.
-
-| Skill | Package | Upstream | What it covers |
-|:------|:--------|:---------|:---------------|
-| `wind-ui` | `fluttersdk_wind` | [anilcancakir/wind_kit](https://github.com/anilcancakir/wind_kit) | W-prefix widgets, the `className` parser pipeline, `WindRecipe` variants, dark mode, responsive breakpoints, design culture |
-| `magic-framework` | `magic` | [anilcancakir/magic](https://github.com/anilcancakir/magic) | IoC container, 18 facades, Eloquent ORM, GoRouter routing, forms, auth, testing, 5 ecosystem plugins |
-| `fluttersdk-dusk` | `fluttersdk_dusk` | [anilcancakir/tapir](https://github.com/anilcancakir/tapir) | E2E driver: `dusk_*` MCP tools and matching CLI commands to snap, tap, type, and screenshot a running Flutter app |
-| `fluttersdk-telescope` | `fluttersdk_telescope` | [anilcancakir/crumbs](https://github.com/anilcancakir/crumbs) | Runtime inspector: 9 ring buffers for HTTP, logs, exceptions, events, gates, DB queries |
-| `fluttersdk-artisan` | `fluttersdk_artisan` | [anilcancakir/dowel](https://github.com/anilcancakir/dowel) | CLI framework + stdio MCP server: substrate `artisan_*` tools, builtin commands, `artisan_tinker` |
-
-Each skill mirrors its upstream package's own `skills/` directory and arrives here when that package publishes a release. The exact synced version is the `version:` field in `skills/<name>/SKILL.md`, and [`skills/index.json`](skills/index.json) is the machine-readable index; neither is duplicated in this table, so neither can drift from it.
-
-## MCP Server
-
-`mcp.fluttersdk.com` exposes a single `search-docs` tool via Streamable HTTP.
-Public, no auth required. Full client config snippets (Claude Code, Cursor,
-OpenCode, Codex CLI, Gemini CLI, VS Code Copilot, and more) are in
-[docs/MCP.md](docs/MCP.md).
-
-For clients that only support stdio (Claude Desktop, older Codex CLI):
+Works with [40+ AI coding agents](https://github.com/vercel-labs/skills).
 
 ```bash
-npx @fluttersdk/mcp
-```
-
-The npx bridge proxies stdio to the upstream HTTP server transparently.
-
-## Quick Start
-
-### Option 1: `npx skills` (Recommended)
-
-The fastest way. Works with [40+ AI coding agents](https://github.com/vercel-labs/skills).
-
-```bash
-# Install all skills to all detected agents
+# All skills, every detected agent
 npx skills add anilcancakir/ai
 
-# Install a specific skill
+# One skill
 npx skills add anilcancakir/ai --skill wind-ui
 
-# Install globally (available across all projects)
+# Global, available in every project
 npx skills add anilcancakir/ai -g
 ```
 
-### Option 2: Universal Installer
+Each package also ships its own skill, so a single one installs straight from its repo: `npx skills add anilcancakir/magic_device`.
+
+### Claude Code plugin
 
 ```bash
-git clone https://github.com/anilcancakir/ai.git && cd ai
-
-# Preview what would be installed
-bash scripts/install.sh --dry-run --global
-
-# Install globally for all detected tools
-bash scripts/install.sh --global
-
-# Install globally and register the MCP server for all detected tools
-bash scripts/install.sh --global --with-mcp
-
-# Or install into your current Flutter project
-bash scripts/install.sh --project
+/plugin marketplace add https://raw.githubusercontent.com/anilcancakir/ai/master/.claude-plugin/marketplace.json
+/plugin install anilcancakir@anilcancakir-marketplace
 ```
 
-### Option 3: Tool-Specific
+Moving from the old `fluttersdk@fluttersdk-marketplace` install: remove that marketplace (`/plugin marketplace remove fluttersdk-marketplace`) and add the new one; the plugin and marketplace names changed.
+
+The plugin registers:
+
+- the skills (`/anilcancakir:wind-ui`, `/anilcancakir:magic-framework`, `/anilcancakir:fluttersdk-dusk`, `/anilcancakir:fluttersdk-telescope`, `/anilcancakir:fluttersdk-artisan`)
+- `/anilcancakir:flutter-review`, a review that runs in a subagent as an independent second pair of eyes and then fixes what it finds, plus `/anilcancakir:flutter-test`
+- the `anilcancakir:flutter-reviewer` and `anilcancakir:flutter-reviewer-deep` subagents, invokable with `@`
+- the bundled MCP server from `.mcp.json` (HTTP transport to `mcp.fluttersdk.com`)
+
+### Other tools
 
 <details>
 <summary><strong>OpenCode</strong></summary>
 
-Add the registry URL to your `opencode.json`:
+Add the registry URL to `opencode.json`; skills are fetched and cached locally.
 
 ```json
 {
@@ -121,26 +88,6 @@ Add the registry URL to your `opencode.json`:
     }
 }
 ```
-
-Skills are fetched automatically and cached locally.
-
-</details>
-
-<details>
-<summary><strong>Claude Code</strong></summary>
-
-```bash
-/plugin marketplace add https://raw.githubusercontent.com/anilcancakir/ai/main/.claude-plugin/marketplace.json
-/plugin install anilcancakir@anilcancakir-marketplace
-```
-
-Moving from the old `fluttersdk@fluttersdk-marketplace` install: remove that marketplace (`/plugin marketplace remove fluttersdk-marketplace`) and add the new one; the plugin and marketplace names changed.
-
-The plugin auto-registers:
-- 5 skills (`/anilcancakir:wind-ui`, `/anilcancakir:magic-framework`, `/anilcancakir:fluttersdk-dusk`, `/anilcancakir:fluttersdk-telescope`, `/anilcancakir:fluttersdk-artisan`)
-- `/anilcancakir:flutter-review`, a review that runs in a subagent as an independent second pair of eyes and then fixes what it finds, plus `/anilcancakir:flutter-test`
-- `anilcancakir:flutter-reviewer` and `anilcancakir:flutter-reviewer-deep` subagents, invokable directly with `@`
-- `fluttersdk` MCP server (HTTP transport to `mcp.fluttersdk.com`; no manual `.mcp.json` edit required)
 
 </details>
 
@@ -152,7 +99,7 @@ mkdir -p .cursor/rules
 cp tool-templates/cursor/wind-magic.mdc .cursor/rules/
 ```
 
-Activates automatically for all `.dart` files.
+The rule activates for every `.dart` file.
 
 </details>
 
@@ -164,57 +111,78 @@ mkdir -p ~/.gemini/commands
 cp tool-templates/gemini/*.toml ~/.gemini/commands/
 ```
 
-Use with `/flutter-review` and `/flutter-test` commands.
+Use `/flutter-review` and `/flutter-test`.
 
 </details>
 
 <details>
-<summary><strong>VS Code Copilot</strong></summary>
+<summary><strong>Universal installer</strong></summary>
 
 ```bash
-mkdir -p .github
-cp .github/copilot-instructions.md .github/
+git clone https://github.com/anilcancakir/ai.git && cd ai
+
+bash scripts/install.sh --dry-run --global      # preview
+bash scripts/install.sh --global                # every detected tool
+bash scripts/install.sh --global --with-mcp     # also register the MCP server
+bash scripts/install.sh --project               # into the current Flutter project
 ```
 
 </details>
 
-## How It Works
+## Skills
+
+| Skill | Source repo | What it covers |
+|:------|:------------|:---------------|
+| `wind-ui` | [anilcancakir/wind_kit](https://github.com/anilcancakir/wind_kit) | W-prefix widgets, the `className` parser pipeline, `WindRecipe` variants, dark mode, responsive breakpoints |
+| `magic-framework` | [anilcancakir/magic](https://github.com/anilcancakir/magic) | IoC container, 18 facades, Eloquent ORM, GoRouter routing, forms, auth, testing |
+| `fluttersdk-dusk` | [anilcancakir/tapir](https://github.com/anilcancakir/tapir) | E2E driver: tools and CLI commands to snap, tap, type and screenshot a running Flutter app |
+| `fluttersdk-telescope` | [anilcancakir/crumbs](https://github.com/anilcancakir/crumbs) | Runtime inspector: ring buffers for HTTP, logs, exceptions, events, gates, DB queries |
+| `fluttersdk-artisan` | [anilcancakir/dowel](https://github.com/anilcancakir/dowel) | CLI framework and stdio MCP server: start, reload, inspect and tinker a running app |
+
+The three `fluttersdk-*` skills are renamed `tapir`, `crumbs` and `dowel` on the first sync after each source repo ships its renamed package; the old directory and index entry leave with it. The synced version is the `version:` field in `skills/<name>/SKILL.md`, and [`skills/index.json`](skills/index.json) is the machine-readable index. Full descriptions: [docs/SKILLS.md](docs/SKILLS.md).
+
+## MCP server
+
+`mcp.fluttersdk.com` exposes one `search-docs` tool over Streamable HTTP, public and without auth. Client snippets for each tool are in [docs/MCP.md](docs/MCP.md). Clients that only speak stdio use the bridge:
+
+```bash
+npx @fluttersdk/mcp
+```
+
+## For AI coding agents
+
+| Do | Because |
+|:---|:--------|
+| Edit a skill in its source repo, never under `skills/<name>/` | `sync.yml` rsyncs with `--delete`, so a registry-only file is gone after the next sync |
+| Add a source with one entry in `registry-sources.json` | the sync rejects any source key that is not listed there |
+| Keep `plugin.json`, `marketplace.json` and `marketplace.plugins[0]` on one version | the `Plugin manifest + version sync` job fails otherwise |
+| Write a skill `description:` on one line | the indexer rejects folded and block scalars |
+| List every file of a skill in `skills/index.json` | OpenCode downloads only listed files (the sync regenerates the entry) |
+| Open pull requests against `master` | it is the default branch and the only one CI and Pages watch |
+
+## How it works
 
 ```
-skills/index.json              ← OpenCode fetches this from GitHub Pages
-  → wind-ui/SKILL.md           ← Skill definition + className rules
-  → wind-ui/references/*.md    ← On-demand widget docs, layout patterns, tokens
-  → magic-framework/SKILL.md   ← Skill definition + framework laws
-  → magic-framework/refs/*.md  ← Controllers, ORM, facades, routing, auth, ...
+source repo release  ->  repository_dispatch  ->  sync.yml  ->  skills/<name>/  ->  Pages
+                                                    |
+                                                    +-> skills/index.json, plugin and marketplace version bump
 ```
 
-**OpenCode**: Fetches `anilcancakir.github.io/ai/index.json`, downloads listed skill files, caches locally.
+- **OpenCode** reads `anilcancakir.github.io/ai/index.json` and downloads the listed files.
+- **Claude Code** installs the plugin from `.claude-plugin/`; skills under `skills/` are namespaced `/anilcancakir:`.
+- **Deployment**: a push to `master` that changes `skills/` deploys Pages.
 
-**Claude Code**: Plugin manifest (`.claude-plugin/plugin.json`) makes the repo installable. Skills in `skills/` are auto-discovered and namespaced under `/anilcancakir:`.
+To add a skill source, see [docs/UPSTREAM-SETUP.md](docs/UPSTREAM-SETUP.md); the repo rules are in [CLAUDE.md](CLAUDE.md).
 
-**Deployment**: Push to `main` → GitHub Actions deploys `skills/` to GitHub Pages automatically.
+## Links
 
-## Contributing
-
-### Adding a New Skill
-
-1. Create `skills/<skill-name>/SKILL.md` with YAML frontmatter (`name`, `description`)
-2. Add reference files in `skills/<skill-name>/references/`
-3. Update `skills/index.json`: list **every** file in the `files` array
-4. Bump version in `.claude-plugin/plugin.json` and `.claude-plugin/marketplace.json`
-5. Push to `main`
-
-See [CLAUDE.md](CLAUDE.md) for the full specification.
-
-> **Important**: Every file must be listed in `index.json`: OpenCode only downloads listed files. Forgetting a file means users get incomplete skills.
+- [Registry](https://anilcancakir.github.io/ai/), [skills docs](docs/SKILLS.md), [MCP clients](docs/MCP.md), [upstream setup](docs/UPSTREAM-SETUP.md)
+- [Changelog](CHANGELOG.md), [issues](https://github.com/anilcancakir/ai/issues), [security policy](SECURITY.md)
 
 ## License
 
-MIT. See [LICENSE](LICENSE) for details.
-
----
+MIT. See [LICENSE](LICENSE).
 
 <p align="center">
-  <sub>Built with care by <a href="https://github.com/anilcancakir">Anılcan Çakır</a></sub><br/>
-  <sub>If this saves you time, <a href="https://github.com/anilcancakir/ai">give it a star</a>; it helps others discover it.</sub>
+  <sub>Built with care by <a href="https://github.com/anilcancakir">Anılcan Çakır</a></sub>
 </p>
