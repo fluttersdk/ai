@@ -1,7 +1,7 @@
 # CLI commands (the 12 not in the MCP allowlist)
 
-Of the 22 builtin commands in `fluttersdk_artisan`, only 10 surface as
-MCP tools (the `_safeArtisanCommandNames` allowlist in
+Of the 22 builtin commands in `dowel`, only 10 surface as
+MCP tools (the `_safeDowelCommandNames` allowlist in
 `lib/src/mcp/mcp_server.dart`). The other
 12 are CLI-only. This file documents each: flag set, defaults, output
 shapes, exit codes, and the Bash form the agent should call.
@@ -30,25 +30,25 @@ The allowlist excludes a command for one of five reasons:
 - [plugin:uninstall](#pluginuninstall)
 - [mcp:serve](#mcpserve)
 - [mcp:install](#mcpinstall)
-- [Reading the 22-command surface from `artisan_list`](#reading-the-22-command-surface-from-artisan_list)
+- [Reading the 22-command surface from `dowel_list`](#reading-the-22-command-surface-from-dowel_list)
 
 ## Picking the Bash form
 
 ```
-USE: ./bin/fsa <cmd>
-WHEN: inside a consumer with `./bin/fsa` present (the canonical scaffold after `install`).
-WHY: ~110ms warm startup (native AOT).
+USE: ./bin/dowel <cmd>
+WHEN: inside a consumer with `./bin/dowel` present (the canonical scaffold after `install`).
+WHY: about 100 ms warm startup (native AOT).
 
-USE: dart run artisan <cmd>
-WHEN: ./bin/fsa is unavailable (Windows, fresh clone, broken AOT cache).
-WHY: ~3s startup; runs through bin/dispatcher.dart so plugin commands are loaded.
+USE: dart run :dispatcher <cmd>
+WHEN: ./bin/dowel is unavailable (Windows, fresh clone, broken AOT cache).
+WHY: ~3s startup; runs bin/dispatcher.dart directly so plugin commands are loaded.
 
-USE: dart run fluttersdk_artisan <cmd>
-WHEN: debugging the artisan substrate itself, or before `install` has run.
-WHY: ~3s startup; substrate-only, plugin providers NOT loaded.
+USE: dart run dowel <cmd>
+WHEN: before `install` has run, or to debug the dowel substrate itself.
+WHY: ~3s startup; delegates to bin/dispatcher.dart when the project has one (plugins load), otherwise runs the builtins only.
 ```
 
-`./bin/fsa` rebuilds the AOT bundle (~5s, `dart build cli`) on staleness
+`./bin/dowel` rebuilds the AOT bundle (~5s, `dart build cli`) on staleness
 (see `${CLAUDE_SKILL_DIR}/references/state-and-recovery.md` § "AOT
 bundle staleness gate").
 
@@ -60,12 +60,12 @@ bundle staleness gate").
 - **Allowlisted**: no (interactive)
 
 Show detailed help for a single command. The MCP allowlist excludes this
-because `artisan_list` already enumerates commands and the agent's
+because `dowel_list` already enumerates commands and the agent's
 preferred path is to read source files for flag details.
 
 ```bash
-./bin/fsa help start
-./bin/fsa help plugin:install
+./bin/dowel help start
+./bin/dowel help plugin:install
 ```
 
 Exit 0 on success, 1 if the command name is unknown.
@@ -80,24 +80,24 @@ Exit 0 on success, 1 if the command name is unknown.
 Bootstrap the consumer scaffold:
 
 ```bash
-./bin/fsa install                # idempotent; skips existing files
-./bin/fsa install --force        # rewrite existing files
+./bin/dowel install                # idempotent; skips existing files
+./bin/dowel install --force        # rewrite existing files
 ```
 
 Files produced (atomic write via `.tmp` + rename):
 
 | Path | Purpose |
 |---|---|
-| `bin/dispatcher.dart` | Consumer entry calling `runArtisan(args, baseProviders: [...], delegateToConsumer: false)`. Loads `lib/app/_plugins.g.dart`. |
-| `lib/app/_plugins.g.dart` | Generated plugin provider barrel; empty `autoDiscoveredProviders()` thunk until `plugin:install` populates `.artisan/plugins.json`. |
+| `bin/dispatcher.dart` | Consumer entry calling `runDowel(args, baseProviders: [...], delegateToConsumer: false)`. Loads `lib/app/_plugins.g.dart`. |
+| `lib/app/_plugins.g.dart` | Generated plugin provider barrel; empty `autoDiscoveredProviders()` thunk until `plugin:install` populates `.dowel/plugins.json`. |
 | `lib/app/commands/_index.g.dart` | Generated command index for consumer-authored commands; empty until `make:command`. |
 
-Pubspec mutation: adds `fluttersdk_artisan: any` (pub.dev consumers, so the
-next `pub get` pulls the published package) or `fluttersdk_artisan: { path: ... }`
+Pubspec mutation: adds `dowel: any` (pub.dev consumers, so the
+next `pub get` pulls the published package) or `dowel: { path: ... }`
 (monorepo `path:` auto-detected via `.dart_tool/package_config.json` rootUri).
 Re-running is idempotent unless `--force`.
 
-Auto-chains to `make:fast-cli` so `./bin/fsa` is compiled and ready
+Auto-chains to `make:fast-cli` so `./bin/dowel` is compiled and ready
 after `install` returns.
 
 **Output (success)**:
@@ -106,8 +106,8 @@ after `install` returns.
 ✓ Scaffolded bin/dispatcher.dart
 ✓ Scaffolded lib/app/_plugins.g.dart
 ✓ Scaffolded lib/app/commands/_index.g.dart
-✓ Injected fluttersdk_artisan dep
-fsa: built in 5s
+✓ Injected dowel dep
+dowel: built in 5s
 ```
 
 Exit 0 on success, 1 on pubspec parse failure or `pubspec name` missing.
@@ -119,13 +119,13 @@ Exit 0 on success, 1 on pubspec parse failure or `pubspec name` missing.
 - **Boot**: `none`
 - **Allowlisted**: no (codegen + file write)
 
-Scaffold an `ArtisanCommand` subclass in the consumer (or plugin) at
+Scaffold a `DowelCommand` subclass in the consumer (or plugin) at
 `lib/app/commands/<snake_name>_command.dart` (or
 `lib/src/commands/...` inside a plugin; auto-detected by checking
 `pubspec.yaml`'s package name vs the closest parent).
 
 ```bash
-./bin/fsa make:command Greet
+./bin/dowel make:command Greet
 ```
 
 After write, automatically calls `commands:refresh` to regenerate
@@ -148,20 +148,20 @@ reserved Dart keyword).
 - **Boot**: `none`
 - **Allowlisted**: no (AOT compile + file write)
 
-Compile the dispatcher to a native AOT binary and write the `./bin/fsa`
+Compile the dispatcher to a native AOT binary and write the `./bin/dowel`
 wrapper script. Runs `dart build cli -t bin/dispatcher.dart -o
-.artisan/cli-bundle`, writes `.artisan/build.stamp` (atomic), patches
-`.gitignore` to exclude `.artisan/`.
+.dowel/cli-bundle`, writes `.dowel/build.stamp` (atomic), patches
+`.gitignore` to exclude `.dowel/`.
 
 ```bash
-./bin/fsa make:fast-cli              # build if stale
-./bin/fsa make:fast-cli --force      # rebuild even when cache is fresh
+./bin/dowel make:fast-cli              # build if stale
+./bin/dowel make:fast-cli --force      # rebuild even when cache is fresh
 ```
 
 **Output**:
 
 ```
-fsa: built in 5s
+dowel: built in 5s
 ```
 
 Exit 0 on success, 1 if `dart build cli` fails.
@@ -173,16 +173,16 @@ Exit 0 on success, 1 if `dart build cli` fails.
 - **Boot**: `none`
 - **Allowlisted**: no (complex codegen + subprocess)
 
-Scaffold an artisan plugin skeleton at `packages/<name>/` (or `<path>`
+Scaffold a dowel plugin skeleton at `packages/<name>/` (or `<path>`
 if passed). Spawns `flutter create --template=package`, renders 8+ stub
 files (provider, install command, install.yaml, README), detects parent
 Flutter app workspace, enrols the new package in `pubspec.yaml`
 `workspace:` if present.
 
 ```bash
-./bin/fsa make:plugin awesome_plugin                   # generic plugin
-./bin/fsa make:plugin awesome_plugin --magic           # adds install.yaml + Magic ServiceProvider
-./bin/fsa make:plugin awesome_plugin --path=plugins    # alt location
+./bin/dowel make:plugin awesome_plugin                   # generic plugin
+./bin/dowel make:plugin awesome_plugin --magic           # adds install.yaml + Magic ServiceProvider
+./bin/dowel make:plugin awesome_plugin --path=plugins    # alt location
 ```
 
 **Output (success)**:
@@ -191,7 +191,7 @@ Flutter app workspace, enrols the new package in `pubspec.yaml`
 ✓ flutter create --template=package
 ✓ Scaffolded awesome_plugin (8 files)
 ✓ Enrolled in parent pubspec workspace
-Next: cd packages/awesome_plugin && dart run artisan make:command MyAction
+Next: cd packages/awesome_plugin && dart run dowel make:command MyAction
 ```
 
 Exit 0 on success, 1 on validation (name must match
@@ -209,7 +209,7 @@ with the discovered commands. Atomic (`.tmp` + rename). Auto-called by
 `make:command`; manual invocation only when hand-editing command files.
 
 ```bash
-./bin/fsa commands:refresh
+./bin/dowel commands:refresh
 ```
 
 **Output**:
@@ -227,61 +227,59 @@ Exit 0 on success.
 - **Boot**: `none`
 - **Allowlisted**: no (codegen barrel mutation)
 
-Read `.artisan/plugins.json`, regenerate `lib/app/_plugins.g.dart` with
+Read `.dowel/plugins.json`, regenerate `lib/app/_plugins.g.dart` with
 the registered providers. Atomic (`.tmp` + rename). Auto-called by
 `plugin:install` and `plugin:uninstall`; manual invocation only when
-hand-editing `.artisan/plugins.json`.
+hand-editing `.dowel/plugins.json`.
 
 ```bash
-./bin/fsa plugins:refresh
+./bin/dowel plugins:refresh
 ```
 
 **Output**:
 
 ```
 Refreshed: 2 plugin(s) registered → lib/app/_plugins.g.dart
-  - fluttersdk_dusk → FluttersdkDuskArtisanProvider
-  - fluttersdk_telescope → FluttersdkTelescopeArtisanProvider
+  - tapir → TapirDowelProvider
+  - crumbs → CrumbsDowelProvider
 ```
 
 Exit 0 on success, 1 if `lib/app/` is missing (run `install` first), or
 on provider class-name collision.
 
-**Side effect**: invalidates `.artisan/cli-bundle/` AOT cache and
-`.artisan/build.stamp`, so the next `./bin/fsa` invocation rebuilds
+**Side effect**: invalidates `.dowel/cli-bundle/` AOT cache and
+`.dowel/build.stamp`, so the next `./bin/dowel` invocation rebuilds
 against the freshly-regenerated barrel.
 
 ## plugin:install
 
-- **Signature**: `plugin:install <name> [--dry-run] [--force] [--non-interactive] [--no-bootstrap] [--use-yaml-only] [--provider=<C>] [--bootstrap-command=<cmd>]`
+- **Signature**: `plugin:install <name> [--dry-run] [--force] [--non-interactive] [--no-bootstrap] [--use-yaml-only] [--bootstrap-command=<cmd>]`
 - **Group**: plugin management
 - **Boot**: `none`
 - **Allowlisted**: no (interactive prompts for destructive ops)
 
-Install a plugin. Dispatches in three routing modes
-(`lib/src/commands/plugin_install_command.dart:130-181`):
+Install a plugin. Dispatches in two routing modes
+(`lib/src/commands/plugin_install_command.dart`):
 
 1. **Manifest flow** (preferred): plugin ships `install.yaml` at package
    root. Parse, walk `ManifestInstaller`, commit atomically, record at
-   `.artisan/installed/<plugin>.json`, register in `.artisan/plugins.json`,
+   `.dowel/installed/<plugin>.json`, register in `.dowel/plugins.json`,
    regen `lib/app/_plugins.g.dart`. When the manifest declares a
    `bootstrap_command`, it AUTO-RUNS after registration as a fresh dispatcher
-   subprocess (`./bin/fsa <cmd> --non-interactive`, or `dart run
-   <consumer>:artisan <cmd> --non-interactive` when no `bin/fsa`). `--no-bootstrap`
+   subprocess (`./bin/dowel <cmd> --non-interactive`, or `dart run
+   :dispatcher <cmd> --non-interactive` when no `bin/dowel`). `--no-bootstrap`
    skips the auto-run (falls back to a hint); `--bootstrap-command=<cmd>`
    overrides the manifest value.
-2. **Magic-free canonical fast path**: no manifest, but
-   `lib/app/_plugins.g.dart` exists (canonical scaffold from `install`).
-   Skip legacy injection; write directly to `plugins.json` + refresh.
-3. **Legacy injection fallback**: no manifest, no canonical scaffold.
-   Inject `import 'package:<name>/cli.dart';` plus
-   `registry.registerProvider(...)` into `bin/dispatcher.dart`.
+2. **Direct registration**: no manifest, but `lib/app/_plugins.g.dart`
+   exists (scaffold from `install`). Write directly to `plugins.json` +
+   refresh. Without the scaffold the command exits `1` and asks for
+   `dowel install` first.
 
 ```bash
-./bin/fsa plugin:install fluttersdk_dusk --dry-run    # preview the operations without writing
-./bin/fsa plugin:install fluttersdk_dusk              # commit
-./bin/fsa plugin:install fluttersdk_dusk --force      # skip destructive-op confirmation prompts
-./bin/fsa plugin:install custom --use-yaml-only       # fail when no install.yaml present
+./bin/dowel plugin:install tapir --dry-run    # preview the operations without writing
+./bin/dowel plugin:install tapir              # commit
+./bin/dowel plugin:install tapir --force      # skip destructive-op confirmation prompts
+./bin/dowel plugin:install custom --use-yaml-only       # fail when no install.yaml present
 ```
 
 `--dry-run` is the agent's safest pre-action: it returns the YAML-like
@@ -291,17 +289,17 @@ plan WITHOUT writing anything, so the agent can audit and confirm.
 
 ```yaml
 plan:
-  - create: lib/config/dusk.dart
-  - inject_import: package:fluttersdk_dusk/dusk.dart -> lib/main.dart
-  - inject_provider: DuskArtisanProvider -> lib/config/app.dart
+  - create: lib/config/tapir.dart
+  - inject_import: package:tapir/tapir.dart -> lib/main.dart
+  - inject_provider: TapirDowelProvider -> lib/config/app.dart
   - merge_json: assets/config.json
 ```
 
 **Output (commit)**:
 
 ```
-Installed: fluttersdk_dusk
-Record: .artisan/installed/fluttersdk_dusk.json
+Installed: tapir
+Record: .dowel/installed/tapir.json
 Refreshed: 2 plugin(s) registered → lib/app/_plugins.g.dart
 ```
 
@@ -315,12 +313,12 @@ destructive-op prompt (unless `--force`).
 - **Boot**: `none`
 - **Allowlisted**: no (interactive prompts)
 
-Reverse a plugin install. Reads `.artisan/installed/<plugin>.json`,
+Reverse a plugin install. Reads `.dowel/installed/<plugin>.json`,
 inverts each recorded `InstallOperation`, applies atomically.
 
 ```bash
-./bin/fsa plugin:uninstall fluttersdk_dusk --dry-run   # preview reverse ops
-./bin/fsa plugin:uninstall fluttersdk_dusk             # commit reverse
+./bin/dowel plugin:uninstall tapir --dry-run   # preview reverse ops
+./bin/dowel plugin:uninstall tapir             # commit reverse
 ```
 
 **V1 reversibility**:
@@ -350,10 +348,10 @@ point out of any other list in the same file.
 **Output**:
 
 ```
-Uninstalled: fluttersdk_dusk
-  ✓ deleted lib/config/dusk.dart
-  [skipped] InjectImport package:fluttersdk_dusk/dusk.dart -> lib/main.dart
-  [skipped] InjectProvider DuskArtisanProvider -> lib/config/app.dart
+Uninstalled: tapir
+  ✓ deleted lib/config/tapir.dart
+  [skipped] InjectImport package:tapir/tapir.dart -> lib/main.dart
+  [skipped] InjectProvider TapirDowelProvider -> lib/config/app.dart
 Refreshed: 1 plugin(s) registered → lib/app/_plugins.g.dart
 ```
 
@@ -377,8 +375,8 @@ This command is the entry point `.mcp.json` wires:
 ```json
 {
   "mcpServers": {
-    "fluttersdk": {
-      "command": "./bin/fsa",
+    "dowel": {
+      "command": "./bin/dowel",
       "args": ["mcp:serve"]
     }
   }
@@ -390,8 +388,8 @@ Code, Cursor) spawns it automatically based on `.mcp.json`.
 
 Filter precedence (3-layer Cargo-style):
 
-1. `.artisan/mcp.json` file (lowest precedence)
-2. `ARTISAN_MCP_PACKAGES_ALLOW` / `_DENY` / `ARTISAN_MCP_TOOLS_ALLOW` /
+1. `.dowel/mcp.json` file (lowest precedence)
+2. `DOWEL_MCP_PACKAGES_ALLOW` / `_DENY` / `DOWEL_MCP_TOOLS_ALLOW` /
    `_DENY` env vars (CSV)
 3. CLI flags (highest precedence): `--include-package`,
    `--exclude-package`, `--include-tool`, `--exclude-tool`
@@ -403,7 +401,7 @@ across all three (deny anywhere wins everywhere).
 server subprocess):
 
 ```
-[fluttersdk_artisan_mcp] initialized with 45 tools (0 filtered; 40 plugin + 5 substrate)
+[dowel_mcp] initialized with 45 tools (0 filtered; 40 plugin + 5 substrate)
 ```
 
 (The exact count varies by allowlist and filter; read the actual
@@ -417,14 +415,14 @@ plugin install.)
 - **Boot**: `none`
 - **Allowlisted**: no (meta-config edit)
 
-Write the `fluttersdk` entry to `.mcp.json` at the project root.
+Write the `dowel` entry to `.mcp.json` at the project root.
 Idempotent: skips when the entry exists with the correct shape, rewrites
 when stale (e.g. pre-Bug-B args), refuses to overwrite a hand-edited
 entry without `--force`.
 
 ```bash
-./bin/fsa mcp:install                # idempotent
-./bin/fsa mcp:install --force        # rewrite existing entry
+./bin/dowel mcp:install                # idempotent
+./bin/dowel mcp:install --force        # rewrite existing entry
 ```
 
 The entry produced:
@@ -432,31 +430,31 @@ The entry produced:
 ```json
 {
   "mcpServers": {
-    "fluttersdk": {
-      "command": "./bin/fsa",
+    "dowel": {
+      "command": "./bin/dowel",
       "args": ["mcp:serve"]
     }
   }
 }
 ```
 
-(On Windows, falls back to `dart run artisan mcp:serve` because
-`./bin/fsa` is a POSIX shell script.)
+(On Windows, falls back to `dart run dowel mcp:serve` because
+`./bin/dowel` is a POSIX shell script.)
 
 **Output**:
 
 ```
-✓ Registered fluttersdk MCP server in .mcp.json
-Reconnect Claude Code (`/mcp reconnect fluttersdk`) to pick up the new entry.
+✓ Registered dowel MCP server in .mcp.json
+Reconnect Claude Code (`/mcp reconnect dowel`) to pick up the new entry.
 ```
 
 Exit 0 on success, 1 on `.mcp.json` parse error or refusal to overwrite
 without `--force`.
 
-## Reading the 22-command surface from `artisan_list`
+## Reading the 22-command surface from `dowel_list`
 
-Use `artisan_list` (MCP) or `./bin/fsa list` (CLI) to see the live
-catalog. The 12 CLI-only commands appear under these namespaces:
+Use `dowel_list` (MCP) or `./bin/dowel list` (CLI) to see the live
+catalogue. The 12 CLI-only commands appear under these namespaces:
 
 - root: `help`, `install`
 - `commands:`: `commands:refresh`
@@ -471,6 +469,6 @@ The 10 MCP-allowlisted commands appear at the root: `start`, `stop`,
 `tinker`.
 
 Total: 21 substrate builtins. Plugin commands add to the count when
-installed (`fluttersdk_dusk`, `fluttersdk_telescope`, third-party
+installed (`tapir`, `crumbs`, third-party
 plugins); the exact total varies by installed set and is reported in
 the `Available commands (N):` header at the top of `list` output.

@@ -1,11 +1,11 @@
 # MCP tools reference
 
 Per-tool deep reference for the 10 substrate MCP tools exposed by the
-`fluttersdk_artisan` MCP server. The allowlist is the
-`_safeArtisanCommandNames` constant in `lib/src/mcp/mcp_server.dart`:
+`dowel` MCP server. The allowlist is the
+`_safeDowelCommandNames` constant in `lib/src/mcp/mcp_server.dart`:
 
 ```dart
-const Set<String> _safeArtisanCommandNames = <String>{
+const Set<String> _safeDowelCommandNames = <String>{
   'start',
   'stop',
   'status',
@@ -20,9 +20,9 @@ const Set<String> _safeArtisanCommandNames = <String>{
 ```
 
 Substrate tools surface from BOTH the substrate path (`dart run
-fluttersdk_artisan:mcp` via `bin/mcp.dart`) and the consumer dispatcher
-path (`./bin/fsa mcp:serve` via the host app's `bin/dispatcher.dart`).
-Plugin tools (`dusk_*`, `telescope_*`) surface ONLY from the dispatcher
+dowel:mcp` via `bin/mcp.dart`) and the consumer dispatcher
+path (`./bin/dowel mcp:serve` via the host app's `bin/dispatcher.dart`).
+Plugin tools (`tapir_*`, `crumbs_*`) surface ONLY from the dispatcher
 path because the substrate's `bin/mcp.dart` forces
 `delegateToConsumer: false` and does not load the consumer's
 `lib/app/_plugins.g.dart` barrel.
@@ -37,16 +37,16 @@ responses with `isError: true` text.
 ## Contents
 
 - [Dispatch model (cross-cutting)](#dispatch-model-cross-cutting)
-- [artisan_start](#artisan_start)
-- [artisan_stop](#artisan_stop)
-- [artisan_status](#artisan_status)
-- [artisan_logs](#artisan_logs)
-- [artisan_restart](#artisan_restart)
-- [artisan_reload](#artisan_reload)
-- [artisan_hot_restart](#artisan_hot_restart)
-- [artisan_doctor](#artisan_doctor)
-- [artisan_list](#artisan_list)
-- [artisan_tinker](#artisan_tinker)
+- [dowel_start](#dowel_start)
+- [dowel_stop](#dowel_stop)
+- [dowel_status](#dowel_status)
+- [dowel_logs](#dowel_logs)
+- [dowel_restart](#dowel_restart)
+- [dowel_reload](#dowel_reload)
+- [dowel_hot_restart](#dowel_hot_restart)
+- [dowel_doctor](#dowel_doctor)
+- [dowel_list](#dowel_list)
+- [dowel_tinker](#dowel_tinker)
 - [Plugin-tool surface (when dispatcher path wired)](#plugin-tool-surface-when-dispatcher-path-wired)
 - [Cross-cutting: dispatch + error envelopes](#cross-cutting-dispatch--error-envelopes)
 - [Filter mechanics](#filter-mechanics)
@@ -54,35 +54,35 @@ responses with `isError: true` text.
 ## Dispatch model (cross-cutting)
 
 - **Boot modes**: 9 of 10 tools declare `CommandBoot.none` (no VM Service
-  required). Only `artisan_tinker` declares `CommandBoot.connected`. The
-  MCP server's `_dispatchArtisanCommand` (`lib/src/mcp/mcp_server.dart:770-840`)
+  required). Only `dowel_tinker` declares `CommandBoot.connected`. The
+  MCP server's `_dispatchDowelCommand` (`lib/src/mcp/mcp_server.dart:770-840`)
   inspects the boot mode and routes accordingly.
 - **Lazy-reconnect**: connected tools check `_vmClient == null` before
   dispatch. If null, `_lazyReconnect()` re-reads state.json, opens the
   WebSocket, resolves the main isolate id, and caches the client.
-  Concurrent calls coalesce on a memoized `_reconnecting` future
+  Concurrent calls coalesce on a memoised `_reconnecting` future
   (`lib/src/mcp/mcp_server.dart:248-266`).
 - **Output envelope**: substrate handlers write to a `BufferedOutput`;
   the MCP dispatcher reads `stdout` + `stderr` after the handler returns
   and packs them into a single `TextContent` block prefixed with
-  `` `# `artisan <cmd>` exit <code>` ``.
+  `` `# `dowel <cmd>` exit <code>` ``.
 - **No protocol errors**: every failure (no app, runtime exception, FIFO
   missing) returns `{ "content": [{ "type": "text", "text": "..." }],
   "isError": true }`. Never `{ "error": { "code": ... } }`.
 
-## artisan_start
+## dowel_start
 
 - **Maps to CLI**: `start`
 - **Boot mode**: `none`
 - **CLI-only flag**: `--timeout=<seconds>` raises the VM Service URI scrape
   window (and, with `--cdp-port`, the web-server readiness wait), default 90. The MCP schema exposes no timeout parameter, so a boot
   that legitimately takes longer than 90s (a cold web build, a slow emulator)
-  has to go through Bash: `./bin/fsa start -d chrome --timeout=180`.
+  has to go through Bash: `./bin/dowel start -d chrome --timeout=180`.
 - **CLI-only flag**: `--flutter-arg=<arg>` forwards an argument verbatim to
   `flutter run`, repeatable, and is the only way to reach a `flutter run` flag
   `start` has no option of its own for. The MCP schema exposes no equivalent,
   so a compile-time define goes through Bash:
-  `./bin/fsa start -d chrome --flutter-arg=--dart-define=KEY=VALUE`. The values
+  `./bin/dowel start -d chrome --flutter-arg=--dart-define=KEY=VALUE`. The values
   land in `state.json` as `flutterArgs` and `restart` replays them, so an agent
   that restarts a session does not silently change its build configuration.
 - **Handler**: `lib/src/commands/start_command.dart:197`
@@ -96,31 +96,31 @@ responses with `isError: true` text.
 >
 > Spawns `flutter run -d <device>` as a background process and writes the
 > resulting VM Service URI + pid + web port to a session file under
-> `~/.artisan/sessions/`, keyed by project. Other tools (`artisan_status`,
-> `artisan_logs`, `dusk_*`, `telescope_*`, `artisan_tinker`) read it to find
+> `~/.dowel/sessions/`, keyed by project. Other tools (`dowel_status`,
+> `dowel_logs`, `tapir_*`, `crumbs_*`, `dowel_tinker`) read it to find
 > the running app. Sessions are PER PROJECT, so two projects can be driven
 > at once and neither overwrites the other.
 >
 > Usage:
-> - Call this BEFORE invoking any plugin tool (`dusk_snap`,
->   `telescope_tail`, `artisan_tinker`) that needs VM Service access.
-> - Default device is the first available; pass `device: "chrome"` for
->   web (port 3100), `device: "macos"` for desktop, or
->   `device: "<serial>"` for a connected mobile.
+> - Call this BEFORE invoking any plugin tool (`tapir_snap`,
+>   `crumbs_tail`, `dowel_tinker`) that needs VM Service access.
+> - Default device is `chrome` (web, port 3100); pass `device: "macos"`
+>   for desktop or `device: "<serial>"` for a connected mobile.
 > - Returns once the VM Service URI is captured; the Flutter process keeps
 >   running in the background.
 > - IF THIS CALL TIMES OUT, the app is probably still starting rather than
 >   broken: a cold iOS or Android build routinely takes longer than an MCP
 >   client allows a single tool call. The session is recorded before the
->   wait, so call `artisan_status` to see it. A `booting: true` there means
+>   wait, so call `dowel_status` to see it. A `booting: true` there means
 >   the app is up and the URI has not landed yet; the next connected tool
 >   call recovers it from the log. Do NOT re-run start, and do NOT
 >   hand-write the state file.
-> - To stop call `artisan_stop`. To full-cycle restart call
->   `artisan_restart`. For source-change reload call `artisan_reload`
->   (state preserved) or `artisan_hot_restart` (state dropped).
-> - Fails with "another app is recorded" when this project's session
->   already has a running pid; call `artisan_stop` first.
+> - To stop call `dowel_stop`. To full-cycle restart call
+>   `dowel_restart`. For source-change reload call `dowel_reload`
+>   (state preserved) or `dowel_hot_restart` (state dropped).
+> - Check `dowel_status` first and call `dowel_stop` before starting
+>   again: a second web start fails with "Port <n> is already in use",
+>   and a second start on another device launches a second app.
 
 **Input schema**:
 
@@ -128,7 +128,7 @@ responses with `isError: true` text.
 {
   "type": "object",
   "properties": {
-    "device":            { "type": "string",  "description": "chrome | macos | linux | <adb-serial>. Omit for `flutter devices` first." },
+    "device":            { "type": "string",  "description": "chrome | macos | linux | <adb-serial>. Default chrome." },
     "port":              { "type": "string",  "description": "Web port for the chrome device. Default 3100. Ignored for non-web." },
     "vm-service-port":   { "type": "string",  "description": "Host VM Service port. Default 8181." },
     "dds":               { "type": "boolean", "description": "Enable Dart Development Service proxy. Default false." },
@@ -140,21 +140,13 @@ responses with `isError: true` text.
 **Returns on success**:
 
 ```
-# `artisan start` exit 0
+# `dowel start` exit 0
 Spawned flutter run (pid=12345).
 VM Service: ws://127.0.0.1:8181/<token>/ws
-Recorded to ~/.artisan/sessions/<hash>/state.json
+Recorded to ~/.dowel/sessions/<hash>/state.json
 ```
 
-**Returns on error**:
-
-```
-# `artisan start` exit 1
-### Error
-another app is recorded (pid=12345). Run `artisan stop` first.
-```
-
-Other documented error messages: `Failed to capture child PIDs from start
+**Returns on error**: documented messages: `Failed to capture child PIDs from start
 wrapper`, `flutter run (pid <n>) is still building after <n>s` (exit 75: the
 session stays booting, retry a connected tool once the build finishes),
 `flutter run (pid <n>) exited before announcing a VM Service URI` (exit 1:
@@ -169,13 +161,13 @@ read the log; the session is removed),
 **Agent recipes**:
 
 ```
-artisan_start { device: "chrome" }                  # web, port 3100
-artisan_start { device: "macos" }                   # desktop
-artisan_start { device: "emulator-5554" }           # Android emulator
-artisan_start { device: "chrome", port: "3200" }    # alt web port
+dowel_start { device: "chrome" }                  # web, port 3100
+dowel_start { device: "macos" }                   # desktop
+dowel_start { device: "emulator-5554" }           # Android emulator
+dowel_start { device: "chrome", port: "3200" }    # alt web port
 ```
 
-## artisan_stop
+## dowel_stop
 
 - **Maps to CLI**: `stop`
 - **Boot mode**: `none`
@@ -195,7 +187,7 @@ artisan_start { device: "chrome", port: "3200" }    # alt web port
 > running (returns success, no-op).
 >
 > Usage:
-> - Call after development is done OR before `artisan_start` if the
+> - Call after development is done OR before `dowel_start` if the
 >   previous app process is stale. A start straight after it does
 >   not need a wait of its own.
 > - No-op when this project has no session; never errors on
@@ -208,7 +200,7 @@ artisan_start { device: "chrome", port: "3200" }    # alt web port
 **Returns on success (app running)**:
 
 ```
-# `artisan stop` exit 0
+# `dowel stop` exit 0
 Sent SIGTERM to process group 12340 (flutter run pid=12345).
 state.json removed.
 ```
@@ -216,7 +208,7 @@ state.json removed.
 **Returns on success (no app)**:
 
 ```
-# `artisan stop` exit 0
+# `dowel stop` exit 0
 No state file; nothing to stop.
 ```
 
@@ -241,7 +233,7 @@ No state file; nothing to stop.
 - Errors mid-cleanup are logged as warnings and swallowed; the command
   still returns exit 0.
 
-## artisan_status
+## dowel_status
 
 - **Maps to CLI**: `status`
 - **Boot mode**: `none`
@@ -257,7 +249,7 @@ No state file; nothing to stop.
 >
 > Usage:
 > - Use to discover the VM Service URI before manually connecting other
->   tooling, or to confirm `artisan_start` succeeded.
+>   tooling, or to confirm `dowel_start` succeeded.
 > - Returns `{"running": false}` when no state file exists.
 
 **Input schema**: `{ "type": "object", "properties": {} }`
@@ -299,10 +291,10 @@ No state file; nothing to stop.
 - `alive` is a `kill -0 <pid>` (POSIX) / `tasklist /FI "PID eq <pid>"`
   (Windows) probe via `lib/src/console/process_alive.dart:17-27`.
 - `alive: false` means the recorded pid is dead; state.json was not
-  cleaned up. Recovery: `artisan_restart` (or `artisan_stop` + manual
+  cleaned up. Recovery: `dowel_restart` (or `dowel_stop` + manual
   re-`start`).
 
-## artisan_logs
+## dowel_logs
 
 - **Maps to CLI**: `logs`
 - **Boot mode**: `none`
@@ -313,7 +305,7 @@ No state file; nothing to stop.
 > Read the captured `flutter run` log output.
 >
 > Reads the stdout/stderr captured by the background Flutter process
-> started via `artisan_start`. Returns recent lines OR tails the live
+> started via `dowel_start`. Returns recent lines OR tails the live
 > stream with `follow: true`.
 >
 > Usage:
@@ -338,16 +330,16 @@ No state file; nothing to stop.
 **Returns on success**:
 
 ```
-# `artisan logs` exit 0
-[contents of ~/.artisan/flutter-dev.log]
+# `dowel logs` exit 0
+[contents of ~/.dowel/sessions/<hash>/flutter-dev.log]
 ```
 
 **Returns on error (no log file)**:
 
 ```
-# `artisan logs` exit 1
+# `dowel logs` exit 1
 ### Error
-Log file not found at ~/.artisan/flutter-dev.log. Run `artisan start` first.
+Log file not found at ~/.dowel/sessions/<hash>/flutter-dev.log. Run `dowel start` first.
 ```
 
 **Notes**:
@@ -358,7 +350,7 @@ Log file not found at ~/.artisan/flutter-dev.log. Run `artisan start` first.
   one-shot calls; some MCP clients buffer the entire response and only
   surface it on completion.
 
-## artisan_restart
+## dowel_restart
 
 - **Maps to CLI**: `restart`
 - **Boot mode**: `none`
@@ -368,14 +360,14 @@ Log file not found at ~/.artisan/flutter-dev.log. Run `artisan start` first.
 
 > Stop and re-start the running Flutter app preserving the same device.
 >
-> Convenience wrapper around `artisan_stop` + `artisan_start`. Slower
-> than `artisan_reload` (which preserves Dart state) and
-> `artisan_hot_restart` (which keeps the process alive but drops state).
+> Convenience wrapper around `dowel_stop` + `dowel_start`. Slower
+> than `dowel_reload` (which preserves Dart state) and
+> `dowel_hot_restart` (which keeps the process alive but drops state).
 > Only use when the others cannot apply the change (native plugin added,
 > pubspec dep change).
 >
 > Usage:
-> - No parameters; uses the device + flags from the prior `artisan_start`.
+> - No parameters; uses the device + flags from the prior `dowel_start`.
 > - Reuses the same VM Service port + web port when possible.
 
 **Input schema**: `{ "type": "object", "properties": {} }`
@@ -383,12 +375,12 @@ Log file not found at ~/.artisan/flutter-dev.log. Run `artisan start` first.
 **Returns on success**:
 
 ```
-# `artisan restart` exit 0
+# `dowel restart` exit 0
 Sent SIGTERM to process group 12340 (flutter run pid=12345).
 state.json removed.
 Spawned flutter run (pid=67890).
 VM Service: ws://127.0.0.1:8181/<new-token>/ws
-Recorded to ~/.artisan/sessions/<hash>/state.json
+Recorded to ~/.dowel/sessions/<hash>/state.json
 ```
 
 **Notes**:
@@ -399,10 +391,10 @@ Recorded to ~/.artisan/sessions/<hash>/state.json
 - Slowest of the three reload verbs because the process must fully
   terminate and respawn (~5-15s on web, depending on Flutter startup).
 - Use when: native plugin added, pubspec dependency changed,
-  `lib/main.dart` initialization corrupted, isolate id needs a complete
+  `lib/main.dart` initialisation corrupted, isolate id needs a complete
   reset.
 
-## artisan_reload
+## dowel_reload
 
 - **Maps to CLI**: `reload`
 - **Boot mode**: `none`
@@ -420,8 +412,8 @@ Recorded to ~/.artisan/sessions/<hash>/state.json
 > Usage:
 > - Call after every meaningful source edit to see the change immediately.
 > - If hot reload fails (state mismatch, breaking source change), Flutter
->   logs the error to the captured output; check `artisan_logs` and
->   consider `artisan_hot_restart` instead.
+>   logs the error to the captured output; check `dowel_logs` and
+>   consider `dowel_hot_restart` instead.
 > - Returns the response Flutter wrote back to stdin (typically blank
 >   on success).
 
@@ -430,44 +422,44 @@ Recorded to ~/.artisan/sessions/<hash>/state.json
 **Returns on success**:
 
 ```
-# `artisan reload` exit 0
+# `dowel reload` exit 0
 Sent `r` (reload) to flutter run stdin.
 ```
 
 **Returns on error (no state)**:
 
 ```
-# `artisan reload` exit 2
+# `dowel reload` exit 2
 ### Error
-No state file; nothing to reload. Run `artisan start` first.
+No state file; nothing to reload. Run `dowel start` first.
 ```
 
 **Returns on error (FIFO missing)**:
 
 ```
-# `artisan reload` exit 2
+# `dowel reload` exit 2
 ### Error
-Pipe missing: ~/.artisan/flutter-dev.fifo. Run `artisan restart`.
+Pipe missing: ~/.dowel/sessions/<hash>/flutter-dev.fifo. Run `dowel restart`.
 ```
 
-**Returns on error (older artisan state)**:
+**Returns on error (older dowel state)**:
 
 ```
-# `artisan reload` exit 2
+# `dowel reload` exit 2
 ### Error
-state.json has no stdinPipe entry; the app was started by an older artisan that pre-dates the FIFO refactor. Run `artisan restart`.
+state.json has no stdinPipe entry; the app was started by an older dowel that pre-dates the FIFO refactor. Run `dowel restart`.
 ```
 
 **Notes**:
 
 - Writes `r\n` to the FIFO via shell redirection (`printf %s 'r\n' >
   <fifo>`). Dart `File.open` rejects FIFOs because it calls `lseek`.
-- POSIX only. On Windows, `artisan_start` fails at `mkfifo` so this tool
+- POSIX only. On Windows, `dowel_start` fails at `mkfifo` so this tool
   never reaches a usable FIFO.
 - Hot reload preserves Dart state and the same isolate id. The next
-  `artisan_tinker` call hits the same isolate as before the reload.
+  `dowel_tinker` call hits the same isolate as before the reload.
 
-## artisan_hot_restart
+## dowel_hot_restart
 
 - **Maps to CLI**: `hot-restart`
 - **Boot mode**: `none`
@@ -478,12 +470,12 @@ state.json has no stdinPipe entry; the app was started by an older artisan that 
 > Hot restart the running Flutter app (drops Dart state, keeps process).
 >
 > Sends `R` to the `flutter run` process stdin. Stronger than
-> `artisan_reload`: drops all Dart state but keeps the same process +
+> `dowel_reload`: drops all Dart state but keeps the same process +
 > VM Service connection. Use when hot reload cannot apply the change
 > (const constructors changed, top-level state corrupted).
 >
 > Usage:
-> - Slower than `artisan_reload`; faster than `artisan_restart` (no
+> - Slower than `dowel_reload`; faster than `dowel_restart` (no
 >   process re-spawn).
 > - Call when source changes invalidate existing app state but the
 >   process itself is fine.
@@ -495,20 +487,20 @@ state.json has no stdinPipe entry; the app was started by an older artisan that 
 **Returns on success**:
 
 ```
-# `artisan hot-restart` exit 0
+# `dowel hot-restart` exit 0
 Sent `R` (hot-restart) to flutter run stdin.
 ```
 
 **Notes**:
 
-- Identical FIFO mechanics to `artisan_reload`; sends `R\n` (capital R).
+- Identical FIFO mechanics to `dowel_reload`; sends `R\n` (capital R).
 - Mints a new isolate id. `VmServiceClient.callServiceExtension` catches
   the resulting `SentinelException` once and refreshes via
-  `getMainIsolateId()`, so the next `artisan_tinker` call self-recovers.
-- Error envelope identical to `artisan_reload` (exit 2 for missing state
+  `getMainIsolateId()`, so the next `dowel_tinker` call self-recovers.
+- Error envelope identical to `dowel_reload` (exit 2 for missing state
   / FIFO).
 
-## artisan_doctor
+## dowel_doctor
 
 - **Maps to CLI**: `doctor`
 - **Boot mode**: `none`
@@ -533,7 +525,7 @@ Sent `R` (hot-restart) to flutter run stdin.
 **Returns on success (all checks pass)**:
 
 ```
-# `artisan doctor` exit 0
+# `dowel doctor` exit 0
   ✓ flutter --version
   ✓ dart --version
   ✓ port 3100 free
@@ -543,18 +535,18 @@ Sent `R` (hot-restart) to flutter run stdin.
 **Returns on success with advisory WARN**:
 
 ```
-# `artisan doctor` exit 0
+# `dowel doctor` exit 0
   ✓ flutter --version
   ✓ dart --version
   ✓ port 3100 free
   ✓ flutter sdk >= 3.30.0 (for --cdp-port)
-WARN: Stale MCP entry detected. Pre-upgrade .mcp.json points at the removed fluttersdk_mcp package. Run: ./bin/fsa mcp:install (or: dart run fluttersdk_artisan mcp:install) to refresh the entry.
+WARN: Stale MCP entry detected. Pre-upgrade .mcp.json points at the removed fluttersdk_mcp package. Delete the "fluttersdk" entry from .mcp.json, then run: ./bin/dowel mcp:install (or: dart run dowel mcp:install).
 ```
 
 **Returns on error (any hard check fails)**:
 
 ```
-# `artisan doctor` exit 1
+# `dowel doctor` exit 1
   ✓ flutter --version
   ✗ dart --version
   ✓ port 3100 free
@@ -579,7 +571,7 @@ WARN: Stale MCP entry detected. Pre-upgrade .mcp.json points at the removed flut
 - `WARN: Flutter SDK is older than 3.30.0.` (CDP commands require
   flutter/flutter#170612).
 
-## artisan_list
+## dowel_list
 
 - **Maps to CLI**: `list`
 - **Boot mode**: `none`
@@ -587,11 +579,11 @@ WARN: Stale MCP entry detected. Pre-upgrade .mcp.json points at the removed flut
 
 **Description (verbatim)**:
 
-> List every registered artisan command grouped by namespace.
+> List every registered dowel command grouped by namespace.
 >
 > Returns the full CLI command surface available to the consumer app:
-> builtins (start, stop, doctor, etc.), plugin commands (`dusk:*`,
-> `telescope:*`, `plugin:*`), `make:*` generators, `mcp:*` meta. Useful
+> builtins (start, stop, doctor, etc.), plugin commands (`tapir:*`,
+> `crumbs:*`, `plugin:*`), `make:*` generators, `mcp:*` meta. Useful
 > for discovering what is available without inspecting source.
 >
 > Usage:
@@ -604,14 +596,14 @@ WARN: Stale MCP entry detected. Pre-upgrade .mcp.json points at the removed flut
 **Returns on success**:
 
 ```
-# `artisan list` exit 0
+# `dowel list` exit 0
 
 Available commands (60):
 
   doctor                          Run environment preflight checks (flutter, dart, port availability).
   help                            Show detailed help for a single command.
   hot-restart                     Hot restart the running Flutter app (drops Dart state, keeps process).
-  install                         Bootstrap the consumer scaffold (dispatcher + barrels + ./bin/fsa).
+  install                         Bootstrap the consumer scaffold (dispatcher + barrels + ./bin/dowel).
   list                            List every registered command grouped by namespace.
   reload                          Hot reload the running Flutter app.
   restart                         Stop and re-start the running Flutter app preserving the same device.
@@ -623,43 +615,43 @@ Available commands (60):
  commands
   commands:refresh                Regenerate lib/app/commands/_index.g.dart from filesystem scan.
 
- dusk
-  dusk:snap                       Capture the widget tree + device screenshot.
-  dusk:tap                        Tap a widget at a semantic path.
+ tapir
+  tapir:snap                       Capture the widget tree + device screenshot.
+  tapir:tap                        Tap a widget at a semantic path.
   ...
 
  make
-  make:command                    Scaffold an ArtisanCommand subclass.
+  make:command                    Scaffold a DowelCommand subclass.
   make:fast-cli                   Scaffold a fast AOT-compiled CLI.
   make:plugin                     Scaffold a plugin package structure.
 
  mcp
-  mcp:install                     Write .mcp.json fluttersdk entry.
+  mcp:install                     Write .mcp.json dowel entry.
   mcp:serve                       Boot the stdio MCP server.
-  mcp:uninstall                   Remove .mcp.json fluttersdk entry.
+  mcp:uninstall                   Remove .mcp.json dowel entry.
 
  plugin
   plugin:install                  Register a plugin + run install.yaml manifest.
   plugin:uninstall                Reverse a plugin install.
 
  plugins
-  plugins:refresh                 Regenerate lib/app/_plugins.g.dart from .artisan/plugins.json.
+  plugins:refresh                 Regenerate lib/app/_plugins.g.dart from .dowel/plugins.json.
 
- telescope
-  telescope:tail                  Tail live HTTP requests from the running app.
+ crumbs
+  crumbs:tail                  Tail live HTTP requests from the running app.
   ...
 ```
 
 **Notes**:
 
 - Always exit 0; never fails.
-- Use the namespace headers (`dusk`, `telescope`, `make`, `plugin`,
-  `mcp`) to confirm which plugins surfaced. Missing `dusk:` or
-  `telescope:` namespace indicates the dispatcher path is not wired
+- Use the namespace headers (`tapir`, `crumbs`, `make`, `plugin`,
+  `mcp`) to confirm which plugins surfaced. Missing `tapir:` or
+  `crumbs:` namespace indicates the dispatcher path is not wired
   (see `${CLAUDE_SKILL_DIR}/references/state-and-recovery.md` for the
   MCP boot path comparison).
 
-## artisan_tinker
+## dowel_tinker
 
 - **Maps to CLI**: `tinker --eval=<expr>`
 - **Boot mode**: `connected` (requires a session with
@@ -684,7 +676,7 @@ Available commands (60):
 >   user, active controllers, cache contents).
 > - Use to TRIGGER an action programmatically (call a method, fire an
 >   event, mutate a singleton) without going through the UI surface.
-> - Requires an artisan-managed running app: call `artisan_start` first
+> - Requires a dowel-managed running app: call `dowel_start` first
 >   so the session records the VM Service URI.
 > - Errors (compile, runtime, breakpoints) surface as the evaluate RPC's
 >   error response; the model receives the error text and can self-correct.
@@ -707,14 +699,14 @@ Available commands (60):
 **Returns on success (primitive)**:
 
 ```
-# `artisan tinker` exit 0
+# `dowel tinker` exit 0
 42
 ```
 
 **Returns on success (complex object)**:
 
 ```
-# `artisan tinker` exit 0
+# `dowel tinker` exit 0
 <MyState#a3f9>
 ```
 
@@ -724,7 +716,7 @@ Available commands (60):
 **Returns on error (compile error)**:
 
 ```
-# `artisan tinker` exit 1
+# `dowel tinker` exit 1
 ### Error
 Expression compilation error: Expected an identifier, but got ';'.
 ```
@@ -732,7 +724,7 @@ Expression compilation error: Expected an identifier, but got ';'.
 **Returns on error (runtime exception)**:
 
 ```
-# `artisan tinker` exit 1
+# `dowel tinker` exit 1
 ### Error
 Runtime exception: NoSuchMethodError: The getter 'foo' was called on null.
 ```
@@ -740,9 +732,9 @@ Runtime exception: NoSuchMethodError: The getter 'foo' was called on null.
 **Returns on error (no app)**:
 
 ```
-# `artisan tinker` exit 1
+# `dowel tinker` exit 1
 ### Error
-Not connected to a running Flutter app. Run `dart run fluttersdk_artisan start` first so the session records the VM Service URI.
+Not connected to a running Flutter app. Run `dart run dowel start` first so the session records the VM Service URI.
 ```
 
 **Notes**:
@@ -763,11 +755,11 @@ Not connected to a running Flutter app. Run `dart run fluttersdk_artisan start` 
 **Agent recipes**:
 
 ```
-artisan_tinker { eval: "WidgetsBinding.instance.lifecycleState.toString()" }
-artisan_tinker { eval: "MyService.instance.state.toString()" }
-artisan_tinker { eval: "await MyService.instance.refresh()" }
-artisan_tinker { eval: "(MyService.instance..reset()).state.toString()" }     # cascade: side-effect + read
-artisan_tinker { eval: "MyService.instance.notify('event'), 'dispatched'" }   # comma operator for void side-effect
+dowel_tinker { eval: "WidgetsBinding.instance.lifecycleState.toString()" }
+dowel_tinker { eval: "MyService.instance.state.toString()" }
+dowel_tinker { eval: "await MyService.instance.refresh()" }
+dowel_tinker { eval: "(MyService.instance..reset()).state.toString()" }     # cascade: side-effect + read
+dowel_tinker { eval: "MyService.instance.notify('event'), 'dispatched'" }   # comma operator for void side-effect
 ```
 
 Generic placeholders (`MyService`, `MyState`) stand in for whatever the
@@ -785,23 +777,23 @@ the consumer's `lib/app/_plugins.g.dart`. Common companion plugins:
 
 | Plugin | Prefix | Skill |
 |---|---|---|
-| `fluttersdk_dusk` (E2E driver) | `dusk_*` | the `fluttersdk-dusk` skill, bundled with the dusk package |
-| `fluttersdk_telescope` (runtime inspector) | `telescope_*` | the `fluttersdk-telescope` skill, bundled with the telescope package |
+| `tapir` (E2E driver) | `tapir_*` | the `tapir` skill, bundled with the tapir package |
+| `crumbs` (runtime inspector) | `crumbs_*` | the `crumbs` skill, bundled with the crumbs package |
 
-The artisan skill does not duplicate the per-plugin tool reference; load
+The dowel skill does not duplicate the per-plugin tool reference; load
 the matching plugin's skill when calling its tools.
 
 ## Cross-cutting: dispatch + error envelopes
 
 **Dispatch routing** (`lib/src/mcp/mcp_server.dart:231-309`):
 
-1. Tool name starts with `artisan:` prefix (substrate) → in-process
-   handler via `_dispatchArtisanCommand`. Connected commands go through
-   the lazy-reconnect path; `none` commands run with `ArtisanContext.bare()`.
-2. Tool name does NOT start with `artisan:` (plugin) → dispatch via
+1. Tool name starts with `dowel:` prefix (substrate) → in-process
+   handler via `_dispatchDowelCommand`. Connected commands go through
+   the lazy-reconnect path; `none` commands run with `DowelContext.bare()`.
+2. Tool name does NOT start with `dowel:` (plugin) → dispatch via
    `vmClient.callServiceExtension<Object?>()` (the VM Service extension
    the plugin registered at app boot).
-3. Special case: `dusk_evaluate` → routes through `vm.evaluate` directly
+3. Special case: `tapir_evaluate` → routes through `vm.evaluate` directly
    (`_dispatchEvaluate`, lines 319-417), not the plugin extension.
 
 **Error envelope** (uniform across every tool):
@@ -819,7 +811,7 @@ for application-level failures; protocol errors only arise for malformed
 tool calls (unknown tool, schema violation) and surface from `dart_mcp`
 itself.
 
-**`dusk_evaluate` error branches** (`lib/src/mcp/mcp_server.dart:319-417`):
+**`tapir_evaluate` error branches** (`lib/src/mcp/mcp_server.dart:319-417`):
 
 | Branch | Trigger | Message prefix |
 |---|---|---|
@@ -828,14 +820,14 @@ itself.
 | SentinelException | stale isolate after hot-restart | `Isolate sentinel (kind: ...)` |
 | RPCError code 113 | compile error | `Expression compilation error: ...` |
 | Other RPCError | DDS/transport failure | `VM Service RPC error (code <N>): ...` |
-| Unexpected exception | catch-all | `Unexpected error during dusk_evaluate: ...` |
+| Unexpected exception | catch-all | `Unexpected error during tapir_evaluate: ...` |
 
 ## Filter mechanics
 
 Tools can be denied by a 3-layer filter (`lib/src/mcp/mcp_filter_config.dart`):
 
-1. `.artisan/mcp.json` file (lowest precedence)
-2. `ARTISAN_MCP_PACKAGES_ALLOW` / `_DENY` / `ARTISAN_MCP_TOOLS_ALLOW` / `_DENY`
+1. `.dowel/mcp.json` file (lowest precedence)
+2. `DOWEL_MCP_PACKAGES_ALLOW` / `_DENY` / `DOWEL_MCP_TOOLS_ALLOW` / `_DENY`
    env vars (CSV)
 3. `mcp:serve` CLI flags: `--include-package`, `--exclude-package`,
    `--include-tool`, `--exclude-tool` (highest precedence)
@@ -843,7 +835,7 @@ Tools can be denied by a 3-layer filter (`lib/src/mcp/mcp_filter_config.dart`):
 Allow lists: CLI > env > file (first non-null wins, replace not merge).
 Deny lists: union across all three (deny anywhere wins everywhere).
 
-Denied tools are filtered at initialize time BEFORE `registerTool`, so
+Denied tools are filtered at initialise time BEFORE `registerTool`, so
 they never appear in `tools/list`. Calling a denied tool returns
 dart_mcp's native "No tool registered with the name <X>" error.
 

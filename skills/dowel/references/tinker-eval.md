@@ -1,6 +1,6 @@
-# artisan_tinker deep reference
+# dowel_tinker deep reference
 
-`artisan_tinker { eval: "<expr>" }` evaluates a Dart expression inside
+`dowel_tinker { eval: "<expr>" }` evaluates a Dart expression inside
 the running Flutter app's main isolate via the VM Service `evaluate`
 RPC. This file teaches the agent the constraints, the auto-await
 wrapper, the four error paths, the scope rules, and a recipe pack:
@@ -21,15 +21,15 @@ client is `lib/src/vm/vm_service_client.dart`. The MCP dispatch path is
 - [Recipe pack](#recipe-pack)
 - [When NOT to use tinker](#when-not-to-use-tinker)
 - [Anti-patterns](#anti-patterns)
-- [Comparison: `artisan_tinker` vs `dusk_evaluate`](#comparison-artisan_tinker-vs-dusk_evaluate)
+- [Comparison: `dowel_tinker` vs `tapir_evaluate`](#comparison-dowel_tinker-vs-tapir_evaluate)
 
 ## Wire model
 
 ```
 MCP client (Claude Code)
-  -> tools/call { name: "artisan_tinker", arguments: { eval: "<expr>" } }
-       -> McpServer._dispatchArtisanCommand
-            -> ArtisanContext.connected (lazy-reconnect if _vmClient == null)
+  -> tools/call { name: "dowel_tinker", arguments: { eval: "<expr>" } }
+       -> McpServer._dispatchDowelCommand
+            -> DowelContext.connected (lazy-reconnect if _vmClient == null)
                  -> TinkerCommand.handle(ctx)
                       -> ctx.evaluate(<expr>)
                            -> VmServiceClient.evaluate(isolateId, <expr>)
@@ -69,12 +69,12 @@ The grammar accepts:
 | Primitive expression (`1 + 1`, `'hello'`, `true`) | Returns `Instance` with `valueAsString`. |
 | Top-level symbol access (`Magic`, `Config`, `User`) | Resolved against the root library scope. |
 | Method call (`Foo.bar()`, `instance.method()`) | Returns the method's return value as `InstanceRef`. |
-| Async expression with `await` | artisan auto-wraps in `(() async => <expr>)()` when the source contains `await`. |
+| Async expression with `await` | dowel auto-wraps in `(() async => <expr>)()` when the source contains `await`. |
 | Cascade (`obj..method()`) | Allowed; returns the receiver. |
 | Comma operator (`a, b`) | Allowed; returns the rightmost value. Useful for void side-effects. |
 | Conditional expression (`a ? b : c`) | Allowed. |
 | Collection literal (`[1, 2, 3]`, `{1: 'a'}`) | Returns the collection. |
-| Closure invocation (`(() => 1)()`) | Allowed. The IIFE pattern is how artisan handles `await`. |
+| Closure invocation (`(() => 1)()`) | Allowed. The IIFE pattern is how dowel handles `await`. |
 
 ## The `await` auto-wrap
 
@@ -96,7 +96,7 @@ wrapped: "(() async => await SharedPreferences.getInstance())()"
 returned: SharedPreferences instance reference
 ```
 
-`vm_service.evaluate()` returns the `Future` instance; artisan's
+`vm_service.evaluate()` returns the `Future` instance; dowel's
 `VmServiceClient.evaluate` returns the `vm.Response` after the future
 settles. The agent's tool result is the resolved value.
 
@@ -124,7 +124,7 @@ Caveats:
   - `this` (no implicit receiver in expression eval).
   - Local variables of any function (there is no stack frame to
     inspect; that is `evaluateInFrame`'s domain, not what
-    `artisan_tinker` uses).
+    `dowel_tinker` uses).
 - **Isolate**: the main isolate (`vm.isolates.first`). Flutter apps have
   one user isolate (plus a background service isolate); `.first`
   consistently resolves to the UI isolate.
@@ -151,17 +151,17 @@ scope; anything behind a private library or unexported symbol is not.
 | Primitive Pointer / Float32x4 / etc. | `<valueAsString>` |
 | Complex object | `<ClassName#id>` (e.g. `<MyState#a3f9>`) |
 | Magic `Model` (via integration caster) | multi-line table with attributes |
-| Future (from `await` wrap) | resolved value (artisan awaits before formatting) |
+| Future (from `await` wrap) | resolved value (dowel awaits before formatting) |
 
 For non-primitive values that the default formatter renders as
 `<ClassName#id>`, the agent MUST append `.toString()` INSIDE the
 expression to get readable output:
 
 ```
-artisan_tinker { eval: "MyController.instance.state" }
+dowel_tinker { eval: "MyController.instance.state" }
   -> <MyState#a3f9>
 
-artisan_tinker { eval: "MyController.instance.state.toString()" }
+dowel_tinker { eval: "MyController.instance.state.toString()" }
   -> 'MyState(loaded: true, count: 12)'
 ```
 
@@ -225,7 +225,7 @@ Isolate sentinel (kind: Collected)
 Substring contract: `Isolate sentinel`.
 
 Recovery: the next call usually self-recovers (the retry path refreshes
-the isolate id). If it persists, call `artisan_hot_restart` to force a
+the isolate id). If it persists, call `dowel_hot_restart` to force a
 clean isolate, then retry.
 
 ### 4. Disconnected VM Service (no app, dead WS, DDS down)
@@ -237,12 +237,12 @@ Shape:
 
 ```
 ### Error
-Not connected to a running Flutter app. Run `dart run fluttersdk_artisan start` first so the session records the VM Service URI.
+Not connected to a running Flutter app. Run `dart run dowel start` first so the session records the VM Service URI.
 ```
 
 Substring contract: `Not connected to a running Flutter app`.
 
-Recovery: call `artisan_start`, then retry. Lazy-reconnect picks up the
+Recovery: call `dowel_start`, then retry. Lazy-reconnect picks up the
 new state.json on the next call.
 
 ## Recipe pack
@@ -258,25 +258,25 @@ Work in any Flutter app, no third-party packages required.
 
 ```
 # Runtime introspection
-artisan_tinker { eval: "WidgetsBinding.instance.lifecycleState.toString()" }
-artisan_tinker { eval: "PaintingBinding.instance.imageCache.currentSize" }
-artisan_tinker { eval: "WidgetsBinding.instance.platformDispatcher.locale.toString()" }
+dowel_tinker { eval: "WidgetsBinding.instance.lifecycleState.toString()" }
+dowel_tinker { eval: "PaintingBinding.instance.imageCache.currentSize" }
+dowel_tinker { eval: "WidgetsBinding.instance.platformDispatcher.locale.toString()" }
 
 # Inspect a singleton (replace MyService with the real name)
-artisan_tinker { eval: "MyService.instance.value" }
-artisan_tinker { eval: "MyService.instance.state.toString()" }
+dowel_tinker { eval: "MyService.instance.value" }
+dowel_tinker { eval: "MyService.instance.state.toString()" }
 
 # Trigger a method, observe via auto-await wrap
-artisan_tinker { eval: "await MyService.instance.refresh()" }
+dowel_tinker { eval: "await MyService.instance.refresh()" }
 
 # SharedPreferences round-trip
-artisan_tinker { eval: "await SharedPreferences.getInstance().then((p) => p.getKeys().toList())" }
+dowel_tinker { eval: "await SharedPreferences.getInstance().then((p) => p.getKeys().toList())" }
 ```
 
 ### Read-then-write with cascade
 
 ```
-artisan_tinker { eval: "(MyService.instance..reset()).state.toString()" }
+dowel_tinker { eval: "(MyService.instance..reset()).state.toString()" }
 ```
 
 The cascade returns the receiver; the wrapping parens give it expression
@@ -286,7 +286,7 @@ effects only, cascade does not await.
 ### Force a value with comma operator
 
 ```
-artisan_tinker { eval: "MyService.instance.notify('boot'), 'notified'" }
+dowel_tinker { eval: "MyService.instance.notify('boot'), 'notified'" }
 ```
 
 The comma operator evaluates both sides, returns the rightmost. Useful
@@ -296,9 +296,9 @@ the result self-describing.
 ### Read BEFORE and AFTER an action
 
 ```
-artisan_tinker { eval: "MyService.instance.state.toString()" }
-artisan_tinker { eval: "await MyService.instance.refresh()" }
-artisan_tinker { eval: "MyService.instance.state.toString()" }
+dowel_tinker { eval: "MyService.instance.state.toString()" }
+dowel_tinker { eval: "await MyService.instance.refresh()" }
+dowel_tinker { eval: "MyService.instance.state.toString()" }
 ```
 
 ### Recipes when the `magic` package is installed
@@ -308,14 +308,14 @@ When `package:magic/magic.dart` is imported by the host app's root
 library, these expressions are in scope:
 
 ```
-artisan_tinker { eval: "Magic.find<MyController>().state.toString()" }
-artisan_tinker { eval: "await Magic.find<MyController>().refresh()" }
-artisan_tinker { eval: "Config.get('app.name')" }
-artisan_tinker { eval: "Auth.user?.toString()" }
-artisan_tinker { eval: "Cache.get('some_key')?.toString()" }
-artisan_tinker { eval: "MagicRoute.currentPath" }
-artisan_tinker { eval: "Event.dispatch(MyEvent()), 'dispatched'" }
-artisan_tinker { eval: "Gate.allows('action', someInstance).toString()" }
+dowel_tinker { eval: "Magic.find<MyController>().state.toString()" }
+dowel_tinker { eval: "await Magic.find<MyController>().refresh()" }
+dowel_tinker { eval: "Config.get('app.name')" }
+dowel_tinker { eval: "Auth.user?.toString()" }
+dowel_tinker { eval: "Cache.get('some_key')?.toString()" }
+dowel_tinker { eval: "MagicRoute.currentPath" }
+dowel_tinker { eval: "Event.dispatch(MyEvent()), 'dispatched'" }
+dowel_tinker { eval: "Gate.allows('action', someInstance).toString()" }
 ```
 
 When the `magic` package is absent these expressions raise
@@ -323,21 +323,21 @@ When the `magic` package is absent these expressions raise
 
 ## When NOT to use tinker
 
-- **Inspecting widgets or the UI tree**: use `dusk_snap` and
-  `dusk_observe`. They walk the Semantics tree; tinker has no access to
+- **Inspecting widgets or the UI tree**: use `tapir_snap` and
+  `tapir_observe`. They walk the Semantics tree; tinker has no access to
   the BuildContext stack.
-- **Driving gestures (tap, drag, type)**: use `dusk_*` tools. They
+- **Driving gestures (tap, drag, type)**: use `tapir_*` tools. They
   enforce the 6-step actionability gate; tinker has no awareness of
   hit-test or input dispatch.
 - **Multi-statement workflows with local variables and control flow**:
   write a test file under `test/` and run `dart test`. Tinker is a
   one-shot REPL, not a scripting host.
-- **Inspecting the Telescope ring buffers**: use `telescope_requests`,
-  `telescope_exceptions`, `telescope_console`. They format the buffers;
+- **Inspecting the Crumbs ring buffers**: use `crumbs_requests`,
+  `crumbs_exceptions`, `crumbs_console`. They format the buffers;
   reading them via tinker forces you to do the formatting manually.
 - **Watching for state changes over time**: tinker has no streaming
-  surface. Use `dusk_wait_for { expression: ... }` which polls every
-  200ms on the running isolate, or set up a `telescope_*` watcher and
+  surface. Use `tapir_wait_for { expression: ... }` which polls every
+  200ms on the running isolate, or set up a `crumbs_*` watcher and
   read it back.
 
 ## Anti-patterns
@@ -359,20 +359,20 @@ When the `magic` package is absent these expressions raise
 - **Using tinker as a sleep / poll loop**: tinker is one-shot. Loop in
   the agent layer, not in the expression.
 
-## Comparison: `artisan_tinker` vs `dusk_evaluate`
+## Comparison: `dowel_tinker` vs `tapir_evaluate`
 
 Both run on the VM Service; both accept a single Dart expression.
 Differences:
 
-| Capability | `artisan_tinker` | `dusk_evaluate` |
+| Capability | `dowel_tinker` | `tapir_evaluate` |
 |---|---|---|
-| Surfaces from | substrate (always available) | `fluttersdk_dusk` plugin (dispatcher path only) |
+| Surfaces from | substrate (always available) | `tapir` plugin (dispatcher path only) |
 | Target library | root library of the running app | same |
 | Auto-await wrap | yes | no (caller must wrap manually) |
 | Default formatter | `Tinker.casters` chain (Magic-aware) | raw `InstanceRef` JSON |
 | Failure shape | `Runtime exception` / `Expression compilation error` text | structured JSON with error type |
 | Best for | live state inspection + action triggering | low-level evaluate where the raw `InstanceRef` JSON matters |
 
-Default: prefer `artisan_tinker` for inspect / mutate, `dusk_evaluate`
+Default: prefer `dowel_tinker` for inspect / mutate, `tapir_evaluate`
 when you need the structured JSON envelope or when running a non-Magic
 app that does not benefit from the caster chain.
