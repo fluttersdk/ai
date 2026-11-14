@@ -102,6 +102,13 @@
             "files": [
                 "SKILL.md"
             ]
+        },
+        {
+            "name": "magic-socket",
+            "description": "Receive real-time broadcasts in a Magic app with the Echo facade, Reverb and null drivers, private and presence channels, and Echo.fake in tests.",
+            "files": [
+                "SKILL.md"
+            ]
         }
     ]
 }
