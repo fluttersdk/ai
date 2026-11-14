@@ -16,10 +16,10 @@ Hosted via GitHub Pages at `anilcancakir.github.io/ai/`
 ## Architecture
 
 - `skills/`: GitHub Pages root. Each skill = `<name>/SKILL.md` + `<name>/references/*.md`
-  - `wind-ui/`: Wind UI className system, from `fluttersdk_wind`
+  - `wind-ui/`: Wind UI className system, from `wind_kit`
   - `magic-framework/`: Magic Framework IoC + Facades + ORM, from `magic`
-  - `fluttersdk-dusk/`: E2E Flutter app driver via MCP, from `fluttersdk_dusk`
-  - `fluttersdk-telescope/`: Runtime inspector, 9 ring buffers, from `fluttersdk_telescope`
+  - `tapir/`: E2E Flutter app driver via MCP, from `tapir`
+  - `crumbs/`: Runtime inspector over MCP, from `crumbs`
   - `dowel/`: CLI framework + stdio MCP server, from `dowel`
 
 > **Every `skills/<name>/` directory is a MIRROR. Never edit a skill here.** `sync.yml` rsyncs the upstream subtree with `--delete`, so a registry-only file is one sync away from deletion; that is how six hand-written `wind-ui` reference files disappeared before anyone noticed. Edit the skill in its upstream repo (`registry-sources.json` lists the repo, branch and skill directory behind each source key) and let the sync deliver it.
