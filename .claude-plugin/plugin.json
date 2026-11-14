@@ -1,7 +1,7 @@
 {
     "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
     "name": "anilcancakir",
-    "version": "1.4.95",
+    "version": "1.4.96",
     "description": "AI skills, commands, and MCP for Flutter apps built on Wind UI and the Magic Framework, with the dowel, tapir and crumbs dev tooling",
     "homepage": "https://anilcancakir.github.io/ai/",
     "repository": "https://github.com/anilcancakir/ai",

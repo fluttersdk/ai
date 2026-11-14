@@ -95,6 +95,13 @@
             "files": [
                 "SKILL.md"
             ]
+        },
+        {
+            "name": "magic-deeplink",
+            "description": "Route Universal Links, App Links and tapped pushes to Magic routes with magic_deeplink: handler chain, RouteDeeplinkHandler and the deeplink: commands.",
+            "files": [
+                "SKILL.md"
+            ]
         }
     ]
 }
