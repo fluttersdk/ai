@@ -8,6 +8,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- **`magic_starter` syncs from `master`.** The starter repository renamed its default branch from `main` to `master`, so its `registry-sources.json` entry names `master`.
 - **The registry moved to `anilcancakir/ai` and its default branch is `master`.** Install with `npx skills add anilcancakir/ai`. The Claude Code plugin is `anilcancakir` and the marketplace `anilcancakir-marketplace`, so skills are `/anilcancakir:<skill>` and the subagents `anilcancakir:flutter-reviewer` and `anilcancakir:flutter-reviewer-deep`. Remove the old `fluttersdk-marketplace` and add the new one. Pages moved to `https://anilcancakir.github.io/ai/`.
 - **`sync.yml` is data-driven.** The allowed sources (repo, branch, skill directory, replaced skills) live in `registry-sources.json`; a dispatch whose source is not listed there is rejected before anything is checked out. Upstream repositories are read with the default token, and one App token (`anilcancakir-ai-registry`) writes to the registry. A source's `replaces` entries leave `skills/` and `skills/index.json` on its first sync.
 - **CI follows the repo standard.** Every action is pinned by commit SHA, `ci.yml` has no `paths:` filter and ends in the `Lint & Test` aggregator, and a `Changelog` workflow asks for an entry when shipped files change.
