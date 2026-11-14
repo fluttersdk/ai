@@ -123,6 +123,13 @@
             "files": [
                 "SKILL.md"
             ]
+        },
+        {
+            "name": "magic-encryption",
+            "description": "Encrypt and decrypt strings in a Magic app with the Crypt facade, an APP_KEY or a Vault-backed device key, and magic_encryption's key:generate.",
+            "files": [
+                "SKILL.md"
+            ]
         }
     ]
 }
