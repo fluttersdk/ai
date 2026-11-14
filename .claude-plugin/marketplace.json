@@ -1,7 +1,7 @@
 {
     "$schema": "https://json.schemastore.org/claude-code-marketplace.json",
     "name": "anilcancakir-marketplace",
-    "version": "1.4.100",
+    "version": "1.4.101",
     "description": "Community AI skills for Flutter development: Wind UI styling, Magic Framework architecture, dowel, tapir, crumbs and more",
     "owner": {
         "name": "Anılcan Çakır",
@@ -12,7 +12,7 @@
             "name": "anilcancakir",
             "description": "AI skills: Wind UI utility-first styling and Magic Framework Laravel-inspired architecture for Flutter, plus the dowel dev tooling",
             "source": "./",
-            "version": "1.4.100",
+            "version": "1.4.101",
             "author": {
                 "name": "Anılcan Çakır",
                 "email": "anilcan.cakir@gmail.com"
