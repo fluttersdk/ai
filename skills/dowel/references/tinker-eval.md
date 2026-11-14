@@ -1,378 +1,72 @@
-# dowel_tinker deep reference
+# dowel_tinker reference
 
-`dowel_tinker { eval: "<expr>" }` evaluates a Dart expression inside
-the running Flutter app's main isolate via the VM Service `evaluate`
-RPC. This file teaches the agent the constraints, the auto-await
-wrapper, the four error paths, the scope rules, and a recipe pack:
-generic Flutter recipes first, optional `magic` package recipes after.
-
-The handler is `lib/src/commands/tinker_command.dart:35`. The VM
-client is `lib/src/vm/vm_service_client.dart`. The MCP dispatch path is
-`lib/src/mcp/mcp_server.dart:794-820`.
+`dowel_tinker { eval: "<expr>" }` evaluates one Dart expression in the running app's root library through the VM Service `evaluate` RPC; the CLI form is `./bin/dowel tinker --eval=<expr>`. It needs a session with a `vmServiceUri`.
 
 ## Contents
 
-- [Wire model](#wire-model)
-- [Expression grammar (what `evaluate` accepts)](#expression-grammar-what-evaluate-accepts)
-- [The `await` auto-wrap](#the-await-auto-wrap)
-- [Scope rules](#scope-rules)
-- [Return value formatting](#return-value-formatting)
-- [Error paths (four distinct shapes)](#error-paths-four-distinct-shapes)
-- [Recipe pack](#recipe-pack)
-- [When NOT to use tinker](#when-not-to-use-tinker)
-- [Anti-patterns](#anti-patterns)
-- [Comparison: `dowel_tinker` vs `tapir_evaluate`](#comparison-dowel_tinker-vs-tapir_evaluate)
+- [Expression rules](#expression-rules)
+- [Reading the result](#reading-the-result)
+- [What a failure looks like](#what-a-failure-looks-like)
+- [Recipes](#recipes)
+- [When not to use tinker](#when-not-to-use-tinker)
+- [dowel_tinker and tapir_evaluate](#dowel_tinker-and-tapir_evaluate)
 
-## Wire model
+## Expression rules
 
-```
-MCP client (Claude Code)
-  -> tools/call { name: "dowel_tinker", arguments: { eval: "<expr>" } }
-       -> McpServer._dispatchDowelCommand
-            -> DowelContext.connected (lazy-reconnect if _vmClient == null)
-                 -> TinkerCommand.handle(ctx)
-                      -> ctx.evaluate(<expr>)
-                           -> VmServiceClient.evaluate(isolateId, <expr>)
-                                -> vm.getIsolate(isolateId)        # fetch fresh isolate
-                                -> wrap if "await" in expr         # (() async => expr)()
-                                -> vm.evaluate(isolateId, rootLibId, <wrapped>)
-                                     -> InstanceRef | ErrorRef
-                                <- result
-                           <- formatInstanceRef(result)
-                      <- text
-                 <- CallToolResult
-       <- json-rpc response
-```
+- **One expression.** The VM compiles an expression, not a program: a trailing `;`, several statements, an `import` or a declaration fail with compile error code 113. Collapse statements into a closure, `(() { var x = 1; return x + 1; })()`, or use a cascade. Dart has no comma operator.
+- **`await` compiles, but returns the Future.** When the source contains the text `await`, dowel wraps it as `(() async => <expr>)()` (`VmServiceClient.evaluate`), which the VM accepts. The RPC does not wait for the Future, so the result is a reference such as `<_Future#objects/1/0>`, never the awaited value, and an asynchronous failure is not reported either. Start the work with `await`, then read the outcome with a second synchronous expression. The check is a substring match, so the word inside a string literal triggers the wrap too.
+- **Scope is the root library**, usually `lib/main.dart`: its top-level symbols and whatever it imports, public names only. There is no `this`, no local variable and no symbol from a library the root does not import. A host app's singleton, top-level service or container lookup works as long as the root library reaches it.
+- **The main isolate is read on every call**, so a hot restart is transparent. The MCP server drops its VM connection when the app goes away and dials the session's current URI on the next call: after a device change or a `dowel_stop` and `dowel_start`, retry, and reconnect the MCP client only if calls keep failing.
+- `dowel_tinker` is one shot with no streaming. Loop in the agent, not in the expression.
 
-`getMainIsolateId()` calls `getVM()` on every dispatch (no isolate-id
-cache), so device-target switches and hot restarts are transparent.
+## Reading the result
 
-## Expression grammar (what `evaluate` accepts)
-
-The VM Service `evaluate` RPC compiles a single Dart EXPRESSION. The
-grammar does not accept:
-
-| Construct | Result |
+| Result | Rendered as |
 |---|---|
-| Trailing `;` | `RPCError(code: 113)` compile error |
-| Multi-statement block (`a; b;`) | compile error |
-| `import 'dart:math';` | compile error (not parsable in expression context) |
-| Top-level `var x = 1;` | compile error |
-| Function definition (`void foo() {}`) | compile error |
-| Class definition | compile error |
-| Bare `await` | compile error WITHOUT auto-wrap (see below) |
+| Null, bool, number | `null`, `true`, `42` |
+| String | `"quoted"` (double quotes) |
+| Any other object, including the Future an `await` expression returns | `<ClassName#id>` |
+| `ErrorRef` (the expression threw) | `Error: <message>` |
 
-The grammar accepts:
+Append `.toString()` inside the expression to read a non-primitive: `MyService.instance.state` gives `<MyState#a3f9>`, `MyService.instance.state.toString()` gives `"MyState(loaded: true, count: 12)"`. Override `toString()` on state types so the dump says something. A list or map prints as `<ClassName#id>` too, so convert it first: `keys.toList().toString()`.
 
-| Construct | Notes |
-|---|---|
-| Primitive expression (`1 + 1`, `'hello'`, `true`) | Returns `Instance` with `valueAsString`. |
-| Top-level symbol access (`Magic`, `Config`, `User`) | Resolved against the root library scope. |
-| Method call (`Foo.bar()`, `instance.method()`) | Returns the method's return value as `InstanceRef`. |
-| Async expression with `await` | dowel auto-wraps in `(() async => <expr>)()` when the source contains `await`. |
-| Cascade (`obj..method()`) | Allowed; returns the receiver. |
-| Comma operator (`a, b`) | Allowed; returns the rightmost value. Useful for void side-effects. |
-| Conditional expression (`a ? b : c`) | Allowed. |
-| Collection literal (`[1, 2, 3]`, `{1: 'a'}`) | Returns the collection. |
-| Closure invocation (`(() => 1)()`) | Allowed. The IIFE pattern is how dowel handles `await`. |
+## What a failure looks like
 
-## The `await` auto-wrap
+The result text starts with `` # `dowel tinker` exit N ``, and `isError` is set when `N` is not 0.
 
-`lib/src/vm/vm_service_client.dart:155-157`:
+| Case | Text | Exit |
+|---|---|---|
+| Compile error | `[ERROR] evaluate: (113) <compiler message>` | 1 |
+| The expression threw at runtime | `Error: <message>` | 0, so `isError` is false: read the text |
+| A blank `eval` | `--eval needs a Dart expression, e.g. --eval "1 + 1". Omit it to start the REPL.` | 1 |
+| No session | `### Error` then `Not connected to a running Flutter app. Run ...` | error |
+| A session is recorded but the VM Service is unreachable | An error result from the uncaught connect exception; the text may not start with `### Error` | error |
 
-```dart
-final wrapped = expression.contains('await')
-    ? '(() async => $expression)()'
-    : expression;
-```
+For a compile error, rewrite as one valid expression. For a runtime error, fix the app code or the expression. A stale isolate after a hot restart recovers on the next call; if it does not, call `dowel_hot_restart`.
 
-This means:
+## Recipes
 
-```
-eval: "await SharedPreferences.getInstance()"
-       ↓
-wrapped: "(() async => await SharedPreferences.getInstance())()"
-       ↓
-returned: SharedPreferences instance reference
-```
+Replace `MyService` and `MyEvent` with the host app's own names.
 
-`vm_service.evaluate()` returns the `Future` instance; dowel's
-`VmServiceClient.evaluate` returns the `vm.Response` after the future
-settles. The agent's tool result is the resolved value.
-
-Caveats:
-
-- The wrap fires on the SUBSTRING `await`, even inside string literals.
-  This is usually fine, but `eval: "'no await here'"` would also be
-  wrapped. Wrap is idempotent (an already-async IIFE re-wrapped is
-  still valid), so it does not break.
-- The closure has no positional or named arguments; you cannot pass in
-  values. Use the host scope's identifiers directly.
-
-## Scope rules
-
-- **Target library**: the running app's root library (`getIsolate().rootLib`),
-  typically `lib/main.dart`.
-- **In scope**:
-  - Top-level symbols of the root library (everything declared in
-    `lib/main.dart` at top level).
-  - Symbols transitively imported by `lib/main.dart`.
-  - Public symbols (private `_foo` from other libraries are NOT
-    accessible).
-- **Not in scope**:
-  - Symbols from libraries not imported by `lib/main.dart`.
-  - `this` (no implicit receiver in expression eval).
-  - Local variables of any function (there is no stack frame to
-    inspect; that is `evaluateInFrame`'s domain, not what
-    `dowel_tinker` uses).
-- **Isolate**: the main isolate (`vm.isolates.first`). Flutter apps have
-  one user isolate (plus a background service isolate); `.first`
-  consistently resolves to the UI isolate.
-
-In practice the scope is the singleton container of whatever
-state-management pattern the host app uses: a top-level service object,
-a `Provider`-rooted notifier, a `GetIt`-resolved singleton, a `Riverpod`
-container reference, or the `magic` package's `Magic.find<T>()` facade
-when that package is installed. Anything the root library imports is in
-scope; anything behind a private library or unexported symbol is not.
-
-## Return value formatting
-
-`lib/src/tinker/tinker_formatter.dart:10-44` walks the
-`Tinker.casters` chain first, falls through to a built-in
-`InstanceRef` unwrap:
-
-| Result type | Rendered as |
-|---|---|
-| Null | `null` |
-| Bool | `true` / `false` |
-| Int / Double | `<numeric literal>` |
-| String | `'<quoted>'` |
-| Primitive Pointer / Float32x4 / etc. | `<valueAsString>` |
-| Complex object | `<ClassName#id>` (e.g. `<MyState#a3f9>`) |
-| Magic `Model` (via integration caster) | multi-line table with attributes |
-| Future (from `await` wrap) | resolved value (dowel awaits before formatting) |
-
-For non-primitive values that the default formatter renders as
-`<ClassName#id>`, the agent MUST append `.toString()` INSIDE the
-expression to get readable output:
-
-```
-dowel_tinker { eval: "MyController.instance.state" }
-  -> <MyState#a3f9>
-
-dowel_tinker { eval: "MyController.instance.state.toString()" }
-  -> 'MyState(loaded: true, count: 12)'
-```
-
-This is the single most important tinker idiom. Default `toString()` in
-Dart is noisy (`Instance of 'MyState'`); override `toString()` on your
-state types so tinker dumps something readable. The override is
-debug-only friendly because tinker is debug-only.
-
-## Error paths (four distinct shapes)
-
-The agent receives one of four shapes via the MCP error envelope
-(`isError: true` + `### Error\n<message>`). Branch on the substring:
-
-### 1. Compile error (`RPCError` code 113)
-
-Trigger: bad syntax, unknown identifier, type mismatch, trailing `;`,
-multi-statement block, `import` directive, top-level declaration.
-
-Shape:
-
-```
-### Error
-Expression compilation error: <compiler message>
-```
-
-Substring contract: `Expression compilation error`.
-
-Recovery: rewrite the expression as a single valid Dart expression.
-Strip `;`, collapse statements via cascade or comma operator.
-
-### 2. Runtime exception (`ErrorRef` returned, NOT thrown)
-
-Trigger: the expression compiled but threw at runtime.
-
-Shape:
-
-```
-### Error
-Runtime exception: <Dart exception message + class>
-```
-
-Substring contract: `Runtime exception`.
-
-Recovery: read the exception class and message; the expression is
-exercising a real bug in the running code. Fix the app code or change
-the expression.
-
-### 3. Stale isolate (`SentinelException`)
-
-Trigger: hot restart minted a new isolate id between the agent's last
-call and this one, and the auto-retry in
-`callServiceExtension` failed to recover.
-
-Shape:
-
-```
-### Error
-Isolate sentinel (kind: Collected)
-```
-
-Substring contract: `Isolate sentinel`.
-
-Recovery: the next call usually self-recovers (the retry path refreshes
-the isolate id). If it persists, call `dowel_hot_restart` to force a
-clean isolate, then retry.
-
-### 4. Disconnected VM Service (no app, dead WS, DDS down)
-
-Trigger: this project has no session, or the recorded
-`vmServiceUri` no longer accepts a WebSocket.
-
-Shape:
-
-```
-### Error
-Not connected to a running Flutter app. Run `dart run dowel start` first so the session records the VM Service URI.
-```
-
-Substring contract: `Not connected to a running Flutter app`.
-
-Recovery: call `dowel_start`, then retry. Lazy-reconnect picks up the
-new state.json on the next call.
-
-## Recipe pack
-
-Replace every placeholder (`MyController`, `MyService`, `MyEvent`,
-`MyApp`) with the host app's actual class names. The patterns are
-state-management-agnostic: any singleton, top-level service, or
-container-resolved instance works.
-
-### Generic Flutter recipes
-
-Work in any Flutter app, no third-party packages required.
-
-```
-# Runtime introspection
+```text
 dowel_tinker { eval: "WidgetsBinding.instance.lifecycleState.toString()" }
 dowel_tinker { eval: "PaintingBinding.instance.imageCache.currentSize" }
 dowel_tinker { eval: "WidgetsBinding.instance.platformDispatcher.locale.toString()" }
-
-# Inspect a singleton (replace MyService with the real name)
-dowel_tinker { eval: "MyService.instance.value" }
 dowel_tinker { eval: "MyService.instance.state.toString()" }
-
-# Trigger a method, observe via auto-await wrap
-dowel_tinker { eval: "await MyService.instance.refresh()" }
-
-# SharedPreferences round-trip
-dowel_tinker { eval: "await SharedPreferences.getInstance().then((p) => p.getKeys().toList())" }
-```
-
-### Read-then-write with cascade
-
-```
+dowel_tinker { eval: "await MyService.instance.refresh()" }        # returns <_Future#...>; the work still runs
+dowel_tinker { eval: "MyService.instance.state.toString()" }        # read the outcome afterwards
 dowel_tinker { eval: "(MyService.instance..reset()).state.toString()" }
+dowel_tinker { eval: "(() { MyService.instance.notify('boot'); return 'notified'; })()" }
 ```
 
-The cascade returns the receiver; the wrapping parens give it expression
-position; `.state.toString()` reads the new state. Synchronous side
-effects only, cascade does not await.
+The cascade returns the receiver, so the wrapped parentheses plus `.state.toString()` reads the state after a synchronous side effect. A closure runs several statements and returns a self-describing string. To compare before and after an action, evaluate the same read expression on either side of it; after an `await` start, poll a completion flag the app exposes (such as `isLoading`) with a timeout, because a quiet state does not prove the work finished.
 
-### Force a value with comma operator
+## When not to use tinker
 
-```
-dowel_tinker { eval: "MyService.instance.notify('boot'), 'notified'" }
-```
+- Widget tree, gestures, waiting on UI state: the `tapir` skill's tools; tinker has no `BuildContext` and no hit testing.
+- HTTP, log and exception buffers: the `crumbs` skill's tools.
+- Several statements with control flow: a test under `test/`, run with `dart test`.
 
-The comma operator evaluates both sides, returns the rightmost. Useful
-when the side effect returns `void` / `null`; the literal string makes
-the result self-describing.
+## dowel_tinker and tapir_evaluate
 
-### Read BEFORE and AFTER an action
-
-```
-dowel_tinker { eval: "MyService.instance.state.toString()" }
-dowel_tinker { eval: "await MyService.instance.refresh()" }
-dowel_tinker { eval: "MyService.instance.state.toString()" }
-```
-
-### Recipes when the `magic` package is installed
-
-The optional `magic` sibling package adds container-resolved facades.
-When `package:magic/magic.dart` is imported by the host app's root
-library, these expressions are in scope:
-
-```
-dowel_tinker { eval: "Magic.find<MyController>().state.toString()" }
-dowel_tinker { eval: "await Magic.find<MyController>().refresh()" }
-dowel_tinker { eval: "Config.get('app.name')" }
-dowel_tinker { eval: "Auth.user?.toString()" }
-dowel_tinker { eval: "Cache.get('some_key')?.toString()" }
-dowel_tinker { eval: "MagicRoute.currentPath" }
-dowel_tinker { eval: "Event.dispatch(MyEvent()), 'dispatched'" }
-dowel_tinker { eval: "Gate.allows('action', someInstance).toString()" }
-```
-
-When the `magic` package is absent these expressions raise
-`Expression compilation error` (the symbols are not in scope).
-
-## When NOT to use tinker
-
-- **Inspecting widgets or the UI tree**: use `tapir_snap` and
-  `tapir_observe`. They walk the Semantics tree; tinker has no access to
-  the BuildContext stack.
-- **Driving gestures (tap, drag, type)**: use `tapir_*` tools. They
-  enforce the 6-step actionability gate; tinker has no awareness of
-  hit-test or input dispatch.
-- **Multi-statement workflows with local variables and control flow**:
-  write a test file under `test/` and run `dart test`. Tinker is a
-  one-shot REPL, not a scripting host.
-- **Inspecting the Crumbs ring buffers**: use `crumbs_requests`,
-  `crumbs_exceptions`, `crumbs_console`. They format the buffers;
-  reading them via tinker forces you to do the formatting manually.
-- **Watching for state changes over time**: tinker has no streaming
-  surface. Use `tapir_wait_for { expression: ... }` which polls every
-  200ms on the running isolate, or set up a `crumbs_*` watcher and
-  read it back.
-
-## Anti-patterns
-
-- **Trailing semicolon**: `eval: "1 + 1;"` raises compile error 113.
-  Strip the `;`.
-- **Multi-statement**: `eval: "var x = 1; x + 1"` raises compile error.
-  Use a closure: `eval: "(() { var x = 1; return x + 1; })()"`. (Note:
-  the closure body is a block, but the OUTER expression is a single
-  closure invocation, which is valid.)
-- **Imports inside eval**: `eval: "import 'dart:math'; sqrt(4)"` raises
-  compile error. If `dart:math` is already imported by `lib/main.dart`
-  (rarely is in production), `eval: "sqrt(4)"` works directly. If not,
-  add the import to a debug-only file and hot-reload.
-- **Forgetting `.toString()` on complex objects**: `eval:
-  "MyService.instance.state"` returns `<MyState#a3f9>` (the default
-  `valueAsString` for non-primitives is the class-name-and-id sentinel).
-  Append `.toString()` for readable state.
-- **Using tinker as a sleep / poll loop**: tinker is one-shot. Loop in
-  the agent layer, not in the expression.
-
-## Comparison: `dowel_tinker` vs `tapir_evaluate`
-
-Both run on the VM Service; both accept a single Dart expression.
-Differences:
-
-| Capability | `dowel_tinker` | `tapir_evaluate` |
-|---|---|---|
-| Surfaces from | substrate (always available) | `tapir` plugin (dispatcher path only) |
-| Target library | root library of the running app | same |
-| Auto-await wrap | yes | no (caller must wrap manually) |
-| Default formatter | `Tinker.casters` chain (Magic-aware) | raw `InstanceRef` JSON |
-| Failure shape | `Runtime exception` / `Expression compilation error` text | structured JSON with error type |
-| Best for | live state inspection + action triggering | low-level evaluate where the raw `InstanceRef` JSON matters |
-
-Default: prefer `dowel_tinker` for inspect / mutate, `tapir_evaluate`
-when you need the structured JSON envelope or when running a non-Magic
-app that does not benefit from the caster chain.
+Both evaluate against the root library and both wrap `await`, so both return the Future reference rather than its value. `tapir_evaluate` comes from the `tapir` plugin (dispatcher entry only) and returns `{expression, result}`; its failures are `### Error` text starting `Runtime exception:`, `Expression compilation error:` or `Isolate sentinel encountered (kind: ...)`. Use `dowel_tinker` for inspection and triggers; its output goes through the `Tinker.casters` chain, which a host integration can extend.

@@ -1,519 +1,100 @@
-# State, lifecycle, and recovery
+# State, lifecycle and recovery
 
-`dowel` keeps three pieces of mutable state outside the
-source tree: the session directory at
-`~/.dowel/sessions/<hash>/` (state, log and FIFO for ONE project's
-running app), the legacy pointer `~/.dowel/state.json` (whichever
-session started last), and the AOT bundle at `.dowel/cli-bundle/`
-plus its stamp `.dowel/build.stamp` (per-project compiled wrapper). This file
-documents each, the MCP boot path comparison (substrate vs dispatcher),
-and the recovery loop for every common failure substring.
+dowel keeps mutable state outside the source tree: the session directory `~/.dowel/sessions/<hash>/` (state, log and FIFO of one project's running app), the pointer `~/.dowel/state.json`, and the AOT bundle `.dowel/cli-bundle/` with its stamp `.dowel/build.stamp` and build lock `.dowel/.dowel.lock/`: those three, with the scratch paths of a build, are the only gitignored part of `.dowel/` (`.dowel/cli-bundle*`, `.dowel/build.stamp*`, `.dowel/.dowel.lock/`). `.dowel/plugins.json`, `.dowel/installed/` and `.dowel/mcp.json` are source of truth and stay in version control. This file covers each, the two MCP entry points, and the recovery cases that need more than a row of the Recovery table in `SKILL.md`.
 
 ## Contents
 
-- [state.json schema](#statejson-schema)
-- [FIFO pipe model](#fifo-pipe-model)
-- [AOT bundle staleness gate](#aot-bundle-staleness-gate)
-- [MCP server boot path comparison](#mcp-server-boot-path-comparison)
-- [Diagnosing missing plugin tools](#diagnosing-missing-plugin-tools)
-- [Recovery loops by substring](#recovery-loops-by-substring)
-- [Quick state cleanup](#quick-state-cleanup)
-- [Running two projects at once](#running-two-projects-at-once)
-- [When to favour `./bin/dowel` over MCP](#when-to-favour-bindowel-over-mcp)
+- [Session and ownership](#session-and-ownership)
+- [state.json keys](#statejson-keys)
+- [FIFO model](#fifo-model)
+- [AOT bundle staleness](#aot-bundle-staleness)
+- [MCP entry points](#mcp-entry-points)
+- [Recovery cases](#recovery-cases)
+- [Two projects at once](#two-projects-at-once)
 
-## state.json schema
+## Session and ownership
 
-`lib/src/state/state_file.dart`
+- The session path is `~/.dowel/sessions/<hash>/state.json`; `<hash>` is a truncated SHA-256 of the project root, the nearest ancestor of the working directory that holds a `pubspec.yaml`. `flutter-dev.log` and `flutter-dev.fifo` sit beside it. The home directory resolves from `$HOME`, then `$USERPROFILE`, then `/tmp`.
+- `~/.dowel/state.json` points at whichever session started last. A read falls back to it when this project has no session of its own, and hand-writing it is the documented recovery when `dowel start` cannot boot an app.
+- `stop`, `reload`, `hot-restart` and every connected CLI command refuse a session whose `projectRoot` is not the working directory or an ancestor of it, exit 1, naming both paths; `status` reports `ownedByThisProject: false` and exits 0 instead. State without a `projectRoot`, `--state=<path>` and `DOWEL_STATE_FILE` skip the check; the flag wins when both are set. A named file that is missing or unreadable falls back to the pointer, still unchecked, so confirm it exists and holds the intended `projectRoot`. The MCP server runs no check for plugin tools and `dowel_tinker`, and the server resolves the session from its own working directory, falling back to the pointer when that project has none.
+- A git worktree has its own `pubspec.yaml`, so its project root is the worktree. Without a session of its own, the pointer answers. The check passes when the worktree sits inside the project root the pointer recorded (an app at the repo root, the worktree under it): `stop` stops the main app, `restart` stops it and boots the worktree's own app on the main app's ports, and connected commands act on it, all reporting success. A sibling checkout, or an app in a subdirectory the worktree is not inside, is refused. Run `dowel start` in the worktree first, or pass `--state=<path>`.
+- Writes go through `<file>.<pid>.tmp` and a rename; an unreadable session file reads as absent and falls through to the pointer.
 
-- **Absolute path**: `~/.dowel/sessions/<hash>/state.json`, where
-  `<hash>` is a truncated SHA-256 of the project root (resolved from
-  `$HOME`, falling back to `$USERPROFILE`, then `/tmp`). The log and the
-  FIFO live beside it in the same directory.
-- **Per project, not per machine.** It used to be one global
-  `~/.dowel/state.json`. A second project's `dowel start` silently
-  took that slot, and every connected command from the first project then
-  drove the second app, succeeding each time: the measured case had a
-  worktree in another repository rewrite it mid-session, and two commands
-  later produced a screenshot of an entirely different product.
-- **The legacy pointer still exists** at `~/.dowel/state.json`, holding
-  whatever started last. `read()` falls back to it when this project has
-  no session, so the documented recovery recipe (hand-writing that file
-  when `dowel start` cannot boot an app) keeps working.
-- **Ownership is checked before acting.** Any command that connects to,
-  stops, reloads or hot-restarts the recorded app refuses when its
-  `projectRoot` is not this directory or an ancestor of it. A working
-  directory inside the project passes, and so does state with no recorded
-  `projectRoot` (hand-written recovery state usually omits it).
-- **Overrides**: `--state=<path>` (global flag, consumed before dispatch)
-  and `DOWEL_STATE_FILE`. The flag wins. Naming the session explicitly
-  also bypasses the ownership check, because you have already answered
-  the question it asks.
-- **Two projects still need distinct ports.** `start` fails fast when the
-  web or CDP port is taken; pass `--port`, `--vm-service-port` and
-  `--cdp-port` per session.
-- **Atomicity**: every write goes through `.tmp` + rename; concurrent
-  readers never see partial JSON.
-- **Soft-read**: missing file returns `null`, parse failure also
-  returns `null` (no exception propagation).
+## state.json keys
 
-| Key | Type | Written by | Notes |
-|---|---|---|---|
-| `pid` | int | `start` | flutter run subprocess PID |
-| `vmServiceUri` | string | `start` | `ws://host:port/<token>/ws` (always WebSocket; http → ws normalised) |
-| `webPort` | int | `start` | the `--web-port` passed to flutter (e.g. 3100) |
-| `vmServicePort` | int | `start` | host VM Service port (default 8181) |
-| `device` | string | `start` | `chrome` / `macos` / `linux` / device serial; mirrors `--device` |
-| `startedAt` | string | `start` | ISO 8601 timestamp |
-| `profile` | string | `start` | `debug` or `static` (set when `--profile-static`) |
-| `projectRoot` | string | `start` | absolute path to the Flutter project that ran `start` |
-| `stdinPipe` | string | `start` | FIFO path (`~/.dowel/sessions/<hash>/flutter-dev.fifo`) |
-| `stdinHolderPid` | int | `start` | the `tail -f /dev/null > fifo` holder pid (kept alive so writer-side EOF does not propagate) |
-| `chromePid` | int / null | `start --cdp-port` | Chrome subprocess pid; null on non-CDP runs |
-| `tmpProfileDir` | string / null | `start --cdp-port` | Chrome temp profile dir; null otherwise |
-| `cdpPort` | int / null | `start --cdp-port` | the `--cdp-port` value; null when CDP is disabled |
-| `flutterArgs` | list / absent | `start --flutter-arg` | the extra `flutter run` arguments this session was started with; absent when there were none |
-| `booting` | bool / absent | `start` | present and true only between the spawn and the URI landing; says the record is incomplete rather than wrong |
-
-`restart` preserves `cdpPort` across the stop+start cycle: it reads the value from `state.json` before `stop` deletes the file, then forwards it into `start`, so a CDP-enabled session survives a restart. An explicit `--cdp-port` on the `restart` invocation wins over the preserved value. `flutterArgs` is carried the same way and matters more: a dropped port refuses to bind and says so, while a dropped `--dart-define` compiles clean and the app just behaves differently. The build mode is carried too: a `profile: static` session restarts as a profile build unless `restart --no-profile-static` says otherwise, so two measurements either side of a restart measure the same build.
-
-The agent reads state.json via `dowel_status`. Direct file reads via
-`Read` tool are also valid for debugging but `dowel_status` adds the
-`alive` liveness probe.
-
-## FIFO pipe model
-
-- **Path**: `~/.dowel/sessions/<hash>/flutter-dev.fifo`
-- **Created**: by `dowel_start` via shell `mkfifo` (skipped on Windows;
-  start raises `StateError('mkfifo failed (Windows not yet supported;
-  V1 is POSIX-only): ...')` on Windows).
-- **Dual-process holder pattern**:
-  - HOLDER process: `tail -f /dev/null > fifo`. Keeps the write end
-    open so flutter run's stdin does not EOF when an external writer
-    closes its handle.
-  - FLUTTER process: `nohup flutter run ... < fifo`. Reads keystrokes
-    from stdin.
-- **Write semantics**: `dowel_reload` writes `r\n`,
-  `dowel_hot_restart` writes `R\n`. Both use shell redirection:
-  `printf %s 'r\n' > <fifo>`. Dart's `File.open` rejects FIFOs because
-  the implementation calls `lseek` (illegal on FIFO).
-- **Cleanup**: `dowel_stop` stops the flutter tool's process group
-  (the HOLDER shares it), deletes the FIFO file and SIGTERMs the HOLDER
-  pid. POSIX semantics: unlinking a FIFO invalidates the inode
-  but open file descriptors remain valid until closed.
-
-**Race: FIFO missing while state.json exists.** If the user hard-kills
-flutter run (SIGKILL), the FIFO may be cleaned up while state.json is
-not. `dowel_reload` then exits 2 with
-`Pipe missing: <path>. Run `dowel restart``. Recovery:
-`dowel_restart` (rebuilds the FIFO), or `dowel_stop` (cleans state)
-+ `dowel_start`.
-
-## AOT bundle staleness gate
-
-`./bin/dowel` (POSIX shell wrapper) self-rebuilds the dispatcher AOT when
-any of 5 conditions holds. Wrapper source: the consumer's `bin/dowel`
-script, generated from `assets/stubs/bin_dowel.sh.stub` (lines 39-55).
-
-```bash
-needs_build() {
-  [ ! -x "$BINARY" ] && return 0                                         # 1: binary missing
-  [ ! -s "$STAMP_FILE" ] && return 0                                     # 2: stamp empty/missing
-  [ "$(cat "$STAMP_FILE")" != "$COMPILE_KEY" ] && return 0               # 3: stamp mismatch (lock hash : sdk version)
-  [ "$PROJECT_ROOT/pubspec.yaml" -nt "$STAMP_FILE" ] && return 0         # 4: pubspec.yaml newer than stamp
-  [ "$PROJECT_ROOT/lib/app/_plugins.g.dart" -nt "$STAMP_FILE" ] && return 0   # 5: plugin registry newer than stamp
-  return 1
-}
-```
-
-| Condition | Trigger |
+| Key | Notes |
 |---|---|
-| Binary missing | `.dowel/cli-bundle/bundle/bin/dispatcher` absent or non-executable |
-| Stamp missing | `.dowel/build.stamp` does not exist or is empty |
-| Stamp mismatch | The `<sha256(pubspec.lock)>:<dart --version>` key has changed (lock or SDK upgrade) |
-| `pubspec.yaml` newer than stamp | `pubspec.yaml` modified after the last successful build (the stamp is written at the end of every build) |
-| Plugin registry newer than stamp | `lib/app/_plugins.g.dart` regenerated by `plugin:install` or `plugins:refresh` after the last build |
+| `pid`, `stdinHolderPid` | The `flutter run` process and the `tail -f /dev/null > fifo` holder that keeps the FIFO open |
+| `stdinPipe` | FIFO path; `reload` and `hot-restart` write into it, so hand-written state without it cannot hot restart |
+| `vmServiceUri` | `ws://host:port/<token>/ws`; null while `booting` |
+| `booting` | Present and true between the spawn and the URI landing: the record is incomplete, not wrong |
+| `webPort`, `vmServicePort` | Recorded for every device; `webPort` is passed to flutter for `chrome` only; `vmServicePort` defaults to 8181 |
+| `device`, `profile`, `startedAt`, `projectRoot` | Target device, `debug` or `static`, ISO 8601 time, absolute project path |
+| `chromePid`, `tmpProfileDir`, `cdpPort` | Set by `start --cdp-port`, null otherwise |
+| `flutterArgs` | The `--flutter-arg` values; absent when there were none |
 
-**Rebuild flow** (acquires `.dowel/.dowel.lock` directory via atomic
-`mkdir`, runs `dart build cli -t bin/dispatcher.dart -o
-.dowel/cli-bundle`, writes the stamp atomically, exec's the binary).
-Typical rebuild: ~5s on a warm machine.
+`restart` stops, then starts again with the prior session's device, `webPort`, `vmServicePort`, `cdpPort`, `flutterArgs` and `profile: static`; an explicit flag wins. It refuses to go on when `stop` refuses, and a failed relaunch leaves no app, so do not restart blind in a worktree. Over MCP `dowel_restart` takes the same options and an omitted one keeps the prior value: to change the device, `dowel_restart { device }`. Read the file through `dowel_status`, which adds an `alive` probe.
 
-**Lock lifetime**: the lock is held only while building, and released
-before the wrapper `exec`s the binary, so a long-lived process such as
-`mcp:serve` never holds it. If a previous `./bin/dowel` was killed mid-build
-(SIGKILL bypasses the trap), `.dowel/.dowel.lock/` survives; the next
-invocation reads the stored PID, probes it with `kill -0`, and reclaims the
-lock when the owner is dead. A live owner is waited on for at most
-`DOWEL_LOCK_TIMEOUT` seconds (default 600), after which the call fails and
-names the owner's pid. A build compiles into `.dowel/cli-bundle.build.<pid>`
-and is swapped in by rename; leftovers from a killed build are removed by the
-next build.
+## FIFO model
 
-**When to manually invalidate the AOT**: after editing
-`.dowel/plugins.json` by hand, or after a `plugins:refresh` /
-`commands:refresh` that should change the registered set. Both refresh
-commands invalidate the cache as a side effect (delete
-`.dowel/cli-bundle/` + `.dowel/build.stamp`), so the next
-`./bin/dowel` rebuilds. If staleness persists: `rm -rf .dowel/cli-bundle
-.dowel/build.stamp && ./bin/dowel list`.
+- `start` creates the FIFO with `mkfifo`, starts a holder (`tail -f /dev/null > fifo`) so the write end stays open, and runs `nohup flutter run < fifo`.
+- `reload` writes `r`, `hot-restart` writes `R`, through shell redirection (`printf`): Dart's `File.open` rejects a FIFO. Both exit 0 once the keystroke is written, before Flutter finishes; read the log for the effect.
+- `stop` stops the flutter process group (the holder shares it), deletes the FIFO and terminates the holder.
+- `dowel_stop` with no session is a no-op that exits 0. A hard-killed `flutter run` can leave `state.json` without its FIFO: `reload` then exits 2 with `Pipe missing: <path>`. Recover with `dowel_restart`, or `dowel_stop` then `dowel_start`.
+- Windows has no `mkfifo`, so the lifecycle commands fail there; there is no agent-side recovery.
 
-## MCP server boot path comparison
+## AOT bundle staleness
 
-There are TWO entry points for the MCP server. The dispatcher path is
-the dev default; the substrate path exists for testing the dowel
-package itself.
+`./bin/dowel` is a shell wrapper generated from `assets/stubs/bin_dowel.sh.stub`. It rebuilds the dispatcher AOT when any of these holds:
 
-| Aspect | `dart run dowel:mcp` (substrate) | `./bin/dowel mcp:serve` (dispatcher) |
+| Condition | Meaning |
+|---|---|
+| Binary missing | `.dowel/cli-bundle/bundle/bin/dispatcher` absent or not executable |
+| Stamp missing or empty | `.dowel/build.stamp` |
+| Stamp mismatch | The key `<sha256(pubspec.lock)>:<4th word of dart --version>` changed |
+| `pubspec.yaml` newer than the stamp | Edited after the last build |
+| `lib/app/_plugins.g.dart` newer than the stamp | Regenerated after the last build |
+
+A build takes `.dowel/.dowel.lock` (an atomic `mkdir`), runs `dart build cli -t bin/dispatcher.dart` into `.dowel/cli-bundle.build.<pid>`, swaps it in by rename, writes the stamp and `exec`s the binary. The lock is released before the `exec`, so a long-lived `mcp:serve` never holds it. A dead owner's lock is reclaimed through a PID probe; a live owner is waited on for `DOWEL_LOCK_TIMEOUT` seconds (default 600), then the call fails naming its pid. The wait prints `dowel: waiting for another dowel invocation to finish...` on stderr. If it never clears, regenerate a wrapper that predates the release lock with `dart run dowel make:fast-cli --force`, or `rm -rf .dowel/.dowel.lock`.
+
+`plugins:refresh` (so `plugin:install` too) and `plugin:uninstall` purge the bundle, `make:fast-cli --force` rebuilds it, and `commands:refresh` does neither. If `./bin/dowel` does not see a command you just generated, run `rm -rf .dowel/cli-bundle .dowel/build.stamp && ./bin/dowel list`, or use `dart run :dispatcher <cmd>`.
+
+## MCP entry points
+
+| Aspect | `dart run dowel:mcp` | `./bin/dowel mcp:serve` |
 |---|---|---|
-| Entry source | `bin/mcp.dart` of the dowel package | `bin/dispatcher.dart` of the host app |
-| Force flags | `collectMcpTools: true`, `delegateToConsumer: false` | passes consumer providers via `baseProviders: [...]` + `plugins.autoDiscoveredProviders()` |
-| Loads `lib/app/_plugins.g.dart` | NO | YES |
-| Substrate tools | 10 (the allowlist) | 10 (the allowlist) |
-| Plugin tools | NONE | substrate + every plugin's `mcpTools()` |
-| Use case | Debugging the dowel substrate itself | Production dev loop in a real consumer app |
+| Entry | `bin/mcp.dart` of the dowel package | `bin/dispatcher.dart` of the host app |
+| Loads `lib/app/_plugins.g.dart` | No | Yes |
+| Tools | Substrate only | Substrate plus every plugin's `mcpTools()` |
+| Use | Debugging dowel itself | The dev loop in a consumer app |
 
-The canonical `.mcp.json` shape (written by `./bin/dowel mcp:install`)
-wires the dispatcher path:
+`mcp:install` writes the dispatcher shape: `{"command": "./bin/dowel", "args": ["mcp:serve"], "cwd": "."}` under `mcpServers.dowel`. Where `./bin/dowel` is absent, or on Windows, it writes `dart run :dispatcher mcp:serve`.
 
-```json
-{
-  "mcpServers": {
-    "dowel": {
-      "command": "./bin/dowel",
-      "args": ["mcp:serve"]
-    }
-  }
-}
-```
+Plugin tools missing from `tools/list` (`dowel_list` shows command namespaces and is no proof either way):
 
-This surfaces the 10 substrate tools plus every installed plugin's
-contributed tools. Read the stderr boot line
-`[dowel_mcp] initialized with N tools (...)` for the
-exact count in your consumer.
+1. Read `.mcp.json`: `dart run dowel:mcp` is the substrate entry and never lists plugin tools.
+2. Read `.dowel/plugins.json` and `lib/app/_plugins.g.dart` (`autoDiscoveredProviders()` must be non-empty). Run `./bin/dowel plugins:refresh`; if `plugins.json` is empty too, run `./bin/dowel plugin:install <name>`.
+3. Reconnect the MCP client (Claude Code: `/mcp reconnect dowel`); the server does not signal tool-list changes.
+4. Read the stderr boot line `[dowel_mcp] registered N tools (M filtered; P plugin + S substrate)`: `P` is the plugin tool count before filtering, and `M` above zero means a filter is denying tools.
 
-## Diagnosing missing plugin tools
+## Recovery cases
 
-Symptoms: `dowel_list` does NOT show `tapir:` or `crumbs:` namespace,
-or MCP `tools/list` shows only `dowel_*` entries.
+- **A second `dowel_start` for the same project.** `start` never reads an existing session before it spawns: it launches another `flutter run`, truncates the log and replaces the session file, leaving the first app running with nothing recorded. Check `dowel_status`; if a session is live, `dowel_stop` or `dowel_restart` first. A session file that `dowel_stop` cannot clear: remove that project's directory under `~/.dowel/sessions/` and retry. Removing only `~/.dowel/state.json` clears the pointer, not the session; `rm -rf ~/.dowel/sessions` clears every project.
+- **`booting: true` and no `vmServiceUri`.** The caller gave up before the URI was scraped, typically at a client's tool-call limit on a cold iOS or Android build; the app is up. Do not re-run `start` or hand-write the file. A CLI connected command reads the URI back from the log and completes the record: `./bin/dowel tinker --eval=1`; it exits 75 while the build is still running and 1 when the recorded process is gone. The MCP tools do not do this. If it does not clear, `flutter run` is failing: read the log.
+- **CLI `start` exits 75** (`flutter run (pid N) is still building after Ns`): the plain branch while the app is alive; treat it as the interrupted start above and do not re-run `start`. Exit 1 with `exited before announcing a VM Service URI` is the real failure. The `--cdp-port` branch reaps what it spawned and exits 1.
+- **`<ext> is not registered in the running app yet`** (exit 75): the app is still booting, or it is a release build or lacks the plugin. Wait and retry.
+- **Connected calls fail after a restart, stop and start, or device change.** The MCP server drops its VM client when the old app's socket closes and dials the URI the session records now on the next call; a plugin tool call that finds the old connection disposed is not run again and reports that its outcome is unknown. So check whether it took effect, then retry it after `dowel_status` shows the new app `alive`. Reconnect the MCP client (Claude Code: `/mcp reconnect dowel`) only if it keeps failing.
+- **`start --cdp-port` failures.** `CDP port <N> is already in use` and `Port <web-port> is already in use` fail before anything is spawned (free the port with `lsof -ti tcp:<port>` or pick another). `Chrome binary not found` names the expected path. A Flutter SDK older than 3.30.0 is refused on this branch. If Chrome fails after the probe, `start` kills Chrome and returns an error.
+- **`doctor` reports the default web port busy.** Another process holds TCP 3100; pass `--port=<N>` to `start`.
+- **Reset everything for a project.** `./bin/dowel stop`, remove its session directory, then `./bin/dowel start`.
 
-Decision tree:
+## Two projects at once
 
-```
-1. Inspect .mcp.json:
-   - command: "./bin/dowel", args: ["mcp:serve"]          → dispatcher path; should surface plugin tools
-   - command: "dart", args: ["run", "dowel:mcp"] → substrate path; will NOT surface plugin tools
-   - Anything else                                       → custom wiring; check the args manually
-
-2. If dispatcher path is wired but plugin tools still missing:
-   - Read .dowel/plugins.json: does it list the plugin (tapir, crumbs)?
-   - Read lib/app/_plugins.g.dart: does autoDiscoveredProviders() return a non-empty list?
-   - If no: run `./bin/dowel plugins:refresh` to regenerate from .dowel/plugins.json.
-   - If plugins.json is also empty: run `./bin/dowel plugin:install <name>`.
-
-3. Reconnect the MCP client (Claude Code: /mcp reconnect dowel).
-   The MCP server does NOT auto-detect tool list changes; the client must
-   reissue `initialize` + `tools/list`.
-
-4. Read the MCP server's stderr boot line:
-   [dowel_mcp] initialized with N tools (M filtered; P plugin + S substrate)
-   - P=0 means no plugin providers loaded (dispatcher path is broken or plugins.json is empty).
-   - M>0 means the filter is denying tools; check .dowel/mcp.json + env vars + CLI flags.
-```
-
-## Recovery loops by substring
-
-Connected tools (`dowel_tinker`, `tapir_*`, `crumbs_*`) and the
-substrate's own lifecycle commands return `isError: true` with a text
-message. Branch on substring, not full text.
-
-### `No Flutter app detected` / `Run `dowel start` first`
-
-Cause: this project has no session (app never started, or `stop` ran).
-Note that a sibling project's running app does NOT satisfy this: sessions
-are per project, so a pointer describing somebody else's app is refused
-rather than driven.
-
-```
-dowel_start { device: "chrome" }   # or whatever target
-dowel_status                        # confirm vmServiceUri present
-<retry the failing tool>
-```
-
-### A second `dowel_start` for the same project
-
-`dowel_start` never reads an existing session before it spawns
-(`StartCommand.handle`, `lib/src/commands/start_command.dart:397-530`), so
-there is no refusal to recover from. A second call spawns another `flutter
-run` and overwrites the session file, which leaves the first app running
-with nothing recorded. Call `dowel_status` first; if a session is live use
-`dowel_stop` or `dowel_restart`.
-
-```
-dowel_status
-dowel_stop
-dowel_start { device: ... }
-```
-
-If a session file is left behind that `dowel_stop` cannot clear, remove the
-session directory for this project (`dowel_status` reports its
-`projectRoot`; the path is `~/.dowel/sessions/<hash>/`) and retry. Removing
-only `~/.dowel/state.json` clears the pointer, not the session.
-
-### The session says `booting: true` and has no `vmServiceUri`
-
-Cause: `start` was cut short between spawning the app and scraping its URI.
-Almost always the CALLER gave up, not the app: an MCP client kills a tool
-call at 60s and a cold iOS or Android build routinely takes longer. The app
-is up, the session records everything except the URI, and the marker says so.
-
-Do NOT re-run `start` and do NOT hand-write the file. The next connected
-tool call reads the URI out of the session log and keeps it:
-
-```
-dowel_status         # booting: true, vmServiceUri null
-<any connected tool>   # recovers the URI and completes the record
-dowel_status         # booting gone, vmServiceUri present
-```
-
-If it does not clear, the underlying flutter run is failing rather than
-slow, and `dowel_logs` shows what it printed. From Bash the scrape window
-itself is adjustable: `./bin/dowel start -d chrome --timeout=180`. The MCP
-tool has no timeout parameter, so that path is CLI-only.
-
-The CLI reaches the same state on its own when `--timeout` runs out while
-flutter run is still alive (a cold macOS or iOS build): `start` prints
-`flutter run (pid <n>) is still building after <n>s` and exits 75, the
-"retry later" code. Treat it like the interrupted start above. Exit 1 with
-`exited before announcing a VM Service URI` is the real failure: read the log.
-
-### `<ext> is not registered in the running app yet`
-
-Cause: a connected command called an `ext.*` extension the app has not
-registered (JSON-RPC `-32601`). Usually the app is still booting and the
-plugin registers it a moment later; a release build or a plugin missing from
-the app answers the same way. The CLI prints this one line and exits 75.
-
-```
-<wait a few seconds>
-<retry the command>    # succeeds once the extension is registered
-```
-
-If it never clears, the app is a release build or the plugin is not
-installed in it. Plugin code can catch `ExtensionNotRegisteredException`
-from `ctx.callExtension` to wait instead of failing.
-
-### `state.json missing or has no vmServiceUri`
-
-Cause: a state file that records no URI and carries no `booting` marker, so
-it was not an interrupted start: flutter run crashed during boot before the
-URI was scraped.
-
-```
-dowel_status         # confirm the bad state
-dowel_stop           # clean
-dowel_start { ... }  # retry
-dowel_logs           # check what flutter run actually printed during boot
-```
-Read the captured log.
-
-### `Pipe missing: <path>. Run `dowel restart``
-
-Cause: FIFO was deleted while state.json still recorded it (usually
-hard-kill of flutter run).
-
-```
-dowel_restart
-```
-
-Or, if that loops: `dowel_stop` (forces cleanup), then `dowel_start`.
-
-### `The session has no stdinPipe entry`
-
-Cause: either the app was started by a dowel predating the FIFO refactor,
-or the state file was hand-written without it. The second is the likelier one
-now, and it is why hand-writing is the wrong recovery: `stdinPipe` holds the
-path `start` creates for `flutter run`'s stdin, and `reload` / `hot-restart`
-write their keystroke into it, so a file without it cannot hot restart.
-
-```
-dowel_restart        # rewrites the session with the current schema
-```
-
-### `Expression compilation error` / `RPCError(code: 113)` (tinker only)
-
-Cause: the `eval` argument is not a valid single expression.
-
-Recovery: rewrite. Common fixes:
-
-- Strip trailing `;`
-- Collapse `var x = 1; x + 1` to `(() { var x = 1; return x + 1; })()`
-- Replace `import '...'` with a direct symbol access (if the symbol is
-  already imported by `lib/main.dart`)
-- See `${CLAUDE_SKILL_DIR}/references/tinker-eval.md` for the recipe pack.
-
-### `Runtime exception: ...` (tinker only)
-
-Cause: the expression compiled but threw at runtime. This is a real bug
-in the running code or wrong input.
-
-Recovery: read the Dart exception class and message. Fix the app code
-or change the expression.
-
-### `Isolate sentinel (kind: ...)`
-
-Cause: stale isolate id (usually mid-hot-restart). The retry path in
-`VmServiceClient.callServiceExtension` should auto-recover; persistent
-failure means the isolate is gone.
-
-```
-dowel_hot_restart   # forces a clean isolate id
-<retry the failing tool>
-```
-
-### `mkfifo failed (Windows not yet supported; V1 is POSIX-only)`
-
-Cause: `dowel_start` on Windows.
-
-V1 limitation. Surface to the user; there is no agent-side recovery.
-
-### `Port <web-port> is already in use` (CDP path)
-
-Cause: `dowel_start --cdp-port=<N> --port=<web-port>` detects that the
-web port (the `--port` value, not the CDP port) is already in use and fails
-fast before spawning any processes. The error names the busy web port and
-suggests running `dowel stop` or selecting a different `--port`.
-
-Recovery:
+Each project has its own session directory, so state, log and FIFO do not collide; ports do. Only `--cdp-port` starts probe ports, so give every session its own:
 
 ```bash
-lsof -ti tcp:<web-port>             # find the squatter on the web port
-kill <squatter pid>                 # or pick a different --port
-./bin/dowel start --cdp-port=<N> --port=<new-web-port>
+./bin/dowel start --device=chrome --port=3100 --cdp-port=9333 --vm-service-port=8181   # project A
+./bin/dowel start --device=chrome --port=3180 --cdp-port=9380 --vm-service-port=8281   # project B
 ```
 
-The port probe runs before Chrome and the flutter web-server launch, so
-no orphaned processes are left. This fail-fast behaviour replaces the prior
-90s timeout that could leave stale sessions (issue #25).
-
-### `Chrome failed to open debug port <port>`
-
-Cause: `dowel_start --cdp-port=<N>` with Chrome missing, or a Chrome
-initialisation failure after the port probe passed.
-
-```bash
-# Confirm Chrome is installed:
-which google-chrome                 # Linux
-ls /Applications/Google\ Chrome.app # macOS
-```
-
-If Chrome is missing: the `Chrome binary not found` message names the
-expected path (macOS: `/Applications/Google Chrome.app/Contents/MacOS/Google Chrome`;
-Linux: `google-chrome` on PATH).
-
-If Chrome initialisation fails after the port probe, `dowel_start` reaps
-the spawned Chrome process, flutter web-server, FIFO pipe, and temporary
-profile directory before returning an error (issue #25). Run `dowel start`
-again once Chrome is healthy.
-
-### `Flutter SDK <X> is older than 3.30.0` (CDP path)
-
-Cause: `dowel_start --cdp-port` requires the WebSocket hot reload fix
-from flutter/flutter#170612 (landed in 3.30.0).
-
-Recovery: `flutter upgrade`, then retry. If staying on the older SDK,
-drop the `--cdp-port` flag and use the standard Chrome target (no CDP
-features available without it).
-
-### `port 3100 free` ✗ (doctor)
-
-Cause: another process holds TCP 3100 (the default web port).
-
-```bash
-lsof -ti tcp:3100                   # find the squatter
-kill <squatter pid>                 # or pass --port=<N> to dowel_start
-```
-
-### `dowel: waiting for another dowel invocation to finish...` (does not clear)
-
-Cause: another invocation is building right now, or a wrapper generated
-before 0.0.17 exec'd into a long-lived process (`mcp:serve`) while still
-holding the lock. The first clears within a build (~5s); the wait gives up
-after `DOWEL_LOCK_TIMEOUT` seconds (default 600) and names the owner's pid. The
-second is fixed by regenerating the wrapper:
-
-```bash
-dart run dowel make:fast-cli --force
-```
-
-A dead owner's lock is reclaimed automatically through the PID probe;
-`rm -rf .dowel/.dowel.lock` is the fallback when it is not.
-
-### Plugin tool returns "No tool registered with the name <X>"
-
-Cause: dart_mcp's native error envelope. Either the tool was denied by
-the filter, or the plugin provider was not loaded.
-
-```
-1. Call dowel_list, confirm the tool's namespace is missing.
-2. If namespace missing: follow "Diagnosing missing plugin tools" above.
-3. If namespace present: check .dowel/mcp.json + env vars + CLI flags
-   on `mcp:serve`. The filter is denying the specific tool.
-4. Reconnect the MCP client after fixing.
-```
-
-## Quick state cleanup
-
-When the running app is wedged in an unrecoverable state and a fresh
-start is preferred:
-
-```bash
-./bin/dowel stop                          # SIGTERM + cleanup if possible
-rm -rf ~/.dowel/sessions              # force clean (state + FIFO + log)
-rm -f  ~/.dowel/state.json            # the legacy pointer
-./bin/dowel start --device=chrome         # fresh boot
-```
-
-`rm -rf ~/.dowel/sessions` clears EVERY project's session, so prefer
-stopping the one you mean. `./bin/dowel doctor` prints the path this
-project resolves to when you want to remove just that directory.
-
-After this, the next MCP call automatically lazy-reconnects.
-
-## Running two projects at once
-
-Each project gets its own session directory, so state, log and FIFO no
-longer collide. Ports still do: give each session its own.
-
-```bash
-# project A
-./bin/dowel start --device=chrome --port=3100 --cdp-port=9333 --vm-service-port=8181
-
-# project B, in another checkout
-./bin/dowel start --device=chrome --port=3180 --cdp-port=9380 --vm-service-port=8281
-```
-
-Commands resolve the session from the working directory, so run them
-from inside the project they belong to. A command that would act on
-another project's app refuses instead, naming both paths; pass
-`--state=<path>` when you genuinely mean a session outside this
-directory.
-
-**Do not `dowel restart` blind in a worktree.** It carries the prior
-session's device and all three ports across now, but a restart still
-stops before it starts: if the relaunch fails, the app you were driving
-is already gone.
-
-## When to favour `./bin/dowel` over MCP
-
-For high-frequency drop-to-Bash work (codegen, plugin install,
-inspection of `.dowel/plugins.json`), prefer the CLI:
-
-```bash
-./bin/dowel list | rg tapir:               # quick filter
-./bin/dowel plugin:install custom_plugin --dry-run | tee plan.yaml
-./bin/dowel doctor                        # one-line health check
-```
-
-The MCP path is for in-session orchestration (start → tinker → reload →
-status); the CLI path is for one-shot scripted work the agent needs to
-chain with `jq`, `rg`, or `tee`.
+Run commands from inside the project they belong to. A CLI command that would act on another project's app refuses and names both paths, but plugin tools and `dowel_tinker` over MCP, and a worktree inside the recorded root, are not refused: check `dowel_status` (`projectRoot`, `ownedByThisProject`) before acting. Pass `--state=<path>` to name a session outside the directory.

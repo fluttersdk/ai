@@ -52,6 +52,7 @@
                 "references/cli-commands.md",
                 "references/mcp-tools.md",
                 "references/state-and-recovery.md",
+                "references/testing-commands.md",
                 "references/tinker-eval.md"
             ]
         },
