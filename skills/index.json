@@ -144,6 +144,13 @@
             "files": [
                 "SKILL.md"
             ]
+        },
+        {
+            "name": "magic-social-auth",
+            "description": "Add social sign-in to a Magic app: Google, Apple, GitHub and Microsoft through native sheets or a PKCE browser flow, with social:install and social:doctor.",
+            "files": [
+                "SKILL.md"
+            ]
         }
     ]
 }
