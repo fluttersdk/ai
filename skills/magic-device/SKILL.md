@@ -1,7 +1,7 @@
 ---
 name: magic-device
 description: "Gate background work on mains power and viewer idle, and drive macOS window fullscreen, with the magic_device package."
-version: 0.0.2
+version: 1.0.0
 when_to_use: "Use when code imports package:magic_device or needs DevicePower, WindowFullscreen, a charging, unplugged or away check, or a macOS fullscreen toggle."
 ---
 
