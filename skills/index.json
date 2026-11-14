@@ -88,6 +88,13 @@
                 "references/records.md",
                 "references/workflows.md"
             ]
+        },
+        {
+            "name": "magic-notifications",
+            "description": "Notifications for a Magic app with magic_notifications: the Notify facade, a backend-driven inbox, OneSignal push and realtime delivery.",
+            "files": [
+                "SKILL.md"
+            ]
         }
     ]
 }
