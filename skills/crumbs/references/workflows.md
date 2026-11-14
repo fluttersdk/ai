@@ -35,14 +35,14 @@ The fault already happened, so do not clear.
 1. crumbs_exceptions { limit: 5 }       the newest is last: read exceptionType, message, stackTrace
 2. crumbs_tail { limit: 100 }           the log lines before it, by time
 3. crumbs_requests { limit: 20 }        a 4xx or 5xx just before the throw is the usual cause
-4. crumbs_gates { limit: 10 }           on a Magic app, a denied ability before an authorisation error
+4. crumbs_gates { limit: 10 }           with the Magic integration, a denied ability before an authorisation error
 ```
 
 Exception records carry no `atUs`; line them up by `time`. To reproduce it cleanly afterwards, run the verify loop above.
 
 ## Trace a Magic action
 
-With `MagicCrumbsIntegration` installed, one action fans out across buffers:
+With `MagicCrumbsIntegration` installed (a `magic_devtools` release built on crumbs ships it), one action fans out across buffers:
 
 ```text
 1. crumbs_clear
@@ -70,7 +70,7 @@ Join events, queries, requests and caches on `atUs`; gates have only `time`.
 ./bin/dowel crumbs:events --type=Auth --json --since=<that atUs> # only what came after
 ```
 
-Over MCP, pass the `cursor` of one answer as `since` on the next: `crumbs_events { type: "Auth", since: <cursor> }`. With `since`, `limit` keeps the oldest records after it, so paging never skips one.
+Over MCP, pass the `cursor` of one answer as `since` on the next: `crumbs_events { type: "Auth", since: <cursor> }`. With `since`, `limit` keeps the oldest records after it, so paging is exact for the records that exist when the page is read; a record added later with the same microsecond `atUs` as the page's last record can be missed.
 
 ## Read the timeline on disk
 
@@ -82,11 +82,11 @@ When the host runs a `CrumbsFileSink`, redacted log, event and exception records
 ./bin/dowel crumbs:files --name=<file> --offset=<next offset>    # continue
 ```
 
-Each line is `{"kind": "log"|"event"|"exception", ...}` followed by the record's keys; join kinds on `atUs` (exceptions have only `time`). "No timeline file sink is running." means the host started none. A sink that runs but writes nothing has no `redactor` set (it writes only `redacted: true` records) or stopped after a failed write.
+Each line is `{"kind": "log"|"event"|"exception", ...}` followed by the record's keys; join kinds on `atUs` (exceptions have only `time`). "No timeline file sink is running." means the host started none, or the sink stopped after a failed write. A sink that runs but writes nothing has no `redactor` set (it writes only `redacted: true` records).
 
 ## Capture HTTP in an app without Magic
 
-`DioHttpAdapter` installs no interceptor; register it for the name and record from the app's own interceptor:
+crumbs hooks no HTTP client: record from the app's own interceptor through `CrumbsStore.recordHttp`, which masks the credentials before it buffers the record:
 
 ```dart
 import 'package:crumbs/crumbs.dart';
@@ -114,22 +114,25 @@ final class CrumbsDioInterceptor extends Interceptor {
   }
 
   void _record(RequestOptions options, int statusCode, {bool failed = false}) {
-    DioHttpAdapter.recordRequest(
-      url: options.uri.toString(),
-      method: options.method,
-      statusCode: statusCode,
-      durationMs: _clocks.remove(options)?.elapsedMilliseconds ?? 0,
-      isError: failed || statusCode >= 400,
-      requestHeaders: <String, String>{
-        for (final MapEntry<String, dynamic> header in options.headers.entries)
-          header.key: '${header.value}',
-      },
+    CrumbsStore.recordHttp(
+      HttpRequestRecord(
+        url: options.uri.toString(),
+        method: options.method,
+        statusCode: statusCode,
+        durationMs: _clocks.remove(options)?.elapsedMilliseconds ?? 0,
+        isError: failed || statusCode >= 400,
+        timestamp: DateTime.now(),
+        requestHeaders: <String, String>{
+          for (final MapEntry<String, dynamic> header in options.headers.entries)
+            header.key: '${header.value}',
+        },
+      ),
     );
   }
 }
 ```
 
-Inside the debug guard: `CrumbsPlugin.registerHttpAdapter(DioHttpAdapter());` and `dio.interceptors.add(CrumbsDioInterceptor());`. Headers and bodies are masked at insert. This adapter reports no in-flight count, so `CrumbsStore.pendingHttpCount` stays 0; an adapter that tracks one overrides `pendingCount`.
+Inside the debug guard: `dio.interceptors.add(CrumbsDioInterceptor());`. Headers, bodies and the URL query are masked at insert, but the store masks only JSON and form strings: run a body held as a `Map` through `CrumbsRedaction.redactParameters` first, and a string body through `CrumbsRedaction.redactBody` before truncating it, because a cut JSON body no longer parses. No adapter is involved, so `CrumbsStore.pendingHttpCount` stays 0; a `CrumbsHttpAdapter` that tracks in-flight requests (registered with `CrumbsPlugin.registerHttpAdapter`, `pendingCount` implemented) is what feeds it.
 
 ## Turn on redaction and the timeline
 
@@ -142,8 +145,8 @@ CrumbsRedaction.redactor =
 await CrumbsFileSink.start(directory: timelineDirectory); // an absolute directory the app owns
 ```
 
-The redactor must be pure and total: a throw drops the record rather than let it through unmasked. Set it before the records you want on disk are made; a record buffered while it was null stays `redacted: false` and the sink skips it. `start` throws when the directory cannot be created, and on web.
+The redactor must be pure and total: a throw drops the record rather than let it through unmasked. It also covers the free text key masking cannot reach (a log message, a dump, a query's SQL). Set it before the records you want on disk are made; a record buffered while it was null stays `redacted: false` and the sink skips it. `start` throws a `FileSystemException` when the directory cannot be created or written. The sink writes through `dart:io`, so it needs a native target; `maxFileBytes` (default 1 MiB) and `maxFiles` (default 8) bound its disk use.
 
 ## Coexist with Sentry or Bugsnag
 
-`ExceptionWatcher` and `DumpWatcher` save the handler in place when they install and call it after recording, so install the other reporter first: it keeps receiving every error and every `debugPrint`. A reporter installed later must chain to the handler it replaces, or crumbs stops seeing those errors. `ExceptionWatcher` returns the previous `PlatformDispatcher.onError` handler's verdict, so a reporter that marks an error fatal still does. `FramePerfWatcher` adds a timings callback rather than replacing one, so it has nothing to chain.
+`ExceptionWatcher` and `DumpWatcher` save the handler in place when they install and call it after recording, so install the other reporter first: it keeps receiving every error and every `debugPrint`. A reporter installed later must chain to the handler it replaces, or crumbs stops seeing those errors. `ExceptionWatcher` returns the previous `PlatformDispatcher.onError` handler's verdict, so a reporter that marks an error fatal still does, and it calls the previous handler even when recording an error throws (an error whose `toString()` throws). `FramePerfWatcher` adds a timings callback rather than replacing one, so it has nothing to chain.

@@ -1,11 +1,11 @@
 ---
 name: crumbs
 description: "Read the HTTP, logs, exceptions and events a running Flutter app captured, with crumbs."
-version: 0.0.13
+version: 1.0.0
 when_to_use: "Use when calling crumbs_* tools or crumbs:* commands to see what a running Flutter app did; driving the UI is tapir, app lifecycle is dowel."
 ---
 
-<!-- crumbs v0.0.13 | Skill updated: 2026-11-14 -->
+<!-- crumbs v1.0.0 | Skill updated: 2026-11-14 -->
 
 # crumbs
 
@@ -15,7 +15,7 @@ Scope: this skill reads captured state. Driving the UI (taps, text, navigation, 
 
 ## Install
 
-If a `crumbs_*` call reports that no app or VM Service is reachable, the app is not running; if it reports an unregistered `ext.crumbs.*` method, crumbs is not installed or the app predates the install. From the Flutter app root:
+If a `crumbs_*` call reports that no running Flutter app was detected, start one (below). If it reports that an `ext.crumbs.*` method "is not registered in the running app yet" (a CLI exit 75), the app is still booting, is a release build, or has no crumbs: retry after a few seconds, then check the guard in `lib/main.dart`. From the Flutter app root:
 
 ```bash
 flutter pub add crumbs
@@ -25,17 +25,17 @@ dart run crumbs mcp:install           # writes the `dowel` entry into .mcp.json
 ./bin/dowel crumbs:tail               # "No log records." on a fresh start is not an error
 ```
 
-`crumbs:install` puts this block before `runApp(` (before `await Magic.init(` on a Magic app, so boot errors are caught), behind `if (kDebugMode)`, so profile and release builds drop crumbs:
+`crumbs:install` puts this block before `runApp(` (before `await Magic.init(` on a Magic app, so boot errors are caught), behind `if (!kReleaseMode)`, so debug and profile builds carry crumbs and a release build drops it:
 
 ```dart
-if (kDebugMode) {
+if (!kReleaseMode) {
   CrumbsPlugin.install();
   CrumbsPlugin.registerWatcher(ExceptionWatcher());
   CrumbsPlugin.registerWatcher(DumpWatcher());
 }
 ```
 
-On a Magic app it also adds `MagicCrumbsIntegration.install()` (from `package:magic_devtools/crumbs.dart`) after `Magic.init()`, which registers the Magic HTTP adapter and the model, cache, event, gate and query watchers, but only when the resolved `magic_devtools` is a release built on crumbs; otherwise it warns and skips that line. Until that release ships, `MagicTelescopeIntegration` feeds `fluttersdk_telescope`, not crumbs, so the HTTP, event, gate, query and cache buffers of crumbs stay empty in a Magic app; upgrade `magic_devtools` then and rerun. Re-running the command is safe. Reconnect the MCP client after `mcp:install` (in Claude Code, `/mcp reconnect dowel`); a stdio server is not reloaded on its own. A Claude Code allow-list entry for the tools is `mcp__dowel__crumbs_*`.
+On a Magic app it also adds `MagicCrumbsIntegration.install()` (from `package:magic_devtools/crumbs.dart`) after `Magic.init()`, which registers the Magic HTTP adapter and the model, cache, event, gate and query watchers, and a `magic_devtools` release built on crumbs ships that integration; when the resolved `magic_devtools` lacks the library it warns and skips that line, so Magic's buffers stay empty until you upgrade `magic_devtools` and rerun. Re-running is safe: a `main.dart` that already calls `CrumbsPlugin.install(` gets no second crumbs block, and a rerun still adds `MagicCrumbsIntegration.install()` once the resolved `magic_devtools` ships it, behind the guard of the existing crumbs block. Reconnect the MCP client after `mcp:install` (in Claude Code, `/mcp reconnect dowel`); a stdio server is not reloaded on its own. A Claude Code allow-list entry for the tools is `mcp__dowel__crumbs_*`.
 
 ## Rules
 
@@ -47,34 +47,34 @@ On a Magic app it also adds `MagicCrumbsIntegration.install()` (from `package:ma
    | Buffer | Read with | Filled by |
    |---|---|---|
    | logs | `crumbs_tail` | `LogWatcher`, installed by `CrumbsPlugin.install()`; only `package:logging` calls |
-   | HTTP | `crumbs_requests` | a `CrumbsHttpAdapter`; `DioHttpAdapter` installs no interceptor, the app's own interceptor calls `DioHttpAdapter.recordRequest` |
+   | HTTP | `crumbs_requests` | a `CrumbsHttpAdapter`, or the app's own interceptor calling `CrumbsStore.recordHttp`; crumbs hooks no HTTP client itself |
    | exceptions | `crumbs_exceptions` | `ExceptionWatcher`: uncaught errors from `FlutterError.onError` and `PlatformDispatcher.instance.onError` |
    | dumps | `crumbs_dumps` | `DumpWatcher`: `debugPrint` only (not `print`), debug builds only |
-   | events, gates, queries, caches | `crumbs_events`, `crumbs_gates`, `crumbs_queries`, `crumbs_caches` | the Magic watchers from `MagicCrumbsIntegration`; `crumbs_events` holds auth, database and gate-definition events |
+   | events, gates, queries, caches | `crumbs_events`, `crumbs_gates`, `crumbs_queries`, `crumbs_caches` | the Magic watchers `MagicCrumbsIntegration` registers, in a `magic_devtools` release built on crumbs; `crumbs_events` holds auth, database and gate-definition events |
    | frames | `crumbs_frames` | `FramePerfWatcher`, registered by the host |
-   | models | nothing | Magic's model watcher; model events go to this buffer, which no tool serves |
+   | models | nothing | Magic's model watcher (same release); model events go to this buffer, which no tool serves |
 
-   The CLI says so on an empty read (`No HTTP records (register a CrumbsHttpAdapter).`). `crumbs_frames` always carries `livenessCounter`, the count of frames drawn: frames empty while it stays still means no watcher or a stalled engine, not an idle app.
-3. **Crumbs is debug-only by the host's guard.** `CrumbsPlugin.install()` itself checks no build mode; the guard around it in `lib/main.dart` decides. `DumpWatcher` adds its own debug check. `--dart-define=CRUMBS_DISABLE=1` skips the install.
+   The CLI names the producer on an empty read for every buffer but logs and timeline files (`No HTTP records (register a CrumbsHttpAdapter).`). `crumbs_frames` always carries `livenessCounter`, the count of frames drawn: after you drive the UI, frames empty while it stays still means no watcher is registered or the engine stalled.
+3. **Crumbs runs only where the host's guard lets it.** `CrumbsPlugin.install()` itself checks no build mode; the guard around it in `lib/main.dart` decides, and the one `crumbs:install` writes is `!kReleaseMode`, so debug and profile builds carry crumbs and a release build does not. `DumpWatcher` adds its own debug check (`DumpWatcher()..allowInRelease = true`, set before `registerWatcher`, lifts it once the host guard allows the build). `--dart-define=CRUMBS_DISABLE=1` (or `true`, `yes`) makes `install()`, `registerWatcher` and `registerHttpAdapter` return without installing anything, so a disabled build has no extensions and no watcher.
 4. **Buffers are rings.** 500 records each by default, frame perf 3600; the oldest is evicted without notice. A host can change a cap with `CrumbsStore.setCapacity(n, kind: CrumbsKind.x)`. A hot restart empties them; `crumbs_clear` empties all of them at once and answers `{"cleared": true}`.
 
 ### Reading
 
-5. **Every answer is one JSON object with one list,** oldest first: `records` (requests), `messages` (tail), `exceptions`, `dumps`, `events`, `gates`, `queries`, `caches`, `frames`. Over MCP it arrives as one text block; parse it before reading fields.
+5. **Every answer is one JSON object with one list,** oldest first: `requests`, `messages` (tail), `exceptions`, `dumps`, `events`, `gates`, `queries`, `caches`, `frames`. Beside it: `cursor` on tail and events, `livenessCounter` on frames. Over MCP it arrives as one text block; parse it before reading fields.
 6. **`limit` keeps the newest N; `level` is a minimum.** Omit `limit` over MCP for the whole buffer; the CLI defaults to 50. A `limit` that is not a number reads the whole buffer, zero or below reads nothing. `crumbs_tail { level: "WARNING" }` keeps WARNING, SEVERE and SHOUT; an unknown level name matches nothing, so an empty answer after a typo is the typo.
-7. **Page logs and events with the cursor.** `crumbs_tail` and `crumbs_events` (and their commands) take `since`, an `atUs` in microseconds, exclusive, and answer `cursor`, the largest `atUs` returned (or the `since` you gave when nothing is newer). Pass it back as `since` to read only newer records. With `since`, `limit` keeps the oldest N after it, plus any records sharing the last `atUs`, so paging skips nothing. `logger` (exact name, logs) and `type` (event type prefix) narrow further. The tool schemas list only `limit` and `level`, but dowel forwards every argument, so these work over MCP too. A non-integer `since` is refused with `invalidParams`.
+7. **Page logs and events with the cursor.** `crumbs_tail` and `crumbs_events` (and their commands) take `since`, an `atUs` in microseconds, exclusive, and answer `cursor`, the largest `atUs` returned (or the `since` you gave when nothing is newer). Pass it back as `since` to read only newer records. With `since`, `limit` keeps the oldest N after it, plus any records sharing the last `atUs`, so paging is exact for the records that exist when the page is read; a record added later with the same microsecond `atUs` as the page's last record can be missed. `logger` (exact name, logs) and `type` (event type prefix) narrow further; the tool schemas declare all of them (`crumbs_tail`: `limit`, `level`, `logger`, `since`; `crumbs_events`: `limit`, `type`, `since`). A non-integer `since` is refused with `invalidParams` (the CLI exits 3).
 8. **`--follow` streams.** `crumbs:tail --follow` and `crumbs:events --follow` re-read every second from the last cursor until interrupted; run them in the background while driving the app, with `--json` for one object per line.
 9. **Join across buffers on `atUs`,** the monotonic clock every record but exceptions, dumps and gates carries; `time` and `timestamp` are wall clock, for display. `interactionId` with `linkedBy` (`zone`, `frame`, `window`) appear when the capturing site links records to one interaction.
 
 ### Redaction and the timeline on disk
 
-10. **`********` is crumbs' mask, not the app's value.** Every HTTP record is masked before it is buffered: credential request headers (`authorization`, `cookie`, `x-api-key` and the like) and credential keys of a JSON or form body (`password`, `token`, `access_token`, `secret` and the like), case-insensitive, at any depth. A masked header was sent; a missing one is absent from `requestHeaders`. An empty credential stays visible.
-11. **The host's `redactor` fails closed.** `CrumbsRedaction.redactor` runs over every text of the log, event, exception and HTTP records before they are buffered and sets `redacted: true`. A redactor that throws drops the record from the buffer and the stream, so a line missing right after a sensitive log call can be a failing redactor. Dumps, gates, queries, caches, models and frames are not run through it.
-12. **The JSONL timeline holds redacted records only.** When the host runs `CrumbsFileSink.start(directory: ...)`, log, event and exception records with `redacted: true` are written as `{"kind": "log"|"event"|"exception", ...}` lines to rotating `timeline-<UTC stamp>-<n>.jsonl` files that outlive the buffers and the launch. Without a `redactor` nothing is written. Read it only with `crumbs:files` (no MCP tool); "No timeline file sink is running." means the host started none.
+10. **`********` is crumbs' mask, not the app's value.** Credential keys are masked before a record is buffered, with no host setup: HTTP request headers (`authorization`, `cookie`, `x-api-key` and the like), keys of a JSON or form body, request or response alike (`password`, `token`, `access_token`, `secret`, `api_key` and the like), credential-named parameters in the URL query (`access_token`, `api_key`, the `X-Amz-*` signature of a presigned URL), and the same keys inside the Map elements of a query's `bindings` and a gate check's `arguments` (a positional binding has no key, so only a `redactor` masks it). Case-insensitive, at any depth. A masked header was sent; a missing one is absent from `requestHeaders`. An empty credential stays visible.
+11. **The host's `redactor` fails closed, and free text has no other mask.** `CrumbsRedaction.redactor` runs over every text of the log, event, exception and HTTP records, a dump's message, a query's SQL and bindings, and a gate's arguments and user id before they are buffered; the log, event, exception and HTTP records then carry `redacted: true`. Without a `redactor`, a credential written into a log line, a `debugPrint` or a SQL literal is buffered as written. A redactor that throws drops the record from the buffer and the stream, so a line missing right after a sensitive log call can be a failing redactor. Cache, model and frame records are not masked.
+12. **The JSONL timeline holds redacted records only.** When the host runs `CrumbsFileSink.start(directory: ...)`, log, event and exception records with `redacted: true` are written as `{"kind": "log"|"event"|"exception", ...}` lines to rotating `timeline-<UTC stamp>-<n>.jsonl` files that outlive the buffers and the launch. Without a `redactor` nothing is written. One sink per directory: a second process writing there has its files pruned. Read it only with `crumbs:files` (no MCP tool); "No timeline file sink is running." means the host started none.
 
 ### Crumbs and tapir
 
-13. **Tapir acts, crumbs explains.** Use tapir to cause an effect and see the screen; use crumbs to see why: the request and its status, the log line, the exception and its stack. Tapir reads crumbs only through reader pointers the host assigns (`MagicCrumbsIntegration` does it): `tapir_wait_for_network_idle` reads `CrumbsStore.pendingHttpCount`, which stays 0 unless an adapter counts in-flight requests, so it may report idle at once. Wait on the UI or on `crumbs_requests` instead.
+13. **Tapir acts, crumbs explains.** Use tapir to cause an effect and see the screen; use crumbs to see why: the request and its status, the log line, the exception and its stack. Tapir reads crumbs only through reader pointers the host assigns, and reads 0 where none is set: `tapir_wait_for_network_idle` reads `CrumbsStore.pendingHttpCount`, which stays 0 unless an adapter counts in-flight requests, so it may report idle at once. Wait on the UI or on `crumbs_requests` instead.
 
 ## Recipes
 
@@ -97,7 +97,7 @@ The same from a shell, following one logger while a second shell drives the app:
 ./bin/dowel crumbs:clear
 ./bin/dowel crumbs:tail --logger=Sync --json --follow     # background; one JSON object per line
 ./bin/dowel crumbs:requests --limit=20
-./bin/dowel crumbs:events --type=Auth --since=<cursor>
+./bin/dowel crumbs:events --type=Auth --json --since=<last atUs>
 ./bin/dowel crumbs:files                                  # timeline files, newest first
 ```
 
@@ -133,7 +133,7 @@ void main() {
 }
 ```
 
-In CI, run the CLI against a started app and read with `--json`; every read command exits 0 even on an empty buffer, so assert on the output, not the exit code.
+In CI, run the CLI against a started app and read with `--json`; a read command exits 0 even on an empty buffer, so assert on the output, not the exit code. Exit 75 means the extension is not registered yet: retry a few times, then check the build mode and the install.
 
 ## References
 
