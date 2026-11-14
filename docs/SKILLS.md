@@ -54,45 +54,45 @@ Nineteen reference files, including one per ecosystem plugin: `magic_deeplink`, 
 
 ---
 
-## fluttersdk-dusk
+## tapir
 
-**Package:** `fluttersdk_dusk`
+**Package:** `tapir` (renamed from `fluttersdk_dusk`)
 **Upstream repo:** https://github.com/anilcancakir/tapir
 
 ### Triggers on
 
-Any `dusk_*` MCP tool call, any `dusk:*` CLI command, a `./bin/fsa` invocation, or a request to drive, inspect, test, or debug a running Flutter app.
+Any `tapir_*` MCP tool call, any `tapir:*` CLI command, or a request to drive, inspect, test, or debug a running Flutter UI.
 
 ### What it provides
 
-An E2E driver that lets an agent see (`snap`, `observe`, `screenshot`) and act (`tap`, `type`, `drag`, `scroll`, `navigate`) on a running Flutter app through a matched pair of `dusk_*` MCP tools and `dusk:*` CLI commands, one CLI verb per tool. Snapshots emit a YAML Semantics tree with stable `[ref=eN]` tokens; `dusk_find` and `dusk_observe` mint re-resolvable `q<N>` query handles that survive a rebuild where an `e<N>` does not.
+An E2E driver that lets an agent see (`snap`, `observe`, `screenshot`) and act (`tap`, `type`, `drag`, `scroll`, `navigate`) on a running Flutter app through a matched pair of `tapir_*` MCP tools and `tapir:*` CLI commands, one CLI verb per tool. Snapshots emit a YAML Semantics tree with stable `[ref=eN]` tokens; `tapir_find` and `tapir_observe` mint re-resolvable `q<N>` query handles that survive a rebuild where an `e<N>` does not.
 
 Every gesture passes a six-step actionability gate whose failure reasons are substring-parseable (`not enabled`, `zero rect`, `off-viewport`, `not stable`, `obscured by`, `defunct`), so an agent can branch on why a tap was refused instead of retrying blindly.
 
 ### Recommended companion skills
 
-`dowel` (required substrate), `fluttersdk-telescope` for reading side effects after a gesture.
+`dowel` (required substrate), `crumbs` for reading side effects after a gesture.
 
 ---
 
-## fluttersdk-telescope
+## crumbs
 
-**Package:** `fluttersdk_telescope`
+**Package:** `crumbs` (renamed from `fluttersdk_telescope`)
 **Upstream repo:** https://github.com/anilcancakir/crumbs
 
 ### Triggers on
 
-Any `telescope_*` MCP tool call, any `telescope:*` CLI command, or a request to inspect HTTP traffic, logs, exceptions, events, queries, cache operations, or debug dumps from a running Flutter app.
+Any `crumbs_*` MCP tool call, any `crumbs:*` CLI command, or a request to inspect HTTP traffic, logs, exceptions, events, queries, cache operations, or debug dumps from a running Flutter app.
 
 ### What it provides
 
-A passive runtime inspector. The app captures HTTP traffic, structured logs, uncaught exceptions, debug dumps, in-app events, gate checks, DB queries, and Magic cache operations into nine in-memory ring buffers (500 entries each, FIFO eviction), surfaced as `ext.telescope.*` VM Service extensions and read through nine MCP tools or six CLI commands.
+A passive runtime inspector. The app captures HTTP traffic, structured logs, uncaught exceptions, debug dumps, in-app events, gate checks, DB queries, and Magic cache operations into in-memory ring buffers, surfaced as `ext.crumbs.*` VM Service extensions and read through `crumbs_*` MCP tools and `crumbs:*` CLI commands. Credentials are masked before a record is buffered, and an optional JSONL timeline on disk keeps only the masked copy.
 
-It pairs with dusk: dusk drives the app, telescope reads what the app did in response, so a verification step does not depend on what happens to be visible on screen.
+It pairs with tapir: tapir drives the app, crumbs reads what the app did in response, so a verification step does not depend on what happens to be visible on screen.
 
 ### Recommended companion skills
 
-`dowel` (required substrate), `fluttersdk-dusk` for driving the UI whose side effects you are reading.
+`dowel` (required substrate), `tapir` for driving the UI whose side effects you are reading.
 
 ---
 
@@ -113,4 +113,4 @@ One wiring detail decides whether plugin tools appear at all: `tapir_*` and `cru
 
 ### Recommended companion skills
 
-`fluttersdk-dusk` and `fluttersdk-telescope` (becoming `tapir` and `crumbs`) are dowel plugins; load them when the task touches E2E driving or runtime inspection.
+`tapir` and `crumbs` are dowel plugins; load them when the task touches E2E driving or runtime inspection.
