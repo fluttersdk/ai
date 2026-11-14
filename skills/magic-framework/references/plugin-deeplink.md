@@ -1,4 +1,4 @@
-<!-- magic_deeplink v0.1.8 | Updated: 2026-10-14 -->
+<!-- magic_deeplink v1.0.0 | Updated: 2026-11-14 -->
 
 # magic_deeplink Plugin
 
@@ -24,16 +24,16 @@ Deep link handling plugin for Magic Framework: wraps `app_links` with a handler 
 ```bash
 flutter pub add magic_deeplink
 
-# Register the plugin's artisan provider with the app dispatcher (once)
-dart run magic:artisan plugin:install magic_deeplink
+# Register the plugin's dowel provider with the app dispatcher (once)
+dart run magic:dowel plugin:install magic_deeplink
 
 # Scaffold the config, inject the provider, wire the config factory
-dart run magic:artisan deeplink:install
+dart run magic:dowel deeplink:install
 ```
 
-The order matters: every `deeplink:*` command is contributed by `MagicDeeplinkArtisanProvider`, and the dispatcher only knows about that provider after `plugin:install` has written it into `.artisan/plugins.json` and regenerated `lib/app/_plugins.g.dart`. Run the second command first and the dispatcher reports an unknown command.
+The order matters: every `deeplink:*` command is contributed by `MagicDeeplinkDowelProvider`, and the dispatcher only knows about that provider after `plugin:install` has written it into `.dowel/plugins.json` and regenerated `lib/app/_plugins.g.dart`. Run the second command first and the dispatcher reports an unknown command.
 
-**Know it worked**: `dart run magic:artisan list` lists the `deeplink:*` commands, and `dart run magic:artisan deeplink:doctor` reports on the config, the Dart wiring and both platforms' setup. Run it before reaching for a device; every way of getting this install wrong is silent, and the doctor is the only thing that separates "installed" from "installed and inert".
+**Know it worked**: `dart run magic:dowel list` lists the `deeplink:*` commands, and `dart run magic:dowel deeplink:doctor` reports on the config, the Dart wiring and both platforms' setup. Run it before reaching for a device; every way of getting this install wrong is silent, and the doctor is the only thing that separates "installed" from "installed and inert".
 
 `deeplink:install` scaffolds `lib/config/deeplink.dart`, injects `DeeplinkServiceProvider` into `lib/config/app.dart`, injects `deeplinkConfig` into `lib/main.dart`'s `configFactories`, and sets `FlutterDeepLinkingEnabled` to `false` in `ios/Runner/Info.plist`. Everything under [Platform setup](#platform-setup) that is not that plist key is manual.
 
@@ -87,7 +87,7 @@ An operating system will not hand the app a link until the app proves it owns th
    <meta-data android:name="flutter_deeplinking_enabled" android:value="false" />
    ```
 
-   `deeplink:install` does NOT apply this one. Artisan's `XmlEditor` inserts `<meta-data>` into `<application>`, and Flutter reads this key from `<activity>`, so automating it would write an entry Flutter never looks at.
+   `deeplink:install` does NOT apply this one. dowel's `XmlEditor` inserts `<meta-data>` into `<application>`, and Flutter reads this key from `<activity>`, so automating it would write an entry Flutter never looks at.
 
 3. Upload `assetlinks.json` to `https://<your-domain>/.well-known/assetlinks.json`. Android verifies it at install time, not at click time.
 
@@ -376,16 +376,16 @@ DeeplinkServiceProvider(super.app, {DeeplinkDriver Function()? driverFactory})
 ### install
 
 ```bash
-dart run magic:artisan deeplink:install
-dart run magic:artisan deeplink:install --force     # overwrite lib/config/deeplink.dart
-dart run magic:artisan deeplink:install --dry-run   # preview, write nothing
+dart run magic:dowel deeplink:install
+dart run magic:dowel deeplink:install --force     # overwrite lib/config/deeplink.dart
+dart run magic:dowel deeplink:install --dry-run   # preview, write nothing
 ```
 
 ### generate
 
 ```bash
-dart run magic:artisan deeplink:generate --output ./public
-dart run magic:artisan deeplink:generate \
+dart run magic:dowel deeplink:generate --output ./public
+dart run magic:dowel deeplink:generate \
   --team-id ABCDE12345 \
   --bundle-id com.example.app \
   --package-name com.example.app \
@@ -401,9 +401,9 @@ Reads `lib/config/deeplink.dart` and merges CLI flags over it (flags win). Optio
 ### doctor
 
 ```bash
-dart run magic:artisan deeplink:doctor
-dart run magic:artisan deeplink:doctor --verbose
-dart run magic:artisan deeplink:doctor --remote   # also fetch both files from the live domain
+dart run magic:dowel deeplink:doctor
+dart run magic:dowel deeplink:doctor --verbose
+dart run magic:dowel deeplink:doctor --remote   # also fetch both files from the live domain
 ```
 
 Ships since 0.1.0. It reads `lib/config/deeplink.dart` (rejecting the scaffold placeholders `example.com`, `YOUR_TEAM_ID`, `com.example.app`, `YOUR_SHA256_FINGERPRINT`), then checks iOS (`applinks:` entitlement host, `FlutterDeepLinkingEnabled`), Android (the manifest's element TREE, so a `flutter_deeplinking_enabled` meta-data sitting on `<application>` instead of `<activity>` is caught where a grep cannot see it, plus the `autoVerify` filter's `http`/`https` schemes and host) and the two generated association files against the config. Everything is local and read-only without `--remote`. The one thing it cannot prove is that a real device matches an incoming link to this app, and the report says so.

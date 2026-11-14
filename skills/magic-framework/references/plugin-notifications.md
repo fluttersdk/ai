@@ -1,4 +1,4 @@
-<!-- magic_notifications v0.3.12 | Updated: 2026-10-31 -->
+<!-- magic_notifications v1.0.0 | Updated: 2026-11-14 -->
 
 # magic_notifications Plugin
 
@@ -24,17 +24,17 @@ Push and in-app notification system for Magic Framework: the `Notify` facade, da
 ```bash
 flutter pub add magic_notifications
 
-# Register the plugin's artisan provider with the app dispatcher (once)
-dart run magic:artisan plugin:install magic_notifications
+# Register the plugin's dowel provider with the app dispatcher (once)
+dart run magic:dowel plugin:install magic_notifications
 
 # Scaffold lib/config/notifications.dart, inject the provider, wire the config factory
-dart run magic:artisan notifications:install
+dart run magic:dowel notifications:install
 
 # Confirm the install
-dart run magic:artisan notifications:doctor
+dart run magic:dowel notifications:doctor
 ```
 
-From 0.3.10 the floors are `magic ^0.0.29`, `fluttersdk_artisan ^0.0.20` and `fluttersdk_wind ^1.9.0`, the newest of each at that release. The real `magic` requirement is 0.0.29, not a name only: the realtime path follows `BroadcastChannel.isSubscribed` and `onSubscriptionChanged`, which that release introduces. The other requirements underneath are older: `magic` 0.0.22 for `Event.listenAny`, which `PushStateReporter` calls, `magic` 0.0.6 for `Echo.connection`, the accessor the realtime path needs to tell an open connection from a closed one, and `fluttersdk_artisan` 0.0.15 for `XcodeProjectEditor.setEntitlementsPaths`, which the iOS install below cannot do without.
+The floors are `magic ^1.0.0`, `magic_socket ^1.0.0`, `dowel ^1.0.0` and `wind_kit ^1.12.0`. The real `magic` requirement is 0.0.29, not a name only: the realtime path follows `BroadcastChannel.isSubscribed` and `onSubscriptionChanged`, which that release introduces. The other requirements underneath are older: `magic` 0.0.22 for `Event.listenAny`, which `PushStateReporter` calls, `magic_socket`, where `Echo` lives since core 1.0.0, for `Echo.connection`, the accessor the realtime path needs to tell an open connection from a closed one, and `dowel` for `XcodeProjectEditor.setEntitlementsPaths`, which the iOS install below cannot do without.
 
 ### The APNs entitlement install writes, and why there are two files
 
@@ -57,7 +57,7 @@ Both add or change an Xcode target, which a pub package cannot do. The steps are
 
 ## CLI commands and MCP tools
 
-Seven commands, all through the app's artisan dispatcher:
+Seven commands, all through the app's dowel dispatcher:
 
 | Command | Purpose |
 |:--------|:--------|
@@ -69,7 +69,7 @@ Seven commands, all through the app's artisan dispatcher:
 | `notifications:publish` | Publish views for customization |
 | `notifications:uninstall` | Remove the plugin scaffolding |
 
-Two of them are exposed as read-only MCP tools, so an agent can diagnose without mutating anything: `notifications_doctor` (takes `verbose`) and `notifications_channels`. The mutating commands (install, configure, test, uninstall, publish) are deliberately absent from the MCP surface. Run `dart run magic:artisan mcp:install` once to register them with the client.
+Two of them are exposed as read-only MCP tools, so an agent can diagnose without mutating anything: `notifications_doctor` (takes `verbose`) and `notifications_channels`. The mutating commands (install, configure, test, uninstall, publish) are deliberately absent from the MCP surface. Run `dart run magic:dowel mcp:install` once to register them with the client.
 
 ## Notify Facade API
 
@@ -159,7 +159,7 @@ From 0.3.10 a `connect()` that fails no longer ends it: the channel is subscribe
 
 An identity switch with no sign-out between (a guest signing in, an account switch) re-adopts the channel armed under the auth generation now in effect and reads the list again (0.3.10+); a channel armed under an earlier generation is the previous person's and stays dropped until the host re-arms it.
 
-Requires `magic ^0.0.6` for `Echo.connection`, the public accessor that tells an open connection from a closed one, and `magic ^0.0.29` for the channel's subscription state.
+Requires `magic_socket ^1.0.0`, where `Echo` lives, for `Echo.connection` (the public accessor that tells an open connection from a closed one) and for the channel's subscription state.
 
 ### Manager Access
 

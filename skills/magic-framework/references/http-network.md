@@ -172,13 +172,12 @@ final response = await Http.upload('/teams/123', data: {
   'name': 'Team Name',
   '_method': 'PUT', // Laravel method spoofing (optional)
 }, files: {
-  'logo': logoFile, // MagicFile, XFile, String (path), Uint8List, or List<int>
+  'logo': logoFile, // MagicFile, String (path), Uint8List, or List<int>
 });
 ```
 
 Files parameter accepts:
-- `MagicFile`: Magic's file wrapper (supports bytes, XFile, paths)
-- `XFile`: image_picker or file_picker result
+- `MagicFile`: Magic's file wrapper (supports bytes and paths); a `magic_picker` pick is already one
 - `String`: File path
 - `Uint8List` or `List<int>`: Raw bytes (filename derived from field name)
 - `MultipartFile`: Dio's multipart type (advanced)

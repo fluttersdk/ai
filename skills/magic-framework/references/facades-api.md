@@ -9,9 +9,6 @@ All facades are available after `await Magic.init()` completes. Import: `package
 - [Auth](#auth)
 - [Cache](#cache)
 - [Config](#config)
-- [Crypt](#crypt)
-- [DB](#db)
-- [Echo](#echo)
 - [Event](#event)
 - [Gate](#gate)
 - [Http](#http)
@@ -19,12 +16,12 @@ All facades are available after `await Magic.init()` completes. Import: `package
 - [Launch](#launch)
 - [Session](#session)
 - [Log](#log)
-- [Pick](#pick)
 - [Route](#route)
-- [Schema](#schema)
 - [Storage](#storage)
 - [Vault](#vault)
 - [Gotchas](#gotchas)
+
+Core ships 13 facades. The facades of the four extracted layers live in plugin packages and are documented in their own pages: the encryption facade in `plugin-encryption.md`, the picker facade in `plugin-picker.md`, the broadcasting facade in `plugin-socket.md`, and the SQLite database and schema facades in `plugin-local-storage.md`.
 
 ## Auth
 
@@ -139,98 +136,6 @@ final secret = Config.getOrFail<String>('app.key');
 Config.set('cache.ttl', 3600);
 Config.merge({'services': {'stripe': {'key': 'sk_live_...'}}});
 ```
-
----
-
-## Crypt
-
-Resolves `Magic.make<MagicEncrypter>('encrypter')`. Requires `EncryptionServiceProvider` — NOT auto-registered.
-
-| Signature | Return Type | Notes |
-|-----------|-------------|-------|
-| `Crypt.encrypt(String value)` | `String` | AES-256-CBC encryption using `app.key`. |
-| `Crypt.decrypt(String value)` | `String` | Decrypt with `app.key`; throws `MagicDecryptException` on failure. |
-| `Crypt.encryptWithDeviceKey(String value)` | `Future<String>` | Encrypt with a device-specific key stored in Vault. |
-| `Crypt.decryptWithDeviceKey(String value)` | `Future<String>` | Decrypt with the device-specific key. |
-| `Crypt.hasDeviceKey()` | `Future<bool>` | Check if a device encryption key exists. |
-| `Crypt.generateDeviceKey()` | `Future<void>` | Generate (or replace) the device key — invalidates previously encrypted data. |
-| `Crypt.clearDeviceKey()` | `Future<void>` | Remove device key from Vault; previously encrypted data unrecoverable. |
-
-```dart
-import 'package:magic/magic.dart';
-
-// Config-based (requires EncryptionServiceProvider + APP_KEY = 32 chars)
-final payload = Crypt.encrypt('sensitive');
-final plain   = Crypt.decrypt(payload);
-
-// Device-based (auto-generates key on first use)
-final secret = await Crypt.encryptWithDeviceKey('pin:1234');
-final pin    = await Crypt.decryptWithDeviceKey(secret);
-```
-
----
-
-## DB
-
-Resolves `Magic.make<DatabaseManager>('db')`.
-
-| Signature | Return Type | Notes |
-|-----------|-------------|-------|
-| `DB.table(String table)` | `QueryBuilder` | Fluent query builder entry point. |
-| `DB.select(String sql, [List<Object?> params = const []])` | `List<Map<String, dynamic>>` | Raw SELECT; returns list of row maps. |
-| `DB.insert(String sql, [List<Object?> params = const []])` | `int` | Raw INSERT; returns last insert rowid. |
-| `DB.update(String sql, [List<Object?> params = const []])` | `int` | Raw UPDATE; returns affected row count. |
-| `DB.delete(String sql, [List<Object?> params = const []])` | `int` | Raw DELETE; returns affected row count. |
-| `DB.statement(String sql, [List<Object?> params = const []])` | `void` | Execute any arbitrary SQL (DDL, etc.). |
-| `DB.beginTransaction()` | `void` | Begin a manual transaction. |
-| `DB.commit()` | `void` | Commit the current transaction. |
-| `DB.rollback()` | `void` | Roll back the current transaction. |
-| `DB.transaction<T>(Future<T> Function() callback)` | `Future<T>` | Commits on success, rolls back on error. The callback must NOT call `DB.commit` / `DB.rollback` itself: on success that throws a `StateError` (the writes after it were not in the transaction), and on failure the rollback is skipped so the callback's own error still reaches you. |
-
-```dart
-import 'package:magic/magic.dart';
-
-// QueryBuilder
-final users = await DB.table('users')
-    .where('is_active', true)
-    .orderBy('created_at', 'desc')
-    .limit(10)
-    .get();
-
-// Raw
-final rows = DB.select('SELECT * FROM users WHERE age > ?', [18]);
-final id   = DB.insert('INSERT INTO users (name) VALUES (?)', ['Alice']);
-
-// Transaction
-await DB.transaction(() async {
-  await DB.table('orders').insert({'user_id': 1, 'total': 99});
-  await DB.table('inventory').where('id', 5).update({'stock': 0});
-});
-```
-
----
-
-## Echo
-
-Proxies to `BroadcastManager` for real-time WebSocket communication. `BroadcastServiceProvider` must be registered explicitly.
-
-| Signature | Return Type | Notes |
-|-----------|-------------|-------|
-| `Echo.channel(String name)` | `BroadcastChannel` | Subscribe to a public channel. |
-| `Echo.private(String name)` | `BroadcastChannel` | Subscribe to a private channel (auth required). |
-| `Echo.join(String name)` | `BroadcastPresenceChannel` | Join a presence channel (auth + member tracking). |
-| `Echo.listen(String channel, String event, void Function(BroadcastEvent) callback)` | `BroadcastChannel` | Shorthand: subscribe + listen in one call. |
-| `Echo.leave(String name)` | `void` | Unsubscribe from a channel. |
-| `Echo.connect()` | `Future<void>` | Establish the WebSocket connection. |
-| `Echo.disconnect()` | `Future<void>` | Close connection and release resources. |
-| `Echo.connection` | `BroadcastDriver` | Resolved default driver instance. |
-| `Echo.socketId` | `String?` | Server-assigned socket ID; `null` when disconnected. |
-| `Echo.connectionState` | `Stream<BroadcastConnectionState>` | Stream of connection lifecycle state changes. |
-| `Echo.onReconnect` | `Stream<void>` | Emits once each successful reconnect. |
-| `Echo.addInterceptor(BroadcastInterceptor interceptor)` | `void` | Register an interceptor on the default connection. |
-| `Echo.manager` | `BroadcastManager` | Direct manager access for `extend()`. |
-| `Echo.fake()` | `FakeBroadcastManager` | Swap to in-memory fake for testing. |
-| `Echo.unfake()` | `void` | Restore real manager binding. |
 
 ---
 
@@ -349,7 +254,7 @@ final response = await Http.get('/search', query: {'q': 'flutter'});
 if (response.successful) print(response.data);
 
 // Upload
-final file = await Pick.image();
+final file = await Storage.getFile('avatars/user.jpg');
 await Http.upload('/avatars', data: {'user_id': '1'}, files: {'avatar': file});
 ```
 
@@ -500,40 +405,6 @@ Log.debug('Query executed', {'sql': sql, 'bindings': params});
 
 ---
 
-## Pick
-
-Standalone facade; no container registration needed.
-
-| Signature | Return Type | Notes |
-|-----------|-------------|-------|
-| `Pick.image({double? maxWidth, double? maxHeight, int? imageQuality})` | `Future<MagicFile?>` | Single image from gallery; null if cancelled. |
-| `Pick.images({double? maxWidth, double? maxHeight, int? imageQuality})` | `Future<List<MagicFile>>` | Multiple images from gallery; empty list if cancelled. |
-| `Pick.camera({CameraDevice preferredCamera, double? maxWidth, double? maxHeight, int? imageQuality, bool fallbackToGallery, void Function(Object)? onError})` | `Future<MagicFile?>` | Capture photo; optionally fall back to gallery. |
-| `Pick.media({double? maxWidth, double? maxHeight, int? imageQuality})` | `Future<MagicFile?>` | Pick image or video from gallery. |
-| `Pick.video({Duration? maxDuration})` | `Future<MagicFile?>` | Single video from gallery. |
-| `Pick.recordVideo({CameraDevice preferredCamera, Duration? maxDuration, bool fallbackToGallery, void Function(Object)? onError})` | `Future<MagicFile?>` | Record video with camera. |
-| `Pick.file({List<String>? extensions})` | `Future<MagicFile?>` | Single file with optional extension filter. Bytes read lazily via `MagicFile.readAsBytes()`. |
-| `Pick.files({List<String>? extensions})` | `Future<List<MagicFile>>` | Multiple files with optional extension filter; empty list if cancelled. |
-| `Pick.directory()` | `Future<String?>` | Pick a directory path (not supported on Web). |
-| `Pick.saveFile({required String fileName, required Uint8List bytes, String? mimeType, String? dialogTitle})` | `Future<Uri?>` | Open save-file dialog. Returns the written `Uri`; scheme may be `file`, `content` or `blob`. MIME type derived from `fileName` when omitted. |
-
-```dart
-import 'package:magic/magic.dart';
-
-final image = await Pick.image(maxWidth: 800, imageQuality: 80);
-if (image != null) await Storage.put('avatars/me.jpg', image);
-
-final photo = await Pick.camera(
-  fallbackToGallery: true,
-  onError: (e) => Log.warning('Camera failed: $e'),
-);
-
-final pdf = await Pick.file(extensions: ['pdf']);
-final docs = await Pick.files(extensions: ['pdf', 'doc', 'docx']);
-```
-
----
-
 ## Route
 
 The facade class is `MagicRoute`. Resolves `MagicRouter.instance`.
@@ -579,46 +450,6 @@ MaterialApp.router(routerConfig: MagicRoute.config);
 
 ---
 
-## Schema
-
-Resolves `DatabaseManager()` internally. All schema operations are synchronous except existence checks.
-
-| Signature | Return Type | Notes |
-|-----------|-------------|-------|
-| `Schema.create(String table, void Function(Blueprint) callback)` | `void` | Define and create a new table. |
-| `Schema.table(String tableName, void Function(Blueprint) callback)` | `void` | Modify an existing table — add, rename, or drop columns. |
-| `Schema.dropIfExists(String table)` | `void` | Drop table if it exists; no-op otherwise. |
-| `Schema.drop(String table)` | `void` | Drop table; throws if it doesn't exist. |
-| `Schema.rename(String from, String to)` | `void` | Rename a table. |
-| `Schema.hasTable(String table)` | `Future<bool>` | Check if a table exists. |
-| `Schema.hasColumn(String table, String column)` | `Future<bool>` | Check if a column exists in a table. |
-| `Schema.getColumns(String table)` | `Future<List<String>>` | List all column names for a table. |
-
-```dart
-import 'package:magic/magic.dart';
-
-Schema.create('users', (table) {
-  table.id();
-  table.string('name');
-  table.string('email').unique();
-  table.boolean('is_active').defaultValue(true);
-  table.timestamps();
-});
-
-Schema.table('users', (table) {
-  table.string('avatar_url').nullable();
-  table.dropColumn('legacy_field');
-});
-
-Schema.dropIfExists('temp_data');
-
-if (await Schema.hasTable('users')) {
-  final cols = await Schema.getColumns('users');
-}
-```
-
----
-
 ## Storage
 
 Resolves `StorageManager()` internally. Defaults to the local disk.
@@ -632,15 +463,14 @@ Resolves `StorageManager()` internally. Defaults to the local disk.
 | `Storage.exists(String path)` | `Future<bool>` | Check if a file exists. |
 | `Storage.delete(String path)` | `Future<bool>` | Delete file; returns true if deleted. |
 | `Storage.url(String path)` | `Future<String>` | `file://` path on mobile/desktop, `blob:` URL on Web. |
-| `Storage.download(String path, {String? name})` | `Future<void>` | Share sheet on mobile; browser download on Web. |
+| `Storage.download(String path, {String? name})` | `Future<void>` | Share sheet on mobile and desktop (needs `magic_picker`; otherwise `UnsupportedError`); browser download on Web. |
 | `Storage.flush()` | `void` | Reset the storage manager (primarily for testing). |
 
 ```dart
 import 'package:magic/magic.dart';
 
-// Store picked image
-final image = await Pick.image();
-final path  = await Storage.put('avatars/user.jpg', image, mimeType: 'image/jpeg');
+// Store bytes (a MagicFile from magic_picker is accepted too)
+final path  = await Storage.put('avatars/user.jpg', bytes, mimeType: 'image/jpeg');
 
 // Display
 final url = await Storage.url('avatars/user.jpg');
@@ -703,7 +533,7 @@ The file does nothing until `Magic.init` is given it:
 await Magic.init(configFactories: [() => appConfig, () => securityConfig]);
 ```
 
-There is **no migration between the two keychains in either direction**, and a miss reads as "never stored" rather than as an error, so a switch after the app has stored anything silently orphans every existing item: `Crypt.encryptWithDeviceKey` generates a fresh device key on the null read and everything encrypted under the old one becomes unreadable, and `BaseGuard` loses its token and logs the user out. The probe can open that split by itself when an app that fell back to the legacy keychain is later signed with a profile: pin `false` for an app that already holds items there.
+There is **no migration between the two keychains in either direction**, and a miss reads as "never stored" rather than as an error, so a switch after the app has stored anything silently orphans every existing item: a `magic_encryption` device key generates a fresh key on the null read and everything encrypted under the old one becomes unreadable, and `BaseGuard` loses its token and logs the user out. The probe can open that split by itself when an app that fell back to the legacy keychain is later signed with a profile: pin `false` for an app that already holds items there.
 
 ---
 
@@ -712,9 +542,9 @@ There is **no migration between the two keychains in either direction**, and a m
 - **Init required**: Facades that resolve from the container (`Cache`, `Http`, `Log`, `Launch`, `Vault`) will throw if called before `Magic.init()` completes.
 - **Auth.guest is a getter**: `Auth.guest` — no parentheses. `Auth.check()` requires parentheses.
 - **Event listeners use factories**: `EventDispatcher.instance.register(Type, [() => MyListener()])` — pass factory closures, not instances.
-- **EncryptionServiceProvider**: Not auto-registered. Add `(app) => EncryptionServiceProvider(app)` to providers config. `APP_KEY` must be exactly 32 characters.
+- **Extracted facades**: encryption, picker, broadcasting and the SQLite layer are not in core 1.0.0. Install the matching plugin (`magic_encryption`, `magic_picker`, `magic_socket`, `magic_local_storage`) and read its page; see the list at the top of this file.
 - **LaunchServiceProvider**: Not auto-registered. Add `(app) => LaunchServiceProvider(app)` to providers config. Declare URL schemes in the native manifest for `canLaunch()` to work on iOS 9+ and Android 11+.
 - **Route facade name**: The class is `MagicRoute`, not `Route`. Alias it if you prefer: `import 'package:magic/magic.dart' show MagicRoute as Route;`.
-- **Schema sync**: `Schema.create/table/drop/rename` are synchronous; `Schema.hasTable/hasColumn/getColumns` are async.
-- **Storage on Web**: `put()` stores Base64 in SharedPreferences; `url()` returns a `blob:` URL, not a file path.
+- **Storage on Web**: `put()` stores Base64 in the browser's `localStorage` under `flutter.` + path (the keys 0.0.41 wrote); `url()` returns a `blob:` URL, not a file path.
+- **Storage.download on IO**: needs `magic_picker`, whose provider sets `LocalAdapterContract.downloadHandler`; without it `download` throws `UnsupportedError`. Web `download` needs nothing.
 - **Config dot notation**: `Config.get('auth.defaults.guard')` — nested keys separated by `.`.

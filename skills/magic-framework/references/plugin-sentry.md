@@ -1,4 +1,4 @@
-<!-- magic_sentry v0.0.7 | Updated: 2026-11-10 -->
+<!-- magic_sentry v1.0.0 | Updated: 2026-11-14 -->
 
 # magic_sentry Plugin
 
@@ -21,13 +21,13 @@ The package is generic on purpose: it has no user model, team or tag of its own.
 
 ```yaml
 dependencies:
-  magic_sentry: ^0.0.7
+  magic_sentry: ^1.0.0
 ```
 
-0.0.7 pins `magic ^0.0.29`, and that is a real requirement: the token scrubber reads `MagicRouter.allRoutes`, which magic 0.0.29 adds. Underneath it sits `magic` 0.0.22, the first release with `Event.listenAny` and `ReportsBreadcrumb`. It also pins `sentry_flutter` / `sentry_dio` `^10.3.0`, which needs Dart 3.12, Flutter 3.44, Android `minSdk` 26 and iOS 15; an app on `sentry_flutter` 9 stays on 0.0.6. Sentry 10 removed `enableLogs`, `enableMetrics`, `profilesSampleRate` and `enableStandaloneAppStartTracing` from `SentryFlutter.init`, and gave `beforeSendLog` and `beforeSendMetric` a second `Hint` parameter.
+0.0.7 pins `magic ^0.0.29`, and that is a real requirement: the token scrubber reads `MagicRouter.allRoutes`, which magic 0.0.29 adds. Underneath it sits `magic` 0.0.22, the first release with `Event.listenAny` and `ReportsBreadcrumb`. It also pins `sentry_flutter` / `sentry_dio` (`^10.3.0` in 0.0.7, `^10.4.0` since), which needs Dart 3.12, Flutter 3.44, Android `minSdk` 26 and iOS 15; an app on `sentry_flutter` 9 stays on 0.0.6. Sentry 10 removed `enableLogs`, `enableMetrics`, `profilesSampleRate` and `enableStandaloneAppStartTracing` from `SentryFlutter.init`, and gave `beforeSendLog` and `beforeSendMetric` a second `Hint` parameter.
 
 ```bash
-dart run <app>:artisan plugin:install magic_sentry
+dart run magic:dowel plugin:install magic_sentry
 ```
 
 There is no package-specific CLI. `plugin:install` reads the package's `install.yaml`, publishes `lib/config/sentry.dart` from `assets/stubs/install/sentry_config.stub`, and injects `SentryServiceProvider` into `lib/config/app.dart`'s `providers` list. It cannot rewrite `main()`; that wiring is yours (below).

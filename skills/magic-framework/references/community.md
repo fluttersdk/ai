@@ -40,14 +40,14 @@ Not-bug-worthy (documented magic behavior, not a defect):
 - Container does not autowire; an unregistered key throws (Core Law 4, mental-model section 3). Register the binding.
 - `Gate.allows()` returning a permissive result on the client: it is advisory only (section 3). Re-authorize on the backend.
 - A relation property is null because the API payload did not nest it: there is no lazy load and no `with()` (section 3, 5). Embed it or fetch and `set` it.
-- `find()` / `all()` hitting the API instead of SQLite: `useLocal` defaults to false (section 5, 7). Override `useLocal => true` to opt in.
+- `find()` / `all()` hitting the API instead of SQLite: `useLocal` defaults to false (section 5, 7). Override `useLocal => true` to opt in, with `magic_local_storage` installed: a `useLocal` model with no `LocalModelStore` bound throws a `StateError` by design.
 - Flash input lingering across more than one navigation: `Session.tick()` is not automatic (section 5). Wire it at bootstrap.
 - `Auth.guest()` failing to compile or `Http.patch(...)` not existing: `guest` is a getter and there is no `patch` verb (section 8). Use `Auth.guest` and `Http.put`/`update`.
 - `response.body` not existing: the payload is `response.data` (section 5, 8).
 - Routes added in `boot()` not registering: the router pre-builds during `init`; register in `register()` (section 1, 8).
 - Auth session not restoring: `Auth.manager.setUserFactory(...)` was not set, or AppServiceProvider is listed after AuthServiceProvider (Core Law 5, checklist). Fix the factory and provider order.
 - A config value being null because it read `env()` under `configs:` instead of `configFactories:` (section 2).
-- A Laravel-encrypted value failing to decrypt in magic: the formats differ (AES-256-CBC `iv:ciphertext`, no MAC) and are intentionally not cross-compatible (section 3).
+- A Laravel-encrypted value failing to decrypt in magic: the formats differ (`magic_encryption`'s AES-256-CBC `iv:ciphertext`, no MAC) and are intentionally not cross-compatible (section 3).
 
 A genuine bug looks like: an exception thrown from a stack frame inside `package:magic` during documented usage; a facade method that is documented in `lib/src` yet returns or throws wrongly; a persistence or state flag that never changes when the docs say it should (for example a save-time flag that stays false); a generator (`make:*`) emitting code that does not analyze; a fake assertion that never matches a real recorded call.
 

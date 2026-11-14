@@ -1,7 +1,8 @@
 # Eloquent ORM Reference
 
-Laravel-inspired ORM for Flutter. Supports hybrid persistence (Remote API + Local SQLite).
+Laravel-inspired ORM for Flutter. API-first by default; a model opts into hybrid persistence (Remote API + Local SQLite) with `useLocal`, which needs the `magic_local_storage` plugin.
 
+Core keeps the base `Model`, casts, `HasTimestamps`, `InteractsWithPersistence`, model events and the `LocalModelStore` contract. The query builder, `DB`, `Schema`, migrations, factories, seeders and sync live in `magic_local_storage`: see `plugin-local-storage.md`.
 
 ## Contents
 
@@ -15,9 +16,7 @@ Laravel-inspired ORM for Flutter. Supports hybrid persistence (Remote API + Loca
 - [HasTimestamps Mixin](#hastimestamps-mixin)
 - [InteractsWithPersistence Mixin](#interactswithpersistence-mixin)
 - [Hybrid Persistence Flow](#hybrid-persistence-flow)
-- [QueryBuilder](#querybuilder)
-- [Migrations](#migrations)
-- [Factories & Seeders](#factories--seeders)
+- [Local persistence (magic_local_storage)](#local-persistence-magic_local_storage)
 - [Model Events](#model-events)
 - [Gotchas](#gotchas)
 
@@ -78,11 +77,11 @@ class Monitor extends Model with HasTimestamps, InteractsWithPersistence {
 
 | Property | Type | Default | Purpose |
 | :--- | :--- | :--- | :--- |
-| `table` | `String` | Required | SQLite table name |
+| `table` | `String` | Required | Local table name (used when `useLocal` is true) |
 | `resource` | `String` | Required | API endpoint name |
 | `primaryKey` | `String` | `'id'` | Primary key column |
 | `incrementing` | `bool` | `true` | Auto-increment PK |
-| `useLocal` | `bool` | `false` | Enable SQLite persistence |
+| `useLocal` | `bool` | `false` | Enable local persistence; needs `magic_local_storage` (a `StateError` otherwise) |
 | `useRemote` | `bool` | `true` | Enable API calls |
 | `fillable` | `List<String>` | `[]` | Mass-assignable fields |
 | `guarded` | `List<String>` | `['*']` | Guarded fields (default blocks all) |
@@ -244,7 +243,6 @@ class Post extends Model with HasTimestamps, InteractsWithPersistence { ... }
 | `save()` | `Future<bool> save()` | `bool` success | Create or update; fires Model events, calls `updateTimestamps()` |
 | `delete()` | `Future<bool> delete()` | `bool` success | Delete from remote and/or local |
 | `refresh()` | `Future<bool> refresh()` | `bool` success | Re-hydrate from local or remote |
-| `query()` | `QueryBuilder query()` | `QueryBuilder` | Raw query builder scoped to model's table |
 
 `save()` determines create vs update via `exists`. On success it sets `exists = true` and calls `syncOriginal()`.
 
@@ -262,7 +260,7 @@ class Post extends Model with HasTimestamps, InteractsWithPersistence { ... }
 1. Dispatches `ModelSaving`, then `ModelCreating` (new) or `ModelUpdating` (existing).
 2. Calls `updateTimestamps()`.
 3. If `useRemote`: POST `/{resource}` (new) or PUT `/{resource}/{id}` (existing). Sets `id` from response on create.
-4. If `useLocal`: INSERT or UPDATE in SQLite. QueryBuilder auto-filters columns to those present in the schema.
+4. If `useLocal`: INSERT or UPDATE through the bound `LocalModelStore`. The SQLite store drops attributes the table has no column for.
 5. On success: `exists = true`, `syncOriginal()`, dispatches `ModelCreated`/`ModelUpdated`, then `ModelSaved`.
 
 ### find(id) flow
@@ -279,190 +277,11 @@ class Post extends Model with HasTimestamps, InteractsWithPersistence { ... }
 2. If `useLocal`: deletes SQLite row.
 3. On success: `exists = false`, dispatches `ModelDeleted`.
 
-## QueryBuilder
+## Local persistence (magic_local_storage)
 
-Accessed directly via `DB.table('name')` facade or `model.query()`.
-Schema-aware: insert/update silently drop columns absent from the actual SQLite schema.
+A `useLocal => true` model persists through the `LocalModelStore` contract that core resolves from the container key `'local_model_store'` before every local leg (`save`, `find`, `allModels`, `delete`, `refresh`, and the remote-to-local sync). With nothing bound it throws a `StateError` naming `magic_local_storage`, on every leg; set `useLocal` back to `false` or install the plugin.
 
-| Category | Method | Signature | Returns |
-| :--- | :--- | :--- | :--- |
-| Chaining | `select` | `select(List<String> cols)` | `QueryBuilder` |
-| Chaining | `where` | `where(String col, [dynamic op], [dynamic val])` | `QueryBuilder` |
-| Chaining | `whereNull` | `whereNull(String col)` | `QueryBuilder` |
-| Chaining | `whereNotNull` | `whereNotNull(String col)` | `QueryBuilder` |
-| Chaining | `orderBy` | `orderBy(String col, [String dir = 'asc'])` | `QueryBuilder` |
-| Chaining | `limit` | `limit(int count)` | `QueryBuilder` |
-| Chaining | `offset` | `offset(int count)` | `QueryBuilder` |
-| Execute | `get` | `.get()` | `Future<List<Map<String, dynamic>>>` |
-| Execute | `first` | `.first()` | `Future<Map<String, dynamic>?>` |
-| Execute | `value<T>` | `.value<T>(String col)` | `Future<T?>` |
-| Execute | `pluck<T>` | `.pluck<T>(String col)` | `Future<List<T>>` |
-| Execute | `count` | `.count()` | `Future<int>` |
-| Execute | `exists` | `.exists()` | `Future<bool>` |
-| Execute | `insert` | `.insert(Map<String, dynamic>)` | `Future<int>` (last insert id) |
-| Execute | `insertAll` | `.insertAll(List<Map<String, dynamic>>)` | `Future<void>` |
-| Execute | `update` | `.update(Map<String, dynamic>)` | `Future<int>` (rows affected) |
-| Execute | `delete` | `.delete()` | `Future<int>` (rows affected) |
-| Execute | `truncate` | `.truncate()` | `Future<void>` |
-
-## Migrations
-
-Naming convention: `YYYY_MM_DD_HHMMSS_verb_table_name`
-
-```dart
-import 'package:magic/magic.dart';
-
-class CreateMonitorsTable extends Migration {
-  @override
-  String get name => '2024_01_15_120000_create_monitors_table';
-
-  @override
-  void up() {
-    Schema.create('monitors', (Blueprint table) {
-      table.id();
-      table.string('name');
-      table.string('url');
-      table.string('status').nullable();
-      table.timestamps();
-    });
-  }
-
-  @override
-  void down() => Schema.dropIfExists('monitors');
-}
-```
-
-`up()` and `down()` are synchronous `void`, and that is load-bearing rather than incidental: `Migrator.run` cannot await a `void`, so writing `void up() async` compiles and is recorded complete the moment the body reaches its first suspension. Use `DB.statement` and `DB.select`; `DatabaseManager().getColumns` and `hasColumn` answer futures and must not be called from a migration. A migration with no honest rollback throws `UnsupportedError` from `down()` rather than doing nothing, or `rollback()` deletes the ledger row for a migration that is still applied.
-
-Register migrations via `Migrator().run([...])`. The whole run is one unit: if any migration throws, all of them roll back and the ledger records none, so the retry starts from a clean schema. It is a SAVEPOINT rather than a BEGIN, so it nests inside a transaction you opened yourself. A migration must NOT call `DB.beginTransaction`, `DB.commit` or `DB.rollback`; the run is already one unit and closing it from inside throws.
-
-A migration that changes a table an earlier version already created has to sense the schema rather than trust the ledger, because a baseline migration records both shapes identically:
-
-```dart
-final bool present = DB.select('PRAGMA table_info(users)')
-    .any((Map<String, dynamic> row) => row['name'] == 'avatar');
-if (present) return;
-DB.statement("ALTER TABLE users ADD COLUMN avatar TEXT NOT NULL DEFAULT ''");
-```
-
-`ADD COLUMN ... NOT NULL` with no default succeeds on an empty table and throws on one with rows, so omitting the default passes in development and fails on exactly the install it exists to repair.
-
-### Blueprint Column Methods
-
-| Method | SQLite type | Notes |
-| :--- | :--- | :--- |
-| `id([name = 'id'])` | `INTEGER PRIMARY KEY AUTOINCREMENT` | |
-| `string(name, [length])` | `TEXT` | Length ignored by SQLite |
-| `text(name)` | `TEXT` | |
-| `integer(name)` | `INTEGER` | |
-| `bigInteger(name)` | `INTEGER` | Alias for `integer` |
-| `boolean(name)` | `INTEGER` | Stored as 0/1 |
-| `real(name)` | `REAL` | |
-| `blob(name)` | `BLOB` | |
-| `timestamps()` | Two nullable `TEXT` columns | `created_at`, `updated_at` |
-
-### ColumnDefinition Modifiers (chainable)
-
-| Modifier | Effect |
-| :--- | :--- |
-| `.nullable()` | Omits `NOT NULL` constraint |
-| `.unique()` | Adds `UNIQUE` constraint |
-| `.defaultValue(v)` | Adds `DEFAULT` clause |
-
-### Schema Facade Methods (used in migrations)
-
-| Method | Purpose |
-| :--- | :--- |
-| `Schema.create(table, callback)` | Create table via Blueprint |
-| `Schema.table(table, callback)` | Modify table (add/rename/drop columns) |
-| `Schema.drop(table)` | Drop table |
-| `Schema.dropIfExists(table)` | Drop table if exists |
-
-## Factories & Seeders
-
-### Factory
-
-Extend `Factory<T>` and implement `definition()`, `newInstance()` and `newFactory()`.
-
-```dart
-import 'package:magic/magic.dart';
-
-class MonitorFactory extends Factory<Monitor> {
-  @override
-  Factory<Monitor> newFactory() => MonitorFactory();
-
-  @override
-  Monitor newInstance() => Monitor();
-
-  @override
-  Map<String, dynamic> definition() => {
-        'name': faker.company.name(),
-        'url': faker.internet.httpUrl(),
-        'status': 'active',
-      };
-}
-
-extension MonitorFactoryStates on Factory<Monitor> {
-  Factory<Monitor> paused() => state({'status': 'paused'});
-}
-
-// Usage
-final monitor = (await MonitorFactory().create()).first;
-final monitors = await MonitorFactory().count(10).create();
-final paused = await MonitorFactory().paused().count(3).create();
-final stubs = MonitorFactory().count(5).make(); // in-memory only, no save
-final payloads = MonitorFactory().count(3).raw(); // List<Map>, no model
-```
-
-A factory fills its models unguarded, like Laravel: `id`, timestamps and any key
-missing from the model's `fillable` list are kept. `create()` sends every
-definition key to the persistence layer and throws a `StateError` when
-`save()` refuses the model.
-
-| Method | Signature | Returns | Purpose |
-| :--- | :--- | :--- | :--- |
-| `definition()` | `Map<String, dynamic> definition()` | `Map` | Default attribute values using `faker` |
-| `newInstance()` | `T newInstance()` | `T` | Returns empty model instance |
-| `newFactory()` | `Factory<T> newFactory()` | `Factory<T>` | Returns a fresh factory of the same subclass; backs the copy-on-write `state()`/`count()` |
-| `count(n)` | `Factory<T> count(int count)` | `Factory<T>` | Returns a copy set to build `count` models |
-| `state(map)` | `Factory<T> state(Map<String, dynamic>)` | `Factory<T>` | Returns a copy with `map` merged over its states |
-| `raw()` | `List<Map<String, dynamic>> raw()` | `List<Map>` | Merged attribute maps, no model built |
-| `create()` | `Future<List<T>> create()` | `Future<List<T>>` | Persist models via `save()`, guard restored first |
-| `make()` | `List<T> make()` | `List<T>` | Build in-memory only, no persistence |
-| `faker` | `Faker get faker` | `Faker` | Access to `package:faker` instance |
-
-Named states are written as an extension on `Factory<T>` rather than a method
-on the subclass, since `state()`/`count()` return `Factory<T>` and a subclass
-method would be unreachable after either call.
-
-### Seeder
-
-```dart
-import 'package:magic/magic.dart';
-
-class MonitorSeeder extends Seeder {
-  @override
-  Future<void> run() async => MonitorFactory().count(10).create();
-}
-
-class DatabaseSeeder extends Seeder {
-  @override
-  Future<void> run() async {
-    await call([
-      MonitorSeeder(),
-      UserSeeder(),
-    ]);
-  }
-}
-
-// Running:
-await DatabaseSeeder().run();
-```
-
-| Method | Signature | Purpose |
-| :--- | :--- | :--- |
-| `run()` | `Future<void> run()` | Entry point — override to define seed logic |
-| `call(seeders)` | `Future<void> call(List<Seeder>)` | Run child seeders in order |
+`LocalModelStore` has six members: `find(table, primaryKey, id)`, `all(table)`, `insert(table, data)`, `update(table, primaryKey, id, data)`, `delete(table, primaryKey, id)` and `upsert(table, primaryKey, id, data)`. `magic_local_storage` supplies the SQLite implementation (`QueryModelStore`, bound by `DatabaseServiceProvider`), plus the query builder, the `DB` and `Schema` facades, migrations, factories, seeders and sync. Everything that touches SQL is in `plugin-local-storage.md`: the query builder (`DB.table(...)` and the `model.query()` extension), `Migration`, `Factory<T>` and `Seeder`, none of which exist in core.
 
 ## Model Events
 
@@ -481,12 +300,9 @@ Dispatched via `Event.dispatch()` during the `save()` / `delete()` lifecycle.
 ## Gotchas
 
 - **Null Safety**: `get<T>()` returns `null` for missing or wrongly-typed values — it never throws.
-- **Schema Filtering**: QueryBuilder silently drops columns not present in the actual SQLite schema on `insert`/`update`.
+- **Column filtering**: the SQLite store behind `useLocal` drops attributes the table has no column for on insert and update.
 - **Manual Hydration**: Call `syncOriginal()` after manually hydrating a model to reset dirty state.
-- **Web vs Mobile**: Web uses in-memory SQLite (`sql.js`); mobile uses file-based SQLite.
 - **Timestamps**: `HasTimestamps` stores timestamps as ISO 8601 strings; reads them back as `Carbon`.
 - **Typed Access**: NEVER read via `getAttribute()` in model getters. ALWAYS use `get<T>()`.
-- **`useLocal` default is `false`**: Models are remote-only by default. Add `@override bool get useLocal => true;` to enable SQLite.
+- **`useLocal` default is `false`**: Models are remote-only by default. Add `@override bool get useLocal => true;` to enable local persistence, and install `magic_local_storage`: with no `LocalModelStore` bound the model throws a `StateError` naming it.
 - **`create()`/`firstOrCreate()`/`updateOrCreate()`**: These static convenience methods do NOT exist on `InteractsWithPersistence`. Use `save()` on a constructed model instance instead.
-- **Factory requires `newInstance()`**: Omitting it causes a compile error — the framework cannot instantiate your model generically.
-- **`migration.up()` is sync**: `Migration.up()` and `down()` are `void`, not `Future<void>`. Use sync SQLite calls inside them.

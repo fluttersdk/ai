@@ -1,8 +1,8 @@
-<!-- magic_devtools v0.0.11 | Updated: 2026-10-14 -->
+<!-- magic_devtools v1.0.0 | Updated: 2026-11-14 -->
 
 # magic_devtools Plugin
 
-Debug-only adapter layer that wires Magic's runtime into `fluttersdk_dusk` (LLM-agent E2E driver) and `fluttersdk_telescope` (runtime inspector), plus the performance data path and a dev-only component preview catalog. Enriches dusk snapshots and telescope records with Magic context (forms, navigation, controllers, gates, auth, broadcasting, HTTP) so an agent sees the app the way Magic sees it.
+Debug-only adapter layer that wires Magic's runtime into `tapir` (LLM-agent E2E driver) and `crumbs` (runtime inspector), plus the performance data path and a dev-only component preview catalog. Enriches tapir snapshots and crumbs records with Magic context (forms, navigation, controllers, gates, auth, broadcasting, HTTP) so an agent sees the app the way Magic sees it.
 
 Lives outside `magic` core on purpose: the framework keeps no dev-tooling dependency in a production build.
 
@@ -11,33 +11,36 @@ Lives outside `magic` core on purpose: the framework keeps no dev-tooling depend
 The one-step path, from a project that already has magic installed:
 
 ```bash
-dart run magic:artisan magic:install --with-devtools
+dart run magic:dowel magic:install --with-devtools
 ```
 
-That adds the three packages to `dependencies` and injects the guarded blocks into `lib/main.dart`. It is idempotent, so a re-run never duplicates the wiring. The installer still writes `kDebugMode`; from 0.0.8 the package documents `!kReleaseMode`, so a profile build (the only honest build to measure) carries the tooling. Change the two guards by hand when you measure performance.
+That adds `magic_devtools ^1.0.0`, `tapir ^1.0.0` and `crumbs ^1.0.0` to `dependencies` and wires `lib/main.dart` under `!kReleaseMode` (debug and profile builds carry the tools, so a perf measurement runs on a profile build; release tree-shakes them): the imports of `package:flutter/foundation.dart` (`show kReleaseMode`), `package:crumbs/crumbs.dart`, `package:magic_devtools/crumbs.dart`, `package:magic_devtools/magic_devtools.dart`, `package:magic_devtools/tapir.dart` and `package:tapir/tapir.dart`; BEFORE `Magic.init(` it calls `TapirPlugin.install()`, `CrumbsPlugin.install()`, `CrumbsPlugin.registerWatcher(ExceptionWatcher())`, `CrumbsPlugin.registerWatcher(DumpWatcher())` and `MagicPerfIntegration.install()`; AFTER it, `MagicCrumbsIntegration.install()` then `MagicTapirIntegration.install()`. Call presence decides what is written: an app already calling `MagicDevtools.installPre(` is left untouched, and a block whose call (`TapirPlugin.install(`, `CrumbsPlugin.install(`, `MagicPerfIntegration.install(`, `MagicTapirIntegration.install(`, `MagicCrumbsIntegration.install(`) is already in `lib/main.dart` is not written again, so a re-run or hand wiring never duplicates a watcher. It writes `MagicPerfIntegration`, so the perf path is wired, but not the `MagicDevtools` umbrella: `MagicDevtools.installPre()` / `installPost()` is the alternative to this wiring, never mixed with it.
 
 The manual path, when the app is already installed and only the tooling is being added:
 
 ```yaml
 dependencies:
-  magic_devtools: ^0.0.11
-  fluttersdk_dusk: ^0.0.20       # add if you use dusk
-  fluttersdk_telescope: ^0.0.12  # add if you use telescope
+  magic_devtools: ^1.0.0
+  tapir: ^1.0.0   # add if you use tapir
+  crumbs: ^1.0.0  # add if you use crumbs
 ```
 
-`magic_devtools` 0.0.11 declares `fluttersdk_dusk ^0.0.20` and `fluttersdk_telescope ^0.0.12`, beside `magic ^0.0.29` and `fluttersdk_wind ^1.9.0`: the newest of each sibling at that release, so the lines above match its own floors. The real requirements underneath are older than the batch that set them: `MagicPerfHooks.sink` and the request ids arrive in magic 0.0.24, `PerfMode` and the interaction readers in dusk 0.0.17, and `TelescopeRedaction` plus the record link fields in telescope 0.0.9. The older minimums are `perf_readers.dart` (dusk 0.0.12), `FramePerfWatcher` / `TelescopeStore.recentFramePerf` (telescope 0.0.5) and `WindPerfCounters` (wind 1.5.0). magic 0.0.24 removed `MagicController.onRefreshUI`, which 0.0.7 assigned, so 0.0.7 does not compile against it: move both together. A caret range resolves to the newest, so a fresh graph always worked; an app whose own constraints hold one sibling back gets a satisfiable graph that then fails on undefined symbols.
+`magic_devtools` declares `tapir ^1.0.0` and `crumbs ^1.0.0`, beside `magic ^1.0.0`, `magic_socket ^1.0.0` and `wind_kit ^1.12.0`, so the lines above match its own floors. It depends on `magic`, `tapir` and `crumbs` directly, so the tools resolve through it rather than transitively through `magic`.
 
 These are regular `dependencies`, not `dev_dependencies`: `lib/main.dart` imports them, so a `dev_dependencies` entry trips the `depend_on_referenced_packages` lint. The `!kReleaseMode` guard is what keeps them out of a release build, not the dependency section.
 
 Then wire the CLI side of each tool:
 
 ```bash
-dart run magic:artisan plugin:install fluttersdk_dusk
-dart run magic:artisan plugin:install fluttersdk_telescope
-dart run magic:artisan dusk:install
-dart run magic:artisan telescope:install
-dart run magic:artisan mcp:install          # surfaces the dusk_* / telescope_* MCP tools
+flutter pub get
+dart run magic:dowel plugin:install tapir
+dart run magic:dowel plugin:install crumbs
+dart run magic:dowel tapir:install
+dart run magic:dowel crumbs:install
+dart run magic:dowel mcp:install          # surfaces the tapir_* / crumbs_* MCP tools
 ```
+
+`tapir:install` and `crumbs:install` write single-tool blocks into `lib/main.dart` when `magic_devtools` is a dependency, and each skips a block whose `TapirPlugin.install(` / `CrumbsPlugin.install(` call is already in the file, so running them after `--with-devtools` writes nothing twice. On their own they write neither `MagicDevtools` nor `MagicPerfIntegration`, so an app wired only by these two installers gets the all-zero perf report. An app that calls `MagicDevtools.installPre()` does not need them.
 
 ## Wiring: two phases that straddle `Magic.init()`
 
@@ -57,44 +60,46 @@ void main() async {
 
 | Call | Runs | What it does |
 |:-----|:-----|:-------------|
-| `MagicDevtools.installPre()` | BEFORE `Magic.init()` | `DuskPlugin.install()` + `TelescopePlugin.install()`, then registers telescope's opt-in `ExceptionWatcher` and `DumpWatcher`, then `MagicPerfIntegration.install()`. Must be first so the snapshot pipeline and the exception watcher are live while Magic boots, capturing boot-time errors and the first route resolve. |
-| `MagicDevtools.installPost()` | AFTER `Magic.init()` | `MagicTelescopeIntegration.install()` (5 Magic watchers + `MagicHttpFacadeAdapter` + the dusk-to-telescope bridge readers) and `MagicDuskIntegration.install()` (14 Magic-aware snapshot enrichers + the `MagicRouter` navigate adapter). Must be last because every one of those resolves dependencies through the IoC container. |
+| `MagicDevtools.installPre()` | BEFORE `Magic.init()` | `TapirPlugin.install()` + `CrumbsPlugin.install()`, then registers crumbs' opt-in `ExceptionWatcher` and `DumpWatcher` once (a second call adds none), then `MagicPerfIntegration.install()`. Must be first so the snapshot pipeline and the exception watcher are live while Magic boots, capturing boot-time errors and the first route resolve. |
+| `MagicDevtools.installPost()` | AFTER `Magic.init()` | `MagicCrumbsIntegration.install()` (5 Magic watchers + `MagicHttpFacadeAdapter`, and it assigns tapir's `pendingHttpCountReader`, `recentLogsReader` and `recentExceptionsReader` to read crumbs) and `MagicTapirIntegration.install()` (14 Magic-aware snapshot enrichers, three of which read `CrumbsStore`, + the `MagicRouter` navigate adapter). Must be last because every one of those resolves dependencies through the IoC container. |
 
-Both halves are idempotent, so a second call in the same isolate is safe. `installPre()` is NOT safe to call LATE, though, and that changed in 0.0.4: the perf integration registers a `NavigatorObserver`, and `MagicRouter.addObserver` throws a `StateError` once the router has been built. A host that installs behind a lazy debug toggle after `runApp` used to get harmless no-ops and now crashes. The throw is deliberate: a silently unregistered observer would produce a performance report with no route transitions and nothing to explain their absence.
+Both halves are idempotent, so a second call in the same isolate is safe: `installPre()` keeps the pair of watchers it registered and adds none on a second call (a second pair would record every exception and `debugPrint` twice). `installPre()` is NOT safe to call LATE, though: the perf integration registers a `NavigatorObserver`, and `MagicRouter.addObserver` throws a `StateError` once the router has been built. A host that installs behind a lazy debug toggle after `runApp` crashes instead of getting a harmless no-op. The throw is deliberate: a silently unregistered observer would produce a performance report with no route transitions and nothing to explain their absence.
+
+`MagicDevtools.resetForTesting()` is test-only: it uninstalls the two watchers `installPre()` registered (restoring `FlutterError.onError`, the platform error callback and `debugPrint`) so the next `installPre()` registers a pair again.
 
 > [!WARNING]
-> Keep `!kReleaseMode` at the CALL SITE (`kDebugMode` before 0.0.8, which left a profile build without the perf path). Moving the guard inside `installPre` / `installPost` makes the call live in release, which defeats the tree-shake and pulls dusk plus telescope into the production bundle. That tree-shake is the entire reason this package exists separately from magic core.
+> Keep `!kReleaseMode` at the CALL SITE. Moving the guard inside `installPre` / `installPost` makes the call live in release, which defeats the tree-shake and pulls tapir plus crumbs into the production bundle. That tree-shake is the entire reason this package exists separately from magic core.
 
 ## The four import barrels
 
 | Barrel | Entry point | Reach for it when |
 |:-------|:------------|:------------------|
 | `package:magic_devtools/magic_devtools.dart` | `MagicDevtools` | Default. Both tools, standard watcher set, two calls. |
-| `package:magic_devtools/dusk.dart` | `MagicDuskIntegration` | Dusk only, without telescope. |
-| `package:magic_devtools/telescope.dart` | `MagicTelescopeIntegration` | Telescope only, or a non-standard watcher set (register extras with `TelescopePlugin.registerWatcher` after `installPre`). |
+| `package:magic_devtools/tapir.dart` | `MagicTapirIntegration` | Tapir only, without crumbs. |
+| `package:magic_devtools/crumbs.dart` | `MagicCrumbsIntegration` | Crumbs only, or a non-standard watcher set (register extras with `CrumbsPlugin.registerWatcher` after `installPre`). |
 | `package:magic_devtools/preview.dart` | `MagicPreview` | Hosting the component preview catalog. |
 
 Single-tool wiring keeps the same pre/post split:
 
 ```dart
-if (!kReleaseMode) DuskPlugin.install();
+if (!kReleaseMode) TapirPlugin.install();
 await Magic.init(configFactories: [...]);
-if (!kReleaseMode) MagicDuskIntegration.install();
+if (!kReleaseMode) MagicTapirIntegration.install();
 ```
 
-## MagicPerfIntegration: the performance data path (0.0.4+)
+## MagicPerfIntegration: the performance data path
 
-The one assembly point for performance diagnostics, because it is the only place dusk, telescope, wind and magic are visible at once. Dusk's frozen dependency contract forbids it from importing any of the packages whose data it reports, so it declares function pointers with no-op defaults and someone else has to assign them. That someone is this class.
+The one assembly point for performance diagnostics, because it is the only place tapir, crumbs, wind and magic are visible at once. Tapir's frozen dependency contract forbids it from importing any of the packages whose data it reports, so it declares function pointers with no-op defaults and someone else has to assign them. That someone is this class.
 
-`MagicDevtools.installPre()` installs it. There is nothing else to wire.
+`MagicDevtools.installPre()` installs it, and so does `magic:install --with-devtools` (it writes `MagicPerfIntegration.install()` before `Magic.init(`). There is nothing else to wire.
 
 | What it touches | Package | Why |
 |:----------------|:--------|:----|
-| `MagicPerfHooks.sink` | magic | Set only for an attribution session: counts notifies by controller and cause, query reloads, actions, event dispatches, casts, timer ticks and broadcasts, each linked to the dusk interaction open at the time. |
+| `MagicPerfHooks.sink` | magic | Set only for an attribution session: counts notifies by controller and cause, query reloads, actions, event dispatches, casts, timer ticks and broadcasts, each linked to the tapir interaction open at the time. |
 | `MagicRouter.addObserver` | magic | A `NavigatorObserver` that times each route push to the first post-frame callback after the new route builds. Last 200 transitions retained. |
 | `Wind.installPerfResolver()` | wind | Arms `WindPerfCounters` (parse-path and class-cache counts). Counting stays OFF until a session begins. |
-| `TelescopePlugin.registerWatcher(FramePerfWatcher())` | telescope | Frame timings into telescope's frame buffer. |
-| `framePerfReader`, `perfExtrasReader`, `perfSessionBeginHook`, `perfSessionEndHook`, `perfTimelineReader`, `perfInsightContributors` | dusk | The pointers dusk reads all of the above through: frames, magic counters, session start (with its mode) and end, the trace rows, and the wind and magic insight rules. |
+| `CrumbsPlugin.registerWatcher(FramePerfWatcher())` | crumbs | Frame timings into crumbs' frame buffer. |
+| `framePerfReader`, `perfExtrasReader`, `perfSessionBeginHook`, `perfSessionEndHook`, `perfTimelineReader`, `perfInsightContributors` | tapir | The pointers tapir reads all of the above through: frames, magic counters, session start (with its mode) and end, the trace rows, and the wind and magic insight rules. |
 
 | API | Signature | Notes |
 |:----|:----------|:------|
@@ -102,13 +107,13 @@ The one assembly point for performance diagnostics, because it is the only place
 | `MagicPerfIntegration.controllerNotifyCounts` | `Map<String, int>` | Notifies per controller type since the last session began. |
 | `MagicPerfIntegration.routeTransitions` | `List<Map<String, Object?>>` | The retained transitions, most recent last. |
 
-Session scoping is the part that surprises people: `perfSessionBeginHook` resets wind's counters, clears telescope's frame buffer (`clearFramePerf()`, never `clear()`, which would wipe the HTTP and log buffers a developer may be reading) and clears the controller and route counters. Without that reset every session would report the sum of all previous ones. `perfSessionEndHook` turns counting off but leaves the totals intact, because `perf_end` reads them to build its report.
+Session scoping is the part that surprises people: `perfSessionBeginHook` resets wind's counters, clears crumbs' frame buffer (`clearFramePerf()`, never `clear()`, which would wipe the HTTP and log buffers a developer may be reading) and clears the controller and route counters. Without that reset every session would report the sum of all previous ones. `perfSessionEndHook` turns counting off but leaves the totals intact, because `perf_end` reads them to build its report.
 
 ## MagicPreview: the component preview catalog
 
 A dev-only catalog served from two routes, `/preview` (first entry) and `/preview/:component` (entry by slug). The sidebar lists every registered entry, only the selected one is mounted, and the header carries a light/dark toggle bound to wind's `WindThemeController`.
 
-The entries come from codegen: `dart run magic:artisan make:component` scaffolds a `*.preview.dart` file per component and `dart run magic:artisan previews:refresh` collects them into `lib/_previews.g.dart`, which exposes `previewEntries()` returning a `List<PreviewEntry>`.
+The entries come from codegen: `dart run magic:dowel make:component` scaffolds a `*.preview.dart` file per component and `dart run magic:dowel previews:refresh` collects them into `lib/_previews.g.dart`, which exposes `previewEntries()` returning a `List<PreviewEntry>`.
 
 ```dart
 // lib/app/providers/route_service_provider.dart
@@ -139,12 +144,12 @@ Two rules decide whether the catalog appears at all:
 
 | Mistake | Consequence | Fix |
 |:--------|:------------|:----|
-| `!kReleaseMode` moved inside `installPre` / `installPost` | Dusk and telescope ship in the release bundle | Guard at the call site |
+| `!kReleaseMode` moved inside `installPre` / `installPost` | Tapir and crumbs ship in the release bundle | Guard at the call site |
 | `installPost()` called before `Magic.init()` | Enrichers and the HTTP adapter cannot resolve through the container | Keep the two calls on either side of `init` |
-| `installPre()` behind a lazy debug toggle, after `runApp` | `StateError` from `MagicRouter.addObserver`: the router locks its observers once built (0.0.4+) | Call it at boot, before `Magic.init()`, and nowhere else |
-| A perf report full of zeros | A pointer was never assigned; every dusk default is a structurally-complete no-op, so it reports zeros instead of failing | Check `MagicDevtools.installPre()` actually ran (it is what installs `MagicPerfIntegration`) |
+| `installPre()` behind a lazy debug toggle, after `runApp` | `StateError` from `MagicRouter.addObserver`: the router locks its observers once built | Call it at boot, before `Magic.init()`, and nowhere else |
+| A perf report full of zeros | A pointer was never assigned; every tapir default is a structurally-complete no-op, so it reports zeros instead of failing | Check `MagicPerfIntegration.install()` actually ran (`MagicDevtools.installPre()` and `magic:install --with-devtools` both install it); an app wired only by `tapir:install` / `crumbs:install` never runs it |
 | `MagicPreview.registerRoutes()` from anywhere but a provider `boot()` | Router already locked, `/preview` missing or `StateError` | Move it into `boot()` |
 | Preview entries held in a top-level `const` list | Widget references survive the release tree-shake (dart-lang/sdk#33920) | Return them from `previewEntries()`, which is what the codegen already does |
 | `magic_devtools` in `dev_dependencies` | `depend_on_referenced_packages` lint | Regular `dependencies`, guarded by `!kReleaseMode` |
 
-For the tool surfaces themselves (the `dusk_*` and `telescope_*` MCP tools, the CLI verbs, the ring buffers), load the `fluttersdk-dusk` and `fluttersdk-telescope` skills. This file covers only the Magic adapter layer.
+For the tool surfaces themselves (the `tapir_*` and `crumbs_*` MCP tools, the CLI verbs, the ring buffers), load the `tapir` and `crumbs` skills. This file covers only the Magic adapter layer.

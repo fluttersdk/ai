@@ -1,10 +1,10 @@
-<!-- magic_device v0.0.1 | Updated: 2026-10-29 -->
+<!-- magic_device v1.0.0 | Updated: 2026-11-14 -->
 
 # magic_device Plugin
 
 Device signals for Flutter apps: whether the device draws from the mains, whether the viewer is away, and the macOS window's fullscreen state. Two classes, `DevicePower` and `WindowFullscreen`, plus a re-export of `battery_plus`'s `BatteryState`.
 
-Unlike the other plugins on this list it has no service provider, no config file, no facade and no artisan command, and it does not depend on `magic`: construct the classes where you need them (a controller, a provider's `boot()`, a background job). The package is generic on purpose; anything app-specific (whether this device is a television) reaches it through a constructor parameter.
+Unlike the other plugins on this list it has no service provider, no config file, no facade and no dowel command, and it does not depend on `magic`: construct the classes where you need them (a controller, a provider's `boot()`, a background job). The package is generic on purpose; anything app-specific (whether this device is a television) reaches it through a constructor parameter.
 
 ## Contents
 
@@ -18,7 +18,7 @@ Unlike the other plugins on this list it has no service provider, no config file
 
 ```yaml
 dependencies:
-  magic_device: ^0.0.1
+  magic_device: ^1.0.0
 ```
 
 Requires Dart `>=3.6.0` and Flutter `>=3.27.0`. It pulls `battery_plus ^7.1.2` (battery state) and `flutter_inactive_timer ^4.0.0` (the desktop idle clock, through `dart:ffi`). There is no `plugin:install` step and nothing to inject into `lib/config/app.dart`.

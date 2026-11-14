@@ -1,6 +1,6 @@
 # Magic Framework: Secondary Systems
 
-Complete reference for Magic framework utility systems: Cache, Events, Logging, Localization, Storage, Encryption, Vault, Carbon, Launch, and Pick. All systems are accessible through facades after importing `package:magic/magic.dart`.
+Complete reference for Magic framework utility systems: Cache, Events, Logging, Localization, Storage, Vault, Carbon, Launch, and MagicFile. All systems are accessible through facades after importing `package:magic/magic.dart`.
 
 ## Contents
 
@@ -12,13 +12,11 @@ Complete reference for Magic framework utility systems: Cache, Events, Logging, 
 - [Localization (Translator)](#localization-translator)
 - [Session (Flash Store)](#session-flash-store)
 - [Storage Manager](#storage-manager)
-- [Encryption (Crypt Facade)](#encryption-crypt-facade)
 - [Vault (Security Storage)](#vault-security-storage)
 - [Carbon (Date Manipulation)](#carbon-date-manipulation)
 - [Launch (URL Launcher)](#launch-url-launcher)
-- [Pick (File & Image Selection)](#pick-file--image-selection)
-- [Broadcasting](#broadcasting)
-- [Sync](#sync)
+- [MagicFile](#magicfile)
+- [Extracted layers](#extracted-layers)
 - [Key Gotchas](#key-gotchas)
 
 ## Support Helpers (Number, Str, Arr, Cast)
@@ -525,7 +523,7 @@ File system abstraction for local disk operations. Supports multiple disks (loca
 | `Storage.exists(path)` | `String path` | `Future<bool>` | Check if file exists. |
 | `Storage.delete(path)` | `String path` | `Future<bool>` | Delete a file. |
 | `Storage.url(path)` | `String path` | `Future<String>` | Get a displayable URL (file:// on mobile, blob: on web). |
-| `Storage.download(path, {name})` | `String path`, `String? name` | `Future<void>` | Trigger download (share sheet on mobile, browser dialog on web). |
+| `Storage.download(path, {name})` | `String path`, `String? name` | `Future<void>` | Trigger download (share sheet on mobile and desktop, which needs `magic_picker`; browser dialog on web). |
 | `Storage.disk([name])` | `String? name` | `StorageDisk` | Get a specific disk instance. |
 
 ### Usage
@@ -537,11 +535,8 @@ import 'package:magic/magic.dart';
 final imageBytes = await imageFile.readAsBytes();
 await Storage.put('avatars/user-123.jpg', imageBytes, mimeType: 'image/jpeg');
 
-// Store a MagicFile (from Pick)
-final picked = await Pick.image();
-if (picked != null) {
-  await Storage.put('gallery/photo.jpg', picked);
-}
+// Store a MagicFile (for example one magic_picker returned)
+await Storage.put('gallery/photo.jpg', picked);
 
 // Retrieve as bytes
 final bytes = await Storage.get('avatars/user-123.jpg');
@@ -577,9 +572,9 @@ await Storage.disk('public').put('uploads/file.pdf', bytes);
 
 | Method | Mobile/Desktop | Web |
 |--------|----------------|-----|
-| `put()` | Writes to file system | Stores in SharedPreferences (Base64) |
+| `put()` | Writes to file system | Stores Base64 in `localStorage` under `flutter.` + path |
 | `url()` | Returns `file://` path | Returns `blob:` URL |
-| `download()` | Opens share sheet | Triggers browser download |
+| `download()` | Hands the file to `LocalAdapterContract.downloadHandler` (the share sheet when `magic_picker` is registered; `UnsupportedError` otherwise) | Triggers browser download |
 
 ### Excluding a Disk from Backup
 
@@ -607,52 +602,6 @@ final ImageProvider? poster = MagicImage.of(item.catalogueUrl, fallback: item.li
 - A fetched image the disk will not keep is drawn from memory (`MagicImageNotStored` carries the bytes) and is not remembered as a host failure; bytes that do not decode are refused for `retryAfter`.
 - `MagicImageWire` refuses non-http(s), non-image bodies and bodies over 8 MiB; `MagicImageException` never carries the address.
 - Web: a plain `NetworkImage`, no stand-in. Tests assign `MagicImageCache.instance = MagicImageCache(store: ..., fetch: ...)` and restore it in `tearDown`.
-
-## Encryption (Crypt Facade)
-
-AES-256-CBC encryption for sensitive data. Two modes: config-based (using app key) and device-based (using Vault-stored key).
-
-> **Warning**: `EncryptionServiceProvider` is NOT auto-registered. Add it manually to `config/app.dart`.
-
-### Crypt API
-
-| Method | Parameters | Return Type | Description |
-|:-------|:-----------|:------------|:------------|
-| `Crypt.encrypt(value)` | `String value` | `String` | Encrypt using app key (config-based). |
-| `Crypt.decrypt(payload)` | `String payload` | `String` | Decrypt using app key (throws on error). |
-| `Crypt.encryptWithDeviceKey(value)` | `String value` | `Future<String>` | Encrypt using device-specific key. |
-| `Crypt.decryptWithDeviceKey(payload)` | `String payload` | `Future<String>` | Decrypt using device-specific key. |
-| `Crypt.hasDeviceKey()` | — | `Future<bool>` | Check if device key exists. |
-| `Crypt.generateDeviceKey()` | — | `Future<void>` | Generate a new device key (invalidates old data). |
-| `Crypt.clearDeviceKey()` | — | `Future<void>` | Delete device key (data becomes unrecoverable). |
-
-### Usage
-
-```dart
-import 'package:magic/magic.dart';
-
-// Config-based encryption (uses APP_KEY)
-final encrypted = Crypt.encrypt('my-secret-value');
-final decrypted = Crypt.decrypt(encrypted);
-
-// Device-based encryption (unique per device, stored in Vault)
-final deviceEncrypted = await Crypt.encryptWithDeviceKey('sensitive-data');
-final deviceDecrypted = await Crypt.decryptWithDeviceKey(deviceEncrypted);
-
-// Device key lifecycle
-if (!await Crypt.hasDeviceKey()) {
-  await Crypt.generateDeviceKey();
-}
-
-// Cleanup
-await Crypt.clearDeviceKey();
-```
-
-### Requirements
-
-- `APP_KEY` in `.env` must be exactly 32 characters.
-- Device key is auto-generated on first use.
-- Errors throw `MagicDecryptException`.
 
 ## Vault (Security Storage)
 
@@ -695,7 +644,7 @@ await Vault.flush();
 
 - **iOS**: Uses Keychain.
 - **Android**: Uses EncryptedSharedPreferences.
-- **Web**: Falls back to SharedPreferences (not hardware-backed).
+- **Web**: Uses the browser's storage through `flutter_secure_storage` (not hardware-backed).
 
 ## Carbon (Date Manipulation)
 
@@ -932,99 +881,9 @@ For `canLaunch()` to work on iOS 9+ and Android 11+, declare schemes in native m
 </queries>
 ```
 
-## Pick (File & Image Selection)
+## MagicFile
 
-File and media picker facade integrating `image_picker` and `file_picker`.
-
-### Pick API
-
-#### Image Picking
-
-| Method | Parameters | Return Type | Description |
-|:-------|:-----------|:------------|:------------|
-| `Pick.image({maxWidth, maxHeight, imageQuality})` | Sizing/quality options | `Future<MagicFile?>` | Pick single image from gallery. |
-| `Pick.images({maxWidth, maxHeight, imageQuality})` | Sizing/quality options | `Future<List<MagicFile>>` | Pick multiple images from gallery. |
-| `Pick.camera({preferredCamera, maxWidth, maxHeight, imageQuality, fallbackToGallery, onError})` | Camera & fallback options | `Future<MagicFile?>` | Capture photo from camera (with optional gallery fallback). |
-| `Pick.media({maxWidth, maxHeight, imageQuality})` | Sizing/quality options | `Future<MagicFile?>` | Pick image or video from gallery. |
-
-#### Video Picking
-
-| Method | Parameters | Return Type | Description |
-|:-------|:-----------|:------------|:------------|
-| `Pick.video({maxDuration})` | `Duration? maxDuration` | `Future<MagicFile?>` | Pick video from gallery. |
-| `Pick.recordVideo({preferredCamera, maxDuration, fallbackToGallery, onError})` | Camera & fallback options | `Future<MagicFile?>` | Record video from camera. |
-
-#### File Picking
-
-| Method | Parameters | Return Type | Description |
-|:-------|:-----------|:------------|:------------|
-| `Pick.file({extensions})` | `List<String>? extensions` | `Future<MagicFile?>` | Pick single file with optional extension filter. |
-| `Pick.files({extensions})` | `List<String>? extensions` | `Future<List<MagicFile>>` | Pick multiple files; empty list if cancelled. |
-| `Pick.directory()` | — | `Future<String?>` | Pick a directory path. |
-| `Pick.saveFile({fileName, bytes, mimeType, dialogTitle})` | `fileName` and `bytes` required | `Future<Uri?>` | Open save dialog; returns the written uri (`file`, `content` or `blob` scheme). |
-
-### Usage
-
-```dart
-import 'package:magic/magic.dart';
-
-// Pick single image
-final image = await Pick.image(imageQuality: 80);
-if (image != null) {
-  print('Picked: ${image.name}');
-  await Storage.put('avatars/user.jpg', image);
-}
-
-// Pick multiple images
-final gallery = await Pick.images();
-for (final img in gallery) {
-  await img.store('gallery');
-}
-
-// Capture from camera with fallback to gallery
-final photo = await Pick.camera(
-  fallbackToGallery: true,
-  onError: (e) => print('Camera error: $e'),
-);
-
-// Pick video
-final video = await Pick.video(maxDuration: Duration(seconds: 30));
-if (video != null) {
-  await video.store('videos');
-}
-
-// Record video
-final recording = await Pick.recordVideo(
-  maxDuration: Duration(minutes: 2),
-  fallbackToGallery: true,
-);
-
-// Pick PDF file
-final pdf = await Pick.file(extensions: ['pdf']);
-if (pdf != null) {
-  await Storage.put('documents/${pdf.name}', pdf);
-}
-
-// Pick multiple documents
-final docs = await Pick.files(extensions: ['pdf', 'doc', 'docx']);
-for (final doc in docs) {
-  await doc.store('uploads');
-}
-
-// Pick directory
-final dirPath = await Pick.directory();
-
-// Save dialog. Returns a Uri, not a path: Android SAF gives content://,
-// the web gives blob:.
-final Uri? savedTo = await Pick.saveFile(
-  fileName: 'export.csv',
-  bytes: csvBytes,
-);
-```
-
-### MagicFile Methods
-
-Files returned by `Pick` are `MagicFile` instances with:
+`MagicFile` stays in core (`package:magic/magic.dart`); the picker that produces one moved to `magic_picker` (see `plugin-picker.md`).
 
 ```dart
 // Properties
@@ -1034,261 +893,26 @@ file.size;           // File size in bytes
 file.mimeType;       // MIME type
 file.isImage;        // true if image
 file.isVideo;        // true if video
-file.isPdf;          // true if PDF
-file.extension;      // File extension
+file.extension;      // File extension (lowercase, no dot)
 
 // Methods
-await file.readAsBytes();     // Read file bytes
-await file.store(path);       // Store to Storage
-await file.storeAs(diskName); // Store with disk selection
+await file.readAsBytes();                    // Read file bytes (null when unreadable)
+await file.store('avatars/user.jpg');        // Store at an exact path, optional {disk}
+await file.storeAs('avatars');               // Store as {directory}/{timestamp}_{name}, optional {disk}
 ```
 
-### Platform Support
+`toXFile` / `fromXFile` and the `image_picker`, `file_picker` and `share_plus` re-exports are gone from core; `magic_picker` exports `XFile` and converts with `XFile.toMagicFile()` and `MagicFile.toXFile()`.
 
-| Method | Android | iOS | Web | Desktop |
-|:-------|:--------|:----|:----|:--------|
-| `image()` | ✅ | ✅ | ✅ | ✅ |
-| `images()` | ✅ | ✅ | ✅ | ✅ |
-| `camera()` | ✅ | ✅ | ✅ | ⚠️ |
-| `video()` | ✅ | ✅ | ✅ | ✅ |
-| `file()` | ✅ | ✅ | ✅ | ✅ |
-| `files()` | ✅ | ✅ | ✅ | ✅ |
-| `directory()` | ✅ | ✅ | ❌ | ✅ |
-| `recordVideo()` | ✅ | ✅ | ✅ | ⚠️ |
+## Extracted layers
 
-⚠️ Desktop camera requires custom delegate setup.
+Core 1.0.0 no longer carries the encryption, picker, broadcasting and SQLite layers. Each is a plugin package with its own page:
 
-## Broadcasting
-
-Laravel Echo-equivalent real-time channel system over WebSockets. Accessed via the `Echo` facade backed by `BroadcastManager`.
-
-> **Important**: `BroadcastServiceProvider` is NOT auto-registered. Add it explicitly to the `providers` list in config.
-
-### Echo Facade API
-
-| Method / Property | Returns | Description |
-|:------------------|:--------|:------------|
-| `Echo.channel(name)` | `BroadcastChannel` | Subscribe to a public channel |
-| `Echo.private(name)` | `BroadcastChannel` | Subscribe to a private channel (auth handshake required) |
-| `Echo.join(name)` | `BroadcastPresenceChannel` | Join a presence channel (auth + member tracking) |
-| `Echo.listen(channel, event, callback)` | `BroadcastChannel` | Shorthand: subscribe + listen in one call |
-| `Echo.leave(name)` | `void` | Unsubscribe from a channel |
-| `Echo.connect()` | `Future<void>` | Establish the WebSocket connection; idempotent, never opens a second socket |
-| `Echo.disconnect()` | `Future<void>` | Close the connection |
-| `Echo.connection` | `BroadcastDriver` | The resolved default driver instance |
-| `Echo.socketId` | `String?` | Server-assigned socket ID, or `null` when disconnected |
-| `Echo.connectionState` | `Stream<BroadcastConnectionState>` | Stream of connection lifecycle state changes |
-| `Echo.onReconnect` | `Stream<void>` | Emits once each time the driver reconnects |
-| `Echo.addInterceptor(interceptor)` | `void` | Register a `BroadcastInterceptor` on the connection |
-| `Echo.manager` | `BroadcastManager` | The underlying manager (for `extend()` and advanced use) |
-| `Echo.fake()` | `FakeBroadcastManager` | Swap to in-memory fake for testing |
-| `Echo.unfake()` | `void` | Restore the real manager binding |
-
-`BroadcastServiceProvider` also registers `SocketIdInterceptor` on the network driver: every `Http` request carries `X-Socket-ID: <Echo.socketId>` while the socket is connected (no header when it is not), which is what Laravel's `broadcast(...)->toOthers()` reads to skip the sender. Skipped for the `'null'` connection or when no network driver is bound.
-
-### Channel Types
-
-- **Public** (`Echo.channel('name')`): No auth. Any connected client may subscribe.
-- **Private** (`Echo.private('name')`): Driver adds `private-` prefix, performs HTTP auth via `auth_endpoint`.
-- **Presence** (`Echo.join('name')`): Driver adds `presence-` prefix, auth + member list tracking. Returns `BroadcastPresenceChannel` with `members`, `onJoin`, `onLeave`.
-
-### BroadcastChannel API
-
-| Method | Returns | Description |
-|:-------|:--------|:------------|
-| `channel.listen(event, callback)` | `BroadcastChannel` | Register a listener for an event name (chainable) |
-| `channel.stopListening(event)` | `void` | Remove a listener |
-| `channel.events` | `Stream<BroadcastEvent>` | Raw stream of all events on this channel |
-| `channel.name` | `String` | Fully-qualified channel name |
-| `channel.isSubscribed` | `bool` | Server confirmed the channel on this connection (`subscription_succeeded`); `false` after a drop, a leave, or a failed auth. `connected` does NOT imply it |
-| `channel.onSubscriptionChanged` | `Stream<bool>` | Emits `isSubscribed` on each change; never replays, so read `isSubscribed` when attaching |
-
-Both members are abstract: a hand-written `implements BroadcastChannel` test double must add them. Under `Echo.fake()` every channel starts unsubscribed; flip it with `fake.driver.setSubscribed('private-team.1', true)` (fully-qualified name).
-
-### BroadcastEvent Fields
-
-| Property | Type | Description |
-|:---------|:-----|:------------|
-| `event` | `String` | Event name (e.g. `'App\\Events\\OrderShipped'`) |
-| `channel` | `String` | Channel name the event arrived on |
-| `data` | `Map<String, dynamic>` | Decoded JSON payload |
-| `receivedAt` | `DateTime` | Local timestamp of receipt |
-
-### BroadcastConnectionState
-
-Values: `connecting`, `connected`, `disconnected`, `reconnecting`.
-
-### BroadcastManager
-
-| Method | Description |
-|:-------|:------------|
-| `BroadcastManager.extend(name, factory)` | Register a custom driver factory `(Map<String,dynamic>) => BroadcastDriver` |
-| `BroadcastManager.resetDrivers()` | Clear all custom driver registrations (testing) |
-| `manager.connection([name])` | Resolve named or default driver (result cached for default) |
-
-### BroadcastInterceptor Contract
-
-All methods have pass-through default implementations; override only what you need:
-
-```dart
-abstract class BroadcastInterceptor {
-  Map<String, dynamic> onSend(Map<String, dynamic> message) => message;
-  BroadcastEvent onReceive(BroadcastEvent event) => event;
-  dynamic onError(dynamic error) => error;
-}
-```
-
-Register interceptors via `Echo.addInterceptor(interceptor)` or `driver.addInterceptor(interceptor)`.
-
-### ReverbBroadcastDriver (Pusher Protocol)
-
-Handles the full Pusher protocol over WebSocket: connection handshake, ping/pong keepalive, public/private/presence subscriptions, automatic reconnection with exponential backoff + 30% random jitter, client-side activity monitoring, and configurable connection establishment timeout.
-
-Config keys under `broadcasting.connections.reverb`:
-
-| Key | Default | Description |
-|:----|:--------|:------------|
-| `host` | `'localhost'` | WebSocket server host |
-| `port` | `8080` | WebSocket server port |
-| `scheme` | `'ws'` | `ws` or `wss` |
-| `app_key` | `''` | Reverb/Pusher application key |
-| `auth_endpoint` | `'/broadcasting/auth'` | HTTP endpoint for private/presence auth |
-| `reconnect` | `true` | Auto-reconnect on disconnect |
-| `max_reconnect_delay` | `30000` | Max backoff delay in ms |
-| `activity_timeout` | `120` | Seconds of inactivity before ping is sent |
-| `connection_timeout` | `15` | Seconds to wait for connection establishment |
-
-Constructor DI parameters for testing:
-- `channelFactory` — overrides WebSocket creation (inject mock channels)
-- `authFactory` — overrides the HTTP auth call for private/presence channels (inject mock auth responses)
-- `pongTimeout` — override the 30-second pong deadline (use short durations in tests)
-- `random` — inject a seeded `Random` for deterministic backoff jitter in tests
-
-**Connection health**: Activity monitor detects silent connection loss using the Pusher protocol `activity_timeout` (provided by server in handshake; falls back to `activity_timeout` config key, default 120s). After `activity_timeout` seconds of inactivity → sends `pusher:ping`. If no `pusher:pong` within `pongTimeout` (30s default) → drops the connection as a code-less close (state `reconnecting`, channels unsubscribed, backoff retry) without waiting on the dead socket's close. Timer resets on ANY inbound message.
-
-**Close codes decide the reconnect** (Pusher protocol): 4000-4099 fatal (no retry, state `disconnected`), 4100-4199 backoff, 4200-4299 immediate, any other code or none (a Reverb restart sends no close frame) backoff. A `pusher:error` frame on an open socket never reconnects, only reaches interceptors: Reverb sends 4200 for any server exception without closing.
-
-**Resubscription**: every `pusher:connection_established` subscribes every channel in the driver's registry with the new socket id, whichever path opened the socket (timer retry, `connect()` after a drop even with `reconnect: false`, first connect). A channel created while down is subscribed once by the next handshake. Work started for one socket (auth call, auth retry, late close or error) is dropped once the socket changed, and an auth answer for a channel `leave()`d meanwhile sends nothing.
-
-**Reconnection backoff**: Exponential backoff with 30% random jitter — `base = 500ms × 2^attempt` (capped at `max_reconnect_delay`), `delay = base + random(0..base×0.3)`. Jitter prevents thundering herd when many clients reconnect simultaneously.
-
-**Connection timeout**: Configurable via `connection_timeout` (default 15s). If the server doesn't complete the Pusher handshake within this window → closes socket, schedules reconnect, throws `TimeoutException`.
-
-**Auth failures**: the default auth call throws `BroadcastAuthException` (`statusCode`, `channelName`, `isRetryable`) on a non-2xx answer, since `Http.post` never throws on 4xx/5xx. Status `0` and 5xx retry with `backoffDelay` while the socket lasts, logged via `Log.warning()`; 401, 403 and other failures are logged via `Log.error()` and not retried. Every failure is routed through the interceptor `onError()` chain; one channel's failure does not block the others. `onReconnect` emits after each reconnect handshake once every channel was sent its subscribe (private/presence after the first auth attempt), never for the first connection.
-
-### NullBroadcastDriver
-
-Silently drops all broadcast operations. Used for local development or when `broadcasting.default` is `'null'`. `BroadcastServiceProvider` skips `connect()` when the default connection is `null`.
-
-### AuthChannelSubscription
-
-Reconciles a single private channel subscription against a caller-supplied, re-read-on-every-call channel name: the seam behind a channel whose name depends on auth state (a team id, a user id).
-
-```dart
-late final subscription = AuthChannelSubscription(
-  channelName: () {
-    final teamId = Auth.user<User>()?.teamId;
-    return teamId == null ? null : 'teams.$teamId';
-  },
-  listeners: {'incident.opened': (event) => refetchIncidents()},
-  onReconnect: refetchIncidents,
-);
-
-Auth.stateNotifier.addListener(subscription.sync);
-subscription.sync(); // reconcile once at startup too
-```
-
-`sync()` is serialised (a call arriving mid-flight defers and re-runs once more) and never registers the channel again while `channelName()` still answers the subscribed name; with the connection down it only calls `Echo.connect()` (needed with `reconnect: false`). A name change leaves the old channel by its prefixed name, calls `Echo.connect()` when the connection is not live, then subscribes and wires every `listeners` entry. That connect is safe mid-reconnect: `ReverbBroadcastDriver.connect()` is idempotent (returns when connected, joins an attempt in flight, supersedes an armed retry), so it never opens a second socket. `onReconnect` fires when the server confirms the channel again after a drop (`onSubscriptionChanged` turning `true`), not when the socket returns, since a channel whose auth is being retried misses events until then; it also fires on the first confirmation when the connect failed at registration. A failed connect still registers the channel and its listeners. `dispose()` cancels only the reconnect-listening subscriptions, not the channel or connection. A `null` channel name disconnects the whole default connection, dropping any other channel the app subscribed elsewhere through `Echo`: deliberate, a signed-out app has no business staying on the socket. Full reference: `doc/digging-deeper/broadcasting.md#auth-scoped-subscriptions`.
-
-### FakeBroadcastManager (Testing)
-
-```dart
-final fake = Echo.fake();
-
-// Trigger some code that uses Echo...
-Echo.channel('orders');
-Echo.private('user.1');
-
-// Assert
-fake.assertConnected();
-fake.assertSubscribed('orders');
-fake.assertSubscribed('private-user.1');
-fake.assertNotSubscribed('presence-room.1');
-fake.assertInterceptorAdded();
-
-// Inspect driver directly
-expect(fake.driver.subscribedChannels, hasLength(2));
-
-// Reset between test cases
-fake.reset();
-```
-
-### Usage Examples
-
-```dart
-import 'package:magic/magic.dart';
-
-// Public channel
-Echo.channel('orders').listen('OrderShipped', (event) {
-  print('Order ${event.data['id']} shipped');
-});
-
-// Private channel (auth required)
-Echo.private('user.${userId}').listen('ProfileUpdated', (event) {
-  print('Profile updated: ${event.data}');
-});
-
-// Presence channel
-final room = Echo.join('room.1');
-room.onJoin.listen((member) => print('${member['name']} joined'));
-room.onLeave.listen((member) => print('${member['name']} left'));
-room.listen('MessagePosted', (event) => print(event.data['body']));
-
-// React to connection state
-Echo.connectionState.listen((state) {
-  if (state == BroadcastConnectionState.reconnecting) {
-    showReconnectingBanner();
-  }
-});
-
-// Re-subscribe after reconnect
-Echo.onReconnect.listen((_) {
-  Echo.channel('orders').listen('OrderShipped', onShipped);
-});
-
-// Custom driver
-BroadcastManager.extend('pusher', (config) => PusherBroadcastDriver(config));
-```
-
-## Sync
-
-`SyncFeed` (`lib/src/sync/sync_feed.dart`) runs a push-then-pull skeleton over one REST resource: push everything written locally since this device's own mark (`POST '$resource/sync'`, batched at `batchSize`, default 500), then pull every page past the server's own cursor (`GET resource`, up to `maxPages`, default 100), never throwing (an exception becomes `SyncReport.failure`, logged via `Log.error`).
-
-A subclass supplies `feed` (the ledger key), `resource`/`envelopeKey` (the wire endpoint), `pending({account, sinceMillis, scope})` (rows to push, oldest first), and `adoptRow({account, row})` (write one pulled row, answering whether it was newer). Use `Cast.intOrNull`/`doubleOrNull`/`boolOrNull` inside `adoptRow` for a numeric/boolean field whose wire type is not guaranteed (web's `int`/`double` share one float).
-
-```dart
-class ItemsSyncFeed extends SyncFeed {
-  @override String get feed => 'items';
-  @override String get resource => 'items';
-  @override String get envelopeKey => 'items';
-
-  @override
-  Future<List<SyncPushRow>> pending({required String account, required int sinceMillis, required String scope}) async {
-    // return locally-written rows newer than sinceMillis, oldest first
-  }
-
-  @override
-  Future<bool> adoptRow({required String account, required Map<String, dynamic> row}) async {
-    // write the row locally, return true when it was newer than what was held
-  }
-}
-
-final SyncReport report = await ItemsSyncFeed().run(scope: 'team-42', account: userId);
-```
-
-**Two clocks, only one advances locally.** The push mark is this device's own `updated_at` epoch millis; the pull cursor is the server's opaque text, read and rewritten unread. A row adopted from a pull carries the originating device's clock, so the push mark never advances to it; the row is simply re-sent once and rejected by the server's own `>=` check.
-
-`SyncLedger` (`lib/src/sync/sync_ledger.dart`) is the bookmark store behind `SyncFeed.run`: `read`/`write` over a `(scope, feed)` pair, upserted by delete-then-insert inside a `SAVEPOINT`/`RELEASE` (not `DB.transaction`, since `BEGIN` does not nest and a feed may already run inside a caller's own transaction; a savepoint does). `CreateSyncCursorsTable` (`lib/src/sync/create_sync_cursors_table.dart`) creates the `sync_cursors` table it reads; magic has no migration discovery, so list it in the app's own `Migrator().run([...])` call. Scope derivation, salt, and run scheduling stay app-side. Full reference: `doc/digging-deeper/sync.md`.
+| Layer | Package | Page |
+|:------|:--------|:-----|
+| Encryption (`Crypt`, `key:generate`) | `magic_encryption` | `plugin-encryption.md` |
+| Picker (`Pick`, `Storage.download` share handler) | `magic_picker` | `plugin-picker.md` |
+| Broadcasting (`Echo`, `ListensToBroadcasts`, `BroadcastListeners`, `AuthChannelSubscription`) | `magic_socket` | `plugin-socket.md` |
+| SQLite (`DB`, `Schema`, migrations, factories, seeders, `SyncFeed`, `SyncLedger`) | `magic_local_storage` | `plugin-local-storage.md` |
 
 ## Key Gotchas
 
@@ -1297,8 +921,7 @@ final SyncReport report = await ItemsSyncFeed().run(scope: 'team-42', account: u
 - **Logging**: `Log.channel(name)` returns a `LoggerDriver` resolved via `LogManager.driver(name)`, enabling per-channel logging.
 - **Lang**: `trans()` is a shorthand for `Lang.get()` and `transChoice()` for `Lang.choice()`. Translations must be loaded before first use. A sentence with a number needs `transChoice`; the plural index is the current locale's, and fifteen languages have only one form.
 - **Storage**: `put()` returns the path, `get()` returns raw bytes. Use `getFile()` for metadata.
-- **Crypt**: App key must be exactly 32 characters. Device keys are auto-generated on first `encryptWithDeviceKey()` call.
 - **Vault**: Async operations. May fail if hardware keystore is locked (e.g., on first boot before PIN unlock).
 - **Carbon**: All manipulation methods return NEW instances; original is immutable.
 - **Launch**: Never throws; always returns bool. Register `LaunchServiceProvider` manually.
-- **Pick**: Returns `MagicFile` instances which wrap `image_picker` and `file_picker` results. Camera fallback requires explicit opt-in.
+- **Extracted**: `Crypt`, `Pick`, `Echo`, `DB`, `Schema` and the sync skeleton are not in core 1.0.0; see Extracted layers above.

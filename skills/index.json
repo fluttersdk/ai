@@ -18,7 +18,7 @@
         },
         {
             "name": "magic-framework",
-            "description": "Write correct, idiomatic code in a Flutter app that depends on the `magic` framework (Laravel-inspired: IoC container, 18 facades, Eloquent-style ORM, service providers, reactive controllers, GoRouter routing, validation, auth, broadcasting, MagicAction writes, Repository row caches, SessionScope tenant resets). Use whenever code imports `package:magic/magic.dart` or `package:magic/testing.dart`, or the work touches Magic.init, MagicApp, a facade (Auth/Http/Cache/DB/Echo/Event/Gate/Config/Lang/Launch/Log/Pick/MagicRoute/Schema/Session/Storage/Vault/Crypt), a Model, MagicController, a MagicView, MagicFormData, FormRequest, MagicAction, MagicFormObject, Repository, SessionScope, BroadcastListeners, a ServiceProvider, a migration, or the artisan make:* CLI. UI styling is Wind (separate wind-ui skill). Do NOT use for plain Flutter or Wind-only work with no magic import.",
+            "description": "Write correct, idiomatic code in a Flutter app that depends on the `magic` framework (Laravel-inspired: IoC container, 13 facades, Eloquent-style ORM, service providers, reactive controllers, GoRouter routing, validation, auth, MagicAction writes, Repository row caches, SessionScope tenant resets). Use whenever code imports `package:magic/magic.dart` or `package:magic/testing.dart`, or the work touches Magic.init, MagicApp, a facade (Auth/Http/Cache/Event/Gate/Config/Lang/Launch/Log/MagicRoute/Session/Storage/Vault), a Model, MagicController, a MagicView, MagicFormData, FormRequest, MagicAction, MagicFormObject, Repository, SessionScope, a ServiceProvider, or the magic:dowel make:* CLI. The SQLite, encryption, picker and broadcasting layers are plugins (magic_local_storage, magic_encryption, magic_picker, magic_socket). UI styling is Wind (separate wind-ui skill). Do NOT use for plain Flutter or Wind-only work with no magic import.",
             "files": [
                 "SKILL.md",
                 "references/auth-system.md",
@@ -33,10 +33,14 @@
                 "references/plugin-deeplink.md",
                 "references/plugin-device.md",
                 "references/plugin-devtools.md",
+                "references/plugin-encryption.md",
+                "references/plugin-local-storage.md",
                 "references/plugin-notifications.md",
                 "references/plugin-payments.md",
+                "references/plugin-picker.md",
                 "references/plugin-sentry.md",
                 "references/plugin-social-auth.md",
+                "references/plugin-socket.md",
                 "references/plugin-starter.md",
                 "references/routing-navigation.md",
                 "references/secondary-systems.md",

@@ -1,10 +1,10 @@
-<!-- magic_social_auth v0.0.11 | Updated: 2026-10-14 -->
+<!-- magic_social_auth v1.0.0 | Updated: 2026-11-14 -->
 
 # magic_social_auth Plugin
 
 Social authentication for Magic Framework against the `magic-starter-laravel` backend: native Google and Apple sheets on mobile, a backend-hosted browser flow with PKCE for GitHub, Microsoft and everything else, on iOS, Android and web. The package never logs the app in: a driver answers a `SocialAuthResult` and the caller decides what a session, a 2FA challenge or a cancelled deletion means.
 
-0.0.8 is a breaking rewrite: there is no token model and no handler, only drivers that answer a `SocialAuthResult`. It needs `magic ^0.0.24`, `fluttersdk_artisan ^0.0.18`, Dart `^3.12.0` and Flutter `>=3.44.0`, and a backend with the `social-login` feature on. 0.0.9 changes no API: its floors move to `magic ^0.0.27` and `fluttersdk_artisan ^0.0.19`.
+0.0.8 is a breaking rewrite: there is no token model and no handler, only drivers that answer a `SocialAuthResult`. It needs `magic ^1.0.0`, `dowel ^1.0.0`, Dart `>=3.13.0` and Flutter `>=3.47.0`, and a backend with the `social-login` feature on.
 
 ## Contents
 
@@ -26,11 +26,11 @@ Social authentication for Magic Framework against the `magic-starter-laravel` ba
 ## Installation
 
 ```bash
-# Register the plugin's artisan provider with the app dispatcher (once)
-dart run magic:artisan plugin:install magic_social_auth
+# Register the plugin's dowel provider with the app dispatcher (once)
+dart run magic:dowel plugin:install magic_social_auth
 
 # One non-interactive run leaves the app ready to sign in
-dart run <app>:artisan social:install \
+dart run magic:dowel social:install \
   --providers=google,apple,github,microsoft \
   --google-ios-client-id=123-abc.apps.googleusercontent.com \
   --google-server-client-id=123-def.apps.googleusercontent.com \
@@ -38,10 +38,10 @@ dart run <app>:artisan social:install \
   --android-callback=https://auth.example.com/auth/social
 
 # Check the result and print the backend env to set
-dart run <app>:artisan social:doctor
+dart run magic:dowel social:doctor
 ```
 
-`plugin:install` injects `SocialAuthServiceProvider` into `lib/config/app.dart` and registers the artisan provider; it publishes no stub files. Every `social:install` flag is optional (an omitted value is written as an empty string and `social:doctor` names it), and `--dry-run` prints every staged operation and writes nothing.
+`plugin:install` injects `SocialAuthServiceProvider` into `lib/config/app.dart` and registers the dowel provider; it publishes no stub files. Every `social:install` flag is optional (an omitted value is written as an empty string and `social:doctor` names it), and `--dry-run` prints every staged operation and writes nothing.
 
 | Flag | Default | What it does |
 |:-----|:--------|:-------------|

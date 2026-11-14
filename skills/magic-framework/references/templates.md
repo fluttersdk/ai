@@ -73,7 +73,7 @@ class User extends Model with HasTimestamps, InteractsWithPersistence {
 
 **Supported casts**: `datetime` (Carbon), `json` (Map), `bool`, `int`, `double`.
 
-**Hybrid persistence**: `save()` calls API first, then syncs to local SQLite. `find()` checks local first, falls back to API, syncs result to local.
+**Hybrid persistence** (only when `useLocal` is true, which needs `magic_local_storage`): `save()` calls API first, then syncs to the local store. `find()` checks local first, falls back to API, syncs result to local.
 
 ---
 

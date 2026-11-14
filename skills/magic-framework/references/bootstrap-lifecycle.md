@@ -254,7 +254,7 @@ return {
     'providers': [
       (app) => RouteServiceProvider(app),
       (app) => AuthServiceProvider(app),
-      (app) => DatabaseServiceProvider(app),
+      (app) => NetworkServiceProvider(app),
     ],
   },
 };
@@ -342,11 +342,10 @@ void main() async {
 
   await Magic.init(
     configFactories: [
-      // Database config depends on Env
+      // App config depends on Env
       () => {
-        'database': {
-          'driver': 'sqlite',
-          'path': Env.get('DATABASE_PATH', ':memory:'),
+        'app': {
+          'name': Env.get('APP_NAME', 'My App'),
         },
       },
       // API config depends on Env
@@ -417,5 +416,5 @@ void main() {
 - **Config Factories**: `configs` parameter won't have access to `Env.get()`. Use `configFactories` when you need environment variables.
 - **Router Access**: `MagicRouter.instance.routerConfig` is `null` until `Magic.init()` completes.
 - **Unregistered Services**: `Magic.make()` throws if service not bound. Use `Magic.bound()` to check first.
-- **Not Auto-Registered**: `EncryptionServiceProvider` is not auto-registered. Add manually to `app.providers` if needed.
+- **Plugin providers**: the encryption, picker, broadcasting and SQLite providers live in plugin packages (`magic_encryption`, `magic_picker`, `magic_socket`, `magic_local_storage`) and are never auto-registered; `<plugin>:install` (or `plugin:install`) adds each to `app.providers`.
 - **Test Cleanup**: Always call `MagicApp.reset()` + `Magic.flush()` in `setUp()` and `tearDown()`.

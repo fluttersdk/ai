@@ -1,4 +1,4 @@
-<!-- magic_payments v0.0.12 | Updated: 2026-10-14 -->
+<!-- magic_payments v1.0.0 | Updated: 2026-11-14 -->
 
 # magic_payments Plugin
 
@@ -26,17 +26,17 @@ The backend half of the same contract lives in `magic-starter-laravel` (`api/v1/
 
 ```yaml
 dependencies:
-  magic_payments: ^0.0.12
+  magic_payments: ^1.0.0
 ```
 
-0.0.12 pins `magic ^0.0.29` and `fluttersdk_artisan ^0.0.20`, the newest of each at that release, and `purchases_flutter ^10.15.1` for the store rail.
+It builds on `magic ^1.0.0` and `dowel ^1.0.0`, with `purchases_flutter` for the store rail.
 
 ```bash
-# Register the plugin's artisan provider with the app dispatcher (once)
-dart run magic:artisan plugin:install magic_payments
+# Register the plugin's dowel provider with the app dispatcher (once)
+dart run magic:dowel plugin:install magic_payments
 
 # Publish lib/config/payments.dart and register the config factory
-dart run magic:artisan payments:install
+dart run magic:dowel payments:install
 ```
 
 `payments:install` also registers the service provider in `lib/config/app.dart`. Without the installer, add it by hand:
@@ -271,9 +271,9 @@ The rails are deliberately NOT configurable. A driver of your own is registered 
 
 | Command | Description |
 |:--------|:------------|
-| `dart run <app>:artisan payments:install` | Publish `lib/config/payments.dart`, register the config factory. |
-| `dart run <app>:artisan payments:configure` | Update the config; rejects a `--driver` the package cannot serve. |
-| `dart run <app>:artisan payments:doctor` | Diagnose config, keys, and which rails this build resolves. `--verbose` shows the path and the requirement behind each check. `--json` (0.0.8+) prints one object for an agent instead. |
+| `dart run magic:dowel payments:install` | Publish `lib/config/payments.dart`, register the config factory. |
+| `dart run magic:dowel payments:configure` | Update the config; rejects a `--driver` the package cannot serve. |
+| `dart run magic:dowel payments:doctor` | Diagnose config, keys, and which rails this build resolves. `--verbose` shows the path and the requirement behind each check. `--json` (0.0.8+) prints one object for an agent instead. |
 
 `payments:doctor --json` prints `{ok, checks: [{id, status, message, fix?}]}` with `status` one of `ok`, `warn` or `error`, and exits with the same code as the human report. The check ids are `dependency_declared`, `dependency_resolved`, `config_published`, `config_valid`, `provider_registered`, `config_factory_wired` and `store_rail_key`. A key is reported only as `present`, `absent` or `blank`, never by value. Both modes are built from one list of checks, so they cannot drift.
 

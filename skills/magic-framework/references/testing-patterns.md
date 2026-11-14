@@ -158,14 +158,51 @@ test('MyWidget displays data from controller', () async {
 
 ## Model Testing
 
-Models are tested with an in-memory SQLite database for speed. Mobile apps use file-based SQLite; web uses in-memory.
+A `useLocal` model persists through the `LocalModelStore` bound to `'local_model_store'`. Core ships only the contract, so a core-level model test binds an in-memory implementation by contract inheritance (no mock library, no SQLite). A test that needs the real SQLite store depends on `magic_local_storage` and follows `plugin-local-storage.md`.
 
-### Setup Database for Model Tests
+### Setup a Store for Model Tests
 
 ```dart
 import 'package:flutter_test/flutter_test.dart';
 import 'package:magic/magic.dart';
-import 'package:sqlite3/sqlite3.dart';
+
+class InMemoryModelStore implements LocalModelStore {
+  final Map<String, List<Map<String, dynamic>>> tables = {};
+  int _nextId = 1;
+
+  @override
+  Future<Map<String, dynamic>?> find(String table, String primaryKey, dynamic id) async =>
+      (tables[table] ?? []).where((row) => row[primaryKey] == id).firstOrNull;
+
+  @override
+  Future<List<Map<String, dynamic>>> all(String table) async => List.of(tables[table] ?? []);
+
+  @override
+  Future<dynamic> insert(String table, Map<String, dynamic> data) async {
+    final id = _nextId++;
+    (tables[table] ??= []).add({...data, 'id': id});
+    return id;
+  }
+
+  @override
+  Future<void> update(String table, String primaryKey, dynamic id, Map<String, dynamic> data) async {
+    final row = await find(table, primaryKey, id);
+    row?.addAll(data);
+  }
+
+  @override
+  Future<void> delete(String table, String primaryKey, dynamic id) async =>
+      tables[table]?.removeWhere((row) => row[primaryKey] == id);
+
+  @override
+  Future<void> upsert(String table, String primaryKey, dynamic id, Map<String, dynamic> data) async {
+    if (await find(table, primaryKey, id) == null) {
+      await insert(table, data);
+      return;
+    }
+    await update(table, primaryKey, id, data);
+  }
+}
 
 class User extends Model with HasTimestamps, InteractsWithPersistence {
   @override
@@ -173,6 +210,12 @@ class User extends Model with HasTimestamps, InteractsWithPersistence {
 
   @override
   String get resource => 'users';
+
+  @override
+  bool get useLocal => true;
+
+  @override
+  bool get useRemote => false;
 
   @override
   List<String> get fillable => ['name', 'email', 'born_at'];
@@ -200,31 +243,21 @@ class User extends Model with HasTimestamps, InteractsWithPersistence {
 
 void main() {
   group('User Model', () {
-    late Database db;
+    late InMemoryModelStore store;
 
     setUp(() {
       MagicApp.reset();
       Magic.flush();
 
-      // Create in-memory database
-      db = sqlite3.openInMemory();
-      DatabaseManager().setConnection(db);
-
-      // Create test table
-      db.execute('''
-        CREATE TABLE users (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          name TEXT NOT NULL,
-          email TEXT,
-          born_at TEXT,
-          created_at TEXT,
-          updated_at TEXT
-        )
-      ''');
+      store = InMemoryModelStore();
+      Magic.singleton('local_model_store', () => store);
     });
 
-    tearDown(() {
-      DatabaseManager().dispose();
+    test('a useLocal model without a bound store throws a StateError', () async {
+      Magic.flush();
+      MagicApp.reset();
+
+      expect(() => User.find(1), throwsStateError);
     });
 
     test('can fill and retrieve attributes', () {
@@ -238,7 +271,7 @@ void main() {
       expect(user.email, 'alice@example.com');
     });
 
-    test('can save new model to database', () async {
+    test('can save new model to the store', () async {
       final user = User()
         ..fill({
           'name': 'Bob',
@@ -253,9 +286,7 @@ void main() {
     });
 
     test('can find model by id', () async {
-      db.execute(
-        "INSERT INTO users (name, email) VALUES ('Carol', 'carol@example.com')"
-      );
+      await store.insert('users', {'name': 'Carol', 'email': 'carol@example.com'});
 
       final user = await User.find(1);
 
@@ -270,9 +301,7 @@ void main() {
     });
 
     test('can update existing model', () async {
-      db.execute(
-        "INSERT INTO users (name, email) VALUES ('Dave', 'dave@example.com')"
-      );
+      await store.insert('users', {'name': 'Dave', 'email': 'dave@example.com'});
 
       final user = await User.find(1);
       user!.name = 'David';
@@ -283,9 +312,7 @@ void main() {
     });
 
     test('can delete model', () async {
-      db.execute(
-        "INSERT INTO users (name, email) VALUES ('Eve', 'eve@example.com')"
-      );
+      await store.insert('users', {'name': 'Eve', 'email': 'eve@example.com'});
 
       final user = await User.find(1);
       final result = await user!.delete();
@@ -306,8 +333,8 @@ void main() {
     });
 
     test('all returns all models', () async {
-      db.execute("INSERT INTO users (name, email) VALUES ('Alice', 'a@example.com')");
-      db.execute("INSERT INTO users (name, email) VALUES ('Bob', 'b@example.com')");
+      await store.insert('users', {'name': 'Alice', 'email': 'a@example.com'});
+      await store.insert('users', {'name': 'Bob', 'email': 'b@example.com'});
 
       final users = await User.all();
 
@@ -328,14 +355,14 @@ void main() {
       expect(user.isDirty('name'), isTrue);
     });
 
-    test('refresh reloads model from database', () async {
-      db.execute("INSERT INTO users (name, email) VALUES ('Grace', 'grace@example.com')");
+    test('refresh reloads model from the store', () async {
+      await store.insert('users', {'name': 'Grace', 'email': 'grace@example.com'});
 
       final user = await User.find(1);
       expect(user!.name, 'Grace');
 
-      // Update directly in database
-      db.execute("UPDATE users SET name = 'Gracey' WHERE id = 1");
+      // Update directly in the store
+      await store.update('users', 'id', 1, {'name': 'Gracey'});
 
       // Refresh the model
       await user.refresh();
@@ -503,7 +530,7 @@ void main() {
   setUpAll(() async {
     await MagicTest.boot(
       configs: [
-        {'database': {'default': 'sqlite', 'connections': {'sqlite': {'driver': 'sqlite', 'database': ':memory:'}}}},
+        {'app': {'name': 'Test App'}},
       ],
       envFileName: '.env.testing',
     );
@@ -636,7 +663,7 @@ fake.reset(); // Clears recorded + stubs
 
 ## Facade Faking
 
-Magic provides built-in fakes for Auth, Cache, Vault, and Log — no third-party mock libraries needed. Each facade exposes `fake()` / `unfake()` methods that swap the IoC-bound service with an in-memory implementation.
+Magic core provides built-in fakes for Auth, Cache, Vault, and Log — no third-party mock libraries needed. Each facade exposes `fake()` / `unfake()` methods that swap the IoC-bound service with an in-memory implementation.
 
 ### setUp / tearDown Pattern
 
@@ -645,7 +672,6 @@ late FakeAuthManager authFake;
 late FakeCacheManager cacheFake;
 late FakeVaultService vaultFake;
 late FakeLogManager logFake;
-late FakeBroadcastManager echoFake;
 
 setUp(() {
   MagicApp.reset();
@@ -655,7 +681,6 @@ setUp(() {
   cacheFake = Cache.fake();       // In-memory cache, records operations
   vaultFake = Vault.fake();       // In-memory secure storage, no platform channels
   logFake = Log.fake();           // Captures log entries, no console output
-  echoFake = Echo.fake();         // In-memory broadcasting, no WebSocket
 });
 
 tearDown(() {
@@ -663,7 +688,6 @@ tearDown(() {
   Cache.unfake();
   Vault.unfake();
   Log.unfake();
-  Echo.unfake();
 });
 ```
 
@@ -700,7 +724,7 @@ fake.assertHas('users');           // Key exists in store
 fake.assertMissing('missing_key'); // Key not in store
 fake.assertPut('users');           // put() was called with this key
 
-// Recorded operations: List<CacheRecord> ({operation, key, value})
+// Recorded operations: List<FakeCacheCall> ({operation, key, value})
 expect(fake.recorded.first.operation, 'put');
 ```
 
@@ -771,32 +795,9 @@ test('second test', () {
 });
 ```
 
-### Echo.fake()
+### Plugin fakes
 
-```dart
-final fake = Echo.fake();
-
-await Echo.connect();
-
-Echo.channel('orders');
-Echo.private('user.1');
-
-// Assertions while connected
-fake.assertConnected();
-fake.assertSubscribed('orders');
-fake.assertNotSubscribed('chat');
-fake.assertInterceptorAdded();
-
-// Low-level driver access
-expect(fake.driver.subscribedChannels, contains('orders'));
-expect(fake.driver.subscribedChannels, contains('private-user.1'));
-
-await Echo.disconnect();
-fake.assertDisconnected();
-
-// Reset recorded state
-fake.reset();
-```
+The broadcasting fake (`FakeBroadcastManager`, behind the `Echo` facade's `fake()`) moved to `package:magic_socket/testing.dart`; see `plugin-socket.md`. The encryption and picker plugins need no fake: bind a cipher or a recording share callback by hand (`plugin-encryption.md`, `plugin-picker.md`). SQLite-backed model tests use `magic_local_storage` (`plugin-local-storage.md`).
 
 ## Middleware Testing
 
@@ -926,7 +927,7 @@ test('validator passes when all rules pass', () {
 
 ## Integration Testing
 
-Integration tests verify that multiple modules (Auth + Network + Controller, or Database + Service) work together correctly. Place these in `test/integration/`.
+Integration tests verify that multiple modules (Auth + Network + Controller, or Model + Service) work together correctly. Place these in `test/integration/`.
 
 ### Full Feature Flow
 
@@ -936,7 +937,6 @@ Integration tests verify that multiple modules (Auth + Network + Controller, or 
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:magic/magic.dart';
-import 'package:sqlite3/sqlite3.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -950,24 +950,9 @@ void main() {
   });
 
   group('Login Flow Integration', () {
-    late Database db;
-
     setUp(() async {
       MagicApp.reset();
       Magic.flush();
-
-      // Setup database
-      db = sqlite3.openInMemory();
-      DatabaseManager().setConnection(db);
-      db.execute('''
-        CREATE TABLE users (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          email TEXT UNIQUE,
-          password TEXT,
-          created_at TEXT,
-          updated_at TEXT
-        )
-      ''');
 
       // Setup mock HTTP
       final mockHttp = MockNetworkDriver();
@@ -998,15 +983,6 @@ void main() {
 
       // Set user factory for Auth
       Auth.manager.setUserFactory(User.new);
-
-      // Seed database with test user
-      db.execute(
-        "INSERT INTO users (email, password) VALUES ('alice@example.com', 'hashed_password')"
-      );
-    });
-
-    tearDown(() {
-      DatabaseManager().dispose();
     });
 
     test('user can login and access protected resources', () async {
@@ -1085,12 +1061,9 @@ test/
 │   ├── cache_test.dart
 │   └── drivers/
 │       └── file_store_test.dart
-├── database/            # Models, QueryBuilder, Migrations
-│   ├── eloquent/
-│   │   └── model_test.dart
-│   ├── query_builder_test.dart
-│   ├── migrator_test.dart
-│   └── schema_test.dart
+├── database/            # Models, casts, model events
+│   └── eloquent/
+│       └── model_test.dart
 ├── events/              # Event dispatcher and listeners
 │   └── events_test.dart
 ├── http/                # Controllers, Middleware, Kernel
@@ -1215,16 +1188,15 @@ setUp(() {
 });
 ```
 
-### Database Connection Not Set
+### Local Model Store Not Bound
 
-**Problem:** Model tests fail because `DatabaseManager` has no active connection.
+**Problem:** A `useLocal` model test throws a `StateError` naming `magic_local_storage`.
 
-**Solution:** Create and set the database connection in `setUp()`.
+**Solution:** Bind a `LocalModelStore` in `setUp()` (an in-memory one, see Model Testing), or set `useLocal` to `false` on the model under test.
 
 ```dart
 setUp(() {
-  final db = sqlite3.openInMemory();
-  DatabaseManager().setConnection(db);
+  Magic.singleton('local_model_store', () => InMemoryModelStore());
 });
 ```
 
@@ -1324,12 +1296,6 @@ All test files should start with:
 ```dart
 import 'package:flutter_test/flutter_test.dart';
 import 'package:magic/magic.dart';
-```
-
-For database tests, also add:
-
-```dart
-import 'package:sqlite3/sqlite3.dart';
 ```
 
 For integration tests with platform channels:

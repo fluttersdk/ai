@@ -1,8 +1,8 @@
-<!-- magic_starter v0.0.73 | Updated: 2026-11-08 -->
+<!-- magic_starter v1.0.0 | Updated: 2026-11-14 -->
 
 # magic_starter Plugin
 
-Full-stack Flutter starter kit for Magic Framework: pre-built auth flows, team management, profile settings, billing, and responsive app/guest layouts with an opt-in feature flag system. The notification UI moved to `magic_notifications` in alpha.25; this package mounts it. From 0.0.45 every sibling floor names a release this package was verified against: `magic ^0.0.35`, `magic_notifications ^0.3.11`, `magic_payments ^0.0.12`, `fluttersdk_wind ^1.10.0` and `fluttersdk_artisan ^0.0.20`. 0.0.59 moves only the Wind floor, in the pubspec from `^1.9.1` to `^1.10.0`. This page quoted `^1.9.0` until then, a floor the pubspec left at 0.0.49. 0.0.60 moves `magic` from `^0.0.29` to `^0.0.35` and `magic_notifications` from `^0.3.10` to `^0.3.11`: both name releases it was verified against, with no new API requirement (the real `magic` requirement stays 0.0.29, below). The `magic_payments` floor carries real requirements underneath: the billing screen purchases by catalogue product key and reads `StoreBillingService.products()`, `store` and `lastChangeTiming`, all new in 0.0.8, so 0.0.40 does not compile against 0.0.7 (see [Billing](#billing)); 0.0.41 needs 0.0.9 for `StoreProductOffer.introEligible`, which the trial copy reads (see [Trials](#trials-0041)); and 0.0.42 needs 0.0.10 for the swap refusal codes (see [Changing a web plan](#changing-a-web-plan-0042)). The Wind floor is a real requirement from 0.0.43 too: the auth forms pass `autofillHints` to `WInput` and `WFormInput`, which Wind 1.8.3 adds. The real `magic` requirement is 0.0.29: views read their route values through `MagicRouter.pathParameterOf` / `queryParameterOf`, and the support thread opens a PDF with `Launch.url(..., webOnlyWindowName: '_self')`. Underneath it sit older ones: `AuthRestored.changed` (magic 0.0.24), which the starter reads to skip the app reload when a restore left the user unchanged, `SessionScope`, `SessionScoped`, the keyed `LatestRead` and `BaseGuard.cacheUser` arrive in magic 0.0.22, `Notify.pushState` in magic_notifications 0.3.5, and `StoreIdentitySync` in magic_payments 0.0.5. Two more carry a requirement older than the batch that set them. Wind is declared DIRECTLY, rather than taken through `magic`, so a floor exists to raise when this package calls a new Wind API: 0.0.28 passes `WSelect.onOpen`, which 1.6.0 adds. And `magic` has needed 0.0.12 since 0.0.29, for two reasons rather than one: `RouteDefinition.stacked()` exists in no release below it, and 0.0.12 is also where a routed page stopped being transparent, which is the defect stacking a route would otherwise expose.
+Full-stack Flutter starter kit for Magic Framework: pre-built auth flows, team management, profile settings, billing, and responsive app/guest layouts with an opt-in feature flag system. The notification UI moved to `magic_notifications` in alpha.25; this package mounts it. From 0.0.45 every sibling floor names a release this package was verified against: `magic ^1.0.0`, `magic_notifications ^1.0.0`, `magic_payments ^1.0.0`, `wind_kit ^1.12.0`, `material_ui ^1.11.0` and `dowel ^1.0.0`; the SDK floor is Dart 3.13 and Flutter 3.47. Those floors name releases it was verified against, with no new API requirement beyond the ones below. The `magic_payments` floor carries real requirements underneath: the billing screen purchases by catalogue product key and reads `StoreBillingService.products()`, `store` and `lastChangeTiming`, all new in 0.0.8, so 0.0.40 does not compile against 0.0.7 (see [Billing](#billing)); 0.0.41 needs 0.0.9 for `StoreProductOffer.introEligible`, which the trial copy reads (see [Trials](#trials-0041)); and 0.0.42 needs 0.0.10 for the swap refusal codes (see [Changing a web plan](#changing-a-web-plan-0042)). The Wind floor is a real requirement from 0.0.43 too: the auth forms pass `autofillHints` to `WInput` and `WFormInput`, which Wind 1.8.3 adds. The real `magic` requirement is 0.0.29: views read their route values through `MagicRouter.pathParameterOf` / `queryParameterOf`, and the support thread opens a PDF with `Launch.url(..., webOnlyWindowName: '_self')`. Underneath it sit older ones: `AuthRestored.changed` (magic 0.0.24), which the starter reads to skip the app reload when a restore left the user unchanged, `SessionScope`, `SessionScoped`, the keyed `LatestRead` and `BaseGuard.cacheUser` arrive in magic 0.0.22, `Notify.pushState` in magic_notifications 0.3.5, and `StoreIdentitySync` in magic_payments 0.0.5. Two more carry a requirement older than the batch that set them. Wind is declared DIRECTLY, rather than taken through `magic`, so a floor exists to raise when this package calls a new Wind API: 0.0.28 passes `WSelect.onOpen`, which 1.6.0 adds. And `magic` has needed 0.0.12 since 0.0.29, for two reasons rather than one: `RouteDefinition.stacked()` exists in no release below it, and 0.0.12 is also where a routed page stopped being transparent, which is the defect stacking a route would otherwise expose.
 
 0.0.39 is BREAKING in three places, all from the redesigned social login and account deletion, and it needs a `magic-starter-laravel` with its `social-login` feature on. `MagicStarter.useSocialAuth(bridge)` replaces the old social login builder hook, with no alias. Every gated `MagicStarterProfileController` method takes a `proof` map where it took a `password`. `doDeleteAccount` schedules the deletion (a grace period a sign-in cancels), or runs it immediately when asked, rather than removing the account in the request. See [Social login and connected accounts](#social-login-and-connected-accounts) and [Identity confirmation and account deletion](#identity-confirmation-and-account-deletion).
 
@@ -39,27 +39,27 @@ Versions left the alpha rail at 0.0.27: `0.0.1-alpha.26` is followed by `0.0.27`
 ```bash
 flutter pub add magic_starter
 
-# Register the plugin's artisan provider with the app dispatcher (once).
+# Register the plugin's dowel provider with the app dispatcher (once).
 # The manifest declares `bootstrap_command: starter:install`, so this chains
 # the install below by itself; run it again by hand if that subprocess failed.
-dart run magic:artisan plugin:install magic_starter
+dart run magic:dowel plugin:install magic_starter
 
 # Scaffold config, register provider, inject config into main.dart.
 # --features implies non-interactive AND turns every key it does not list OFF.
-dart run magic:artisan starter:install
-dart run magic:artisan starter:install --features=teams,two_factor
+dart run magic:dowel starter:install
+dart run magic:dowel starter:install --features=teams,two_factor
 
 # Confirm the install (published-but-unregistered views, missing billing origin, ...)
-dart run magic:artisan starter:doctor
+dart run magic:dowel starter:doctor
 
 # Reconfigure features interactively
-dart run magic:artisan starter:configure
+dart run magic:dowel starter:configure
 
 # Publish views/layouts for customization (Jetstream-style)
-dart run magic:artisan starter:publish
+dart run magic:dowel starter:publish
 
 # Remove plugin scaffolding
-dart run magic:artisan starter:uninstall
+dart run magic:dowel starter:uninstall
 ```
 
 Register the service provider in `lib/config/app.dart`:
@@ -526,16 +526,16 @@ Copy any view or layout to the host app for full ownership:
 
 ```bash
 # Publish all views and layouts
-dart run magic:artisan starter:publish
+dart run magic:dowel starter:publish
 
 # Publish a single view by tag
-dart run magic:artisan starter:publish --tag=views:auth.login
+dart run magic:dowel starter:publish --tag=views:auth.login
 
 # Publish all auth views
-dart run magic:artisan starter:publish --tag=views:auth
+dart run magic:dowel starter:publish --tag=views:auth
 
 # Publish all layouts
-dart run magic:artisan starter:publish --tag=layouts
+dart run magic:dowel starter:publish --tag=layouts
 ```
 
 `--tag` takes `config`, `views`, `layouts`, `middleware`, `lang` or `all` (the default), each with an optional scope (`views:auth`, `views:auth.login`, `layouts:app`). There is no `views:notifications` any more: this package no longer ships those two screens, so customise them through `Notify.view`.
@@ -549,7 +549,7 @@ A published view is a copy, so it does not follow a later release: when a releas
 45 atomic components (39 until 0.0.37, 44 until 0.0.48), all `MS`-prefixed, exported from `package:magic_starter/magic_starter.dart`. Each lives in a 4-file folder under `lib/src/ui/components/` (`<name>.dart`, `<name>.recipe.dart`, `<name>.preview.dart`, `index.dart`) and styles through a `WindRecipe` that reads `MagicStarterTokens.defaultAliases`, so a consumer's theme drives them.
 
 > [!IMPORTANT]
-> The `MS` prefix is not optional and there is no compat shim. The pre-`MS` component names (`Button`, `Dialog`, `Switch`, ...) were removed in alpha.19, and so were the six `MagicStarter*` alias widgets (`MagicStarterCard`, `MagicStarterPageHeader`, `MagicStarterSocialDivider`, `MagicStarterNotificationDropdown`, `MagicStarterTeamSelector`, `MagicStarterUserProfileDropdown`). Write `MSCard`, `MSPageHeader`, `MSSocialDivider`, `MSTeamSelector`, `MSUserProfileDropdown`. The bell is no longer here at all: it is `NotificationDropdown` from `magic_notifications`. The prefix is what ends the `package:flutter/material.dart` collision, so no `hide` clause is needed either way.
+> The `MS` prefix is not optional and there is no compat shim. The pre-`MS` component names (`Button`, `Dialog`, `Switch`, ...) were removed in alpha.19, and so were the six `MagicStarter*` alias widgets (`MagicStarterCard`, `MagicStarterPageHeader`, `MagicStarterSocialDivider`, `MagicStarterNotificationDropdown`, `MagicStarterTeamSelector`, `MagicStarterUserProfileDropdown`). Write `MSCard`, `MSPageHeader`, `MSSocialDivider`, `MSTeamSelector`, `MSUserProfileDropdown`. The bell is no longer here at all: it is `NotificationDropdown` from `magic_notifications`. The prefix is what ends the `package:material_ui/material_ui.dart` collision, so no `hide` clause is needed either way.
 
 | Family | Components |
 |:-------|:-----------|
@@ -565,7 +565,7 @@ A published view is a copy, so it does not follow a later release: when a releas
 
 The five added in 0.0.37 are `MSFormActions` (a cancel/submit footer row), `MSSwitchRow` (a labelled `MSSwitch`), `MSHeaderAction` (a page-header action that collapses to an icon below `lg`), `MSKeyValueEditor` (a controlled editor for a list of key/value pairs) and `MSStringValueList` (a controlled chip editor for distinct strings). Each takes every visible string as a required constructor parameter and reads no translation key of its own.
 
-Since 0.0.49 `MSSwitch` takes an optional `label`: tapping it toggles the switch, it is the switch's accessible name unless `semanticLabel` is set, and it wraps in the width beside the track. `MSSwitchRow` is a full-width `MSSwitch(label:)`, so a test finds its switch by `label`, not `semanticLabel`. Below `lg` the switch and an `sm` `MSButton` sit in a 44 px hit area, and `MSSelect`, `MSSwitch` and `MSSegmentedControl` draw a primary focus ring on Tab (the select's needs `fluttersdk_wind` 1.9.1).
+Since 0.0.49 `MSSwitch` takes an optional `label`: tapping it toggles the switch, it is the switch's accessible name unless `semanticLabel` is set, and it wraps in the width beside the track. `MSSwitchRow` is a full-width `MSSwitch(label:)`, so a test finds its switch by `label`, not `semanticLabel`. Below `lg` the switch and an `sm` `MSButton` sit in a 44 px hit area, and `MSSelect`, `MSSwitch` and `MSSegmentedControl` draw a primary focus ring on Tab (the select's needs `wind_kit` 1.9.1).
 
 Since 0.0.50 every `MSButton` size, not only `sm`, sits in a 44 px hit area below `lg`, and each `MSSegmentedControl` segment has a 44 px hit cell around its painted pill. `MSSelect` and `MSCombobox` default their placeholders to `trans('common.select_option')` and `trans('common.search_options')`, so a host merges those two keys into every locale it ships. The billing controller re-reads plans and usage when the locale changes.
 
@@ -1286,12 +1286,12 @@ Realtime is NOT wired here: the layout arms the poller only. Call `Notify.startR
 | `two_factor` view key missing at runtime | The view is only registered when `MagicStarterConfig.hasTwoFactorFeatures()` is `true` at boot time. Feature flags must be set before `Magic.init()`. |
 | Theme sub-theme ordering | `useTheme()` and `useWindTheme()` set all ten sub-themes at once; individual `useFormTheme()` etc. can override after. Call unified first if using both. The unified call resets the button and field themes (0.0.60+), so `useButtonTheme()` and `useFieldTheme()` come after it. |
 | Slot not rendering | `MagicStarter.view.slot(viewKey, slotName, builder)` must be called before the view is built. Views call `buildSlot()` at build time. |
-| Published view not loading | `dart run magic:artisan starter:publish` copies views to `lib/resources/views/starter/`. Auto-wire adds `MagicStarter.view.register()` to AppServiceProvider. |
+| Published view not loading | `dart run magic:dowel starter:publish` copies views to `lib/resources/views/starter/`. Auto-wire adds `MagicStarter.view.register()` to AppServiceProvider. |
 | `Icons.*` in `build()` | Extract as `static const _iconName = Icons.xxx`. Required for Flutter web tree-shaking. |
 | `brandBuilder` + `brandClassName` both set | `brandBuilder` wins. `brandClassName` is ignored when a builder is registered. |
 | Hardcoding dialog classNames | All modal classNames must come from `MagicStarter.manager.modalTheme`. Never hardcode in widget build methods. |
 | Navigation theme not affecting UI | `MagicStarter.useNavigationTheme()` must be called before the app layout is first painted. |
 | Bottom nav visible on fullscreen routes | Wrap the route's page with `MagicStarterHideBottomNav(child: page)`, and make sure the layout opts in: `MagicStarterBottomNavScope` at its root, its nav inside `MagicStarterBottomNavSlot`. |
 | Whole layout flashes or re-animates between two screens of the same app | The two routes sit in different shells. Every group with a `layout:` is its own `ShellRoute`; give the groups the same `layoutId` (`MagicStarterLayoutIds.app` for a starter app). |
-| Published view not auto-wired | `dart run magic:artisan starter:doctor` detects published but unregistered views. Re-run publish or manually add `MagicStarter.view.register()`. |
+| Published view not auto-wired | `dart run magic:dowel starter:doctor` detects published but unregistered views. Re-run publish or manually add `MagicStarter.view.register()`. |
 | A raw key rendering in a tab title or a dialog | The catalogue is the CONSUMER's; `trans()` answers a missing key with the key. An app upgrading past alpha.24 merges the 20 `magic_starter.titles.*` keys from `assets/stubs/install/en.stub`, and past alpha.26 adds `common.delete`, `notifications.delete_confirm_title` and `notifications.delete_confirm_message`. A fresh `starter:install` already ships them. |

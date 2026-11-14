@@ -1,17 +1,17 @@
 ---
 name: magic-framework
-description: "Write correct, idiomatic code in a Flutter app that depends on the `magic` framework (Laravel-inspired: IoC container, 18 facades, Eloquent-style ORM, service providers, reactive controllers, GoRouter routing, validation, auth, broadcasting, MagicAction writes, Repository row caches, SessionScope tenant resets). Use whenever code imports `package:magic/magic.dart` or `package:magic/testing.dart`, or the work touches Magic.init, MagicApp, a facade (Auth/Http/Cache/DB/Echo/Event/Gate/Config/Lang/Launch/Log/Pick/MagicRoute/Schema/Session/Storage/Vault/Crypt), a Model, MagicController, a MagicView, MagicFormData, FormRequest, MagicAction, MagicFormObject, Repository, SessionScope, BroadcastListeners, a ServiceProvider, a migration, or the artisan make:* CLI. UI styling is Wind (separate wind-ui skill). Do NOT use for plain Flutter or Wind-only work with no magic import."
-when_to_use: "Use proactively when editing or scaffolding a magic app: Magic.init / a facade / a Model / a MagicController or MagicView / a form (MagicFormData, FormRequest, Validator, MagicFormObject) / a write (MagicAction, RunsActions) / a resource cache (Repository, RepositoryQuery) / a tenant boundary (SessionScope, SessionScoped) / a shared realtime channel (BroadcastListeners, ListensToBroadcasts) / a ServiceProvider / a route or MagicMiddleware / a migration / MagicStateMixin + RxStatus + fetchList / Session flash + old() + trans() / testing with MagicTest + Http.fake/Auth.fake / the artisan make:* CLI / the magic_deeplink, magic_notifications, magic_social_auth, magic_starter, magic_payments, magic_devtools, magic_sentry, or magic_device plugins. Trigger even when the user does not say the word 'magic'. Do NOT trigger for plain Flutter or Wind-only UI with no package:magic import."
-version: 0.1.84
+description: "Write correct, idiomatic code in a Flutter app that depends on the `magic` framework (Laravel-inspired: IoC container, 13 facades, Eloquent-style ORM, service providers, reactive controllers, GoRouter routing, validation, auth, MagicAction writes, Repository row caches, SessionScope tenant resets). Use whenever code imports `package:magic/magic.dart` or `package:magic/testing.dart`, or the work touches Magic.init, MagicApp, a facade (Auth/Http/Cache/Event/Gate/Config/Lang/Launch/Log/MagicRoute/Session/Storage/Vault), a Model, MagicController, a MagicView, MagicFormData, FormRequest, MagicAction, MagicFormObject, Repository, SessionScope, a ServiceProvider, or the magic:dowel make:* CLI. The SQLite, encryption, picker and broadcasting layers are plugins (magic_local_storage, magic_encryption, magic_picker, magic_socket). UI styling is Wind (separate wind-ui skill). Do NOT use for plain Flutter or Wind-only work with no magic import."
+when_to_use: "Use proactively when editing or scaffolding a magic app: Magic.init / a facade / a Model / a MagicController or MagicView / a form (MagicFormData, FormRequest, Validator, MagicFormObject) / a write (MagicAction, RunsActions) / a resource cache (Repository, RepositoryQuery) / a tenant boundary (SessionScope, SessionScoped) / a ServiceProvider / a route or MagicMiddleware / MagicStateMixin + RxStatus + fetchList / Session flash + old() + trans() / testing with MagicTest + Http.fake/Auth.fake / the magic:dowel make:* CLI / the magic_deeplink, magic_notifications, magic_social_auth, magic_starter, magic_payments, magic_devtools, magic_sentry, magic_device, magic_encryption, magic_picker, magic_socket, or magic_local_storage plugins (Crypt, Pick, Echo, DB, Schema, migrations, seeders, BroadcastListeners). Trigger even when the user does not say the word 'magic'. Do NOT trigger for plain Flutter or Wind-only UI with no package:magic import."
+version: 0.1.87
 ---
 
-<!-- magic 0.0.41 | Skill v0.1.84 (2026-11-10). API surface verified against lib/src. -->
+<!-- magic 1.0.0 | Skill v0.1.87 (2026-11-14). API surface verified against lib/src. -->
 
 # Magic Framework
 
-Laravel-inspired Flutter framework: IoC container, 18 facades, Eloquent-style ORM, service providers, reactive controllers, and GoRouter-backed routing. This skill makes an agent write code that an experienced magic developer would write: facade-first, IoC-resolved, reactive, and verified against the real API in `lib/src`. All visual styling is handled by Wind (load the `wind-ui` skill for className work); this skill owns architecture, data, navigation, auth, and testing.
+Laravel-inspired Flutter framework: IoC container, 13 facades, Eloquent-style ORM, service providers, reactive controllers, and GoRouter-backed routing. This skill makes an agent write code that an experienced magic developer would write: facade-first, IoC-resolved, reactive, and verified against the real API in `lib/src`. All visual styling is handled by Wind (load the `wind-ui` skill for className work); this skill owns architecture, data, navigation, auth, and testing.
 
-The host app already depends on `package:magic/magic.dart`. The accuracy contract for this skill: every API you write must exist in `lib/src`. When unsure of a signature, open the source or the matching `doc/**` page rather than guessing; magic is pre-1.0 and the surface is exact, not approximate.
+The host app already depends on `package:magic/magic.dart`. The accuracy contract for this skill: every API you write must exist in `lib/src`. When unsure of a signature, open the source or the matching `doc/**` page rather than guessing; the surface is exact, not approximate.
 
 ## 0. Before writing code in this project
 
@@ -19,18 +19,18 @@ Three checks, each pays off across the whole session.
 
 1. **Read `lib/main.dart` and `lib/config/app.dart`.** Note the `providers` list and its ORDER (AppServiceProvider must precede AuthServiceProvider so `setUserFactory` is set before auth restore runs), and whether `configFactories` or `configs` is used.
 2. **Scan one existing controller + view pair in `lib/app/`** for the project's idioms: the singleton accessor shape, how views resolve controllers, how forms are wired. Match the surrounding code, do not invent a dialect.
-3. **CLI invocation.** Magic ships an `artisan` executable, so every command runs as `dart run magic:artisan <cmd>` from any app that depends on magic (no package-name placeholder, no global activate).
+3. **CLI invocation.** Magic ships a `dowel` executable, so every command runs as `dart run magic:dowel <cmd>` from any app that depends on magic (no package-name placeholder, no global activate).
 
 ## 1. Core Laws
 
 Hard constraints for every line of magic code.
 
 1. **`await Magic.init()` first.** It must be awaited in `main()` before any facade call and before `runApp()`. Never `.then()`; providers are not booted until the future completes.
-2. **Facade-first.** Reach for `Auth`, `Http`, `Config`, `Cache`, `DB`, `Schema`, `Log`, `Event`, `Echo`, `Lang`, `MagicRoute`, `Gate`, `Session`, `Vault`, `Storage`, `Pick`, `Crypt`, `Launch`. Resolve from the container manually (`Magic.make<T>('key')`) only when extending the framework.
+2. **Facade-first.** Reach for `Auth`, `Http`, `Config`, `Cache`, `Log`, `Event`, `Lang`, `MagicRoute`, `Gate`, `Session`, `Vault`, `Storage`, `Launch`. `DB`, `Schema`, `Echo`, `Pick` and `Crypt` belong to plugins (section 11). Resolve from the container manually (`Magic.make<T>('key')`) only when extending the framework.
 3. **Controllers are singletons.** `static X get instance => Magic.findOrPut(X.new);` is the canonical accessor. Views resolve controllers via `Magic.find<T>()` (automatic in `MagicView`), never through constructors.
 4. **IoC over `new` for services.** Bind in a provider's `register()`, resolve via the facade or `Magic.make<T>('key')`. Do not scatter `Service()` construction across the app.
 5. **Provider discipline.** `register()` is synchronous and is where routes and bindings go. `boot()` is async and may resolve other services; set `Auth.manager.setUserFactory(...)` here.
-6. **Reactive state, not setState.** Controllers extend `MagicController` (a `ChangeNotifier`); state flows through `MagicStateMixin` + `RxStatus`. Use `refreshUI()` (guarded `notifyListeners`, and the single seam every controller notification goes through, including validation), `setLoading/setSuccess/setError/setEmpty`, `MagicBuilder` for a section backed by a `ValueListenable`, and `MagicSelector` for a section backed by a plain controller field (it caches its child, so it survives the parent's `setState` and is the tool for a field that changes on every keystroke). `MagicPerfHooks.sink` is a null-by-default static tooling sets to observe those notifications (and repository, query, action, event, cast, timer and broadcast activity); there is no `onRefreshUI`. Local `setState` belongs only to genuine widget-local UI state inside a `MagicStatefulView`.
+6. **Reactive state, not setState.** Controllers extend `MagicController` (a `ChangeNotifier`); state flows through `MagicStateMixin` + `RxStatus`. Use `refreshUI()` (guarded `notifyListeners`, and the single seam every controller notification goes through, including validation), `setLoading/setSuccess/setError/setEmpty`, `MagicBuilder` for a section backed by a `ValueListenable`, and `MagicSelector` for a section backed by a plain controller field (it caches its child, so it survives the parent's `setState` and is the tool for a field that changes on every keystroke). `MagicPerfHooks.sink` is a null-by-default static tooling sets to observe those notifications (and repository, query, action, event, cast, timer and broadcast activity, the last reported by `magic_socket`); there is no `onRefreshUI`. Local `setState` belongs only to genuine widget-local UI state inside a `MagicStatefulView`.
 7. **Typed attribute access.** Models use `get<T>('key')` and `set('key', v)`, never raw `getAttribute`. Declare `fillable`; use `fill(validated, strict: true)` after validation so schema drift throws `MassAssignmentException`.
 8. **Context-free navigation and feedback.** `MagicRoute.to/back/replace`, `Magic.snackbar/toast/dialog/confirm/loading`. Never depend on a `BuildContext` for navigation or feedback. Never navigate or fetch inside `build()`.
 9. **Validate at the boundary.** `MagicFormData` for forms, `FormRequest` for complex payloads, `Validator` for ad hoc checks. Surface server errors with `handleApiError(response)` (from the `ValidatesRequests` mixin).
@@ -71,7 +71,7 @@ Magic mirrors Laravel's vocabulary; it diverges wherever Dart lacks PHP's runtim
 | Eloquent lazy load + `with()` eager load | relations cast from nested API Maps, cached on first access | NO lazy load, NO `with()`, NO query-builder relations: if the payload did not nest it, it is null |
 | `Gate`/`Policy` server-authoritative | `Gate`/`Policy` run CLIENT-side, advisory only | always re-authorize on the backend |
 | server sessions | tokens in `Vault` (secure storage), cache-first restore | `Auth.restore()` on cold start |
-| `Encrypter` AES + HMAC/AEAD JSON envelope | AES-256-CBC `iv:ciphertext` (base64), no MAC | not cross-decryptable with Laravel's `Crypt` |
+| `Encrypter` AES + HMAC/AEAD JSON envelope | `magic_encryption`: AES-256-CBC `iv:ciphertext` (base64), no MAC | not cross-decryptable with Laravel's `Crypt` |
 
 The five assumptions a Laravel developer gets wrong most: (1) the container autowires (it does not, register explicitly); (2) `user.posts` lazy-loads (it does not, embed in the payload); (3) `Gate.allows()` is real security (advisory only); (4) `with()` exists (it does not); (5) `boot()` is sync (it is async). Full mapping with Laravel source citations: `${CLAUDE_SKILL_DIR}/references/bootstrap-lifecycle.md`.
 
@@ -89,9 +89,9 @@ The five assumptions a Laravel developer gets wrong most: (1) the container auto
 | `Magic.delete<T>()` / `Magic.isRegistered<T>()` | controller remove / check |
 | `Magic.flush()` / `MagicApp.reset()` | clear controllers / full container reset (testing) |
 
-### The 18 facades
+### The 13 facades
 
-`Config` and `Gate` resolve through their managers (no plain IoC key); the rest bind to the key shown.
+`Config` and `Gate` resolve through their managers (no plain IoC key); the rest bind to the key shown. Core 1.0.0 carries none of five facades that live in plugins: `Crypt` (`magic_encryption`), `Pick` (`magic_picker`), `Echo` (`magic_socket`), `DB` and `Schema` (`magic_local_storage`); see section 11.
 
 | Facade | Key | Surface you reach for (all verified in `lib/src/facades/`) |
 |---|---|---|
@@ -99,19 +99,14 @@ The five assumptions a Laravel developer gets wrong most: (1) the container auto
 | `Http` | `network` | `get/post/put/delete`, `upload`, RESTful `index/show/store/update/destroy`, `fake([stubs])`, `response([data, code])`, `unfake()`. NO `patch` |
 | `Config` | (manager) | `get<T>`, `getOrFail<T>`, `set`, `has`, `all`, `merge`, `prepend`, `push`, `forget`, `flush`, `repository` |
 | `Cache` | `cache` | `put(key, value, {ttl})`, `get`, `has`, `forget`, `flush`, `remember<T>(key, ttl, cb)`, `fake()` |
-| `DB` | (lazy) | `table(name)` (query builder), `select/statement/insert/update/delete` (raw SQL), `transaction(cb)`, `beginTransaction/commit/rollback` |
-| `Schema` | (manager) | `create(table, (b){})`, `table`, `drop`, `dropIfExists`, `hasTable`, `hasColumn`, `getColumns`, `rename` |
 | `Log` | `log` | `info/error/warning/debug/notice/critical/alert/emergency`, `log(level, msg)`, `channel(name)`, `fake()` |
 | `Event` | (dispatcher) | `dispatch(MagicEvent)`; `listen<T extends MagicEvent>(() => Listener())` (named `T`, register in `register()` not `boot()`); or `EventDispatcher.register(Type, [() => Listener()])` directly |
-| `Echo` | `broadcasting` | `channel/private/join`, `listen`, `leave`, `connect/disconnect`, `socketId`, `connectionState`, `onReconnect`, `addInterceptor`, `manager`, `fake()` |
 | `MagicRoute` | (router) | `page`, `group`, `layout`, `resource(name, ctrl, {only, except})`, `to`, `toNamed`, `push`, `back({fallback})`, `replace`, `setTitle`, `currentTitle`, `config` |
 | `Gate` | (manager) | `define`, `before`, `allows`, `denies`, `allowsAny(list)`, `allowsAll(list)`, `has`, `abilities`, `flush` |
 | `Session` | (store) | `flash(map)`, `flashErrors(map)`, `old(field, [fallback])`, `oldRaw`, `error(field)`, `errors(field)`, `hasError`, `hasFlash`, `tick()` |
 | `Lang` | (translator) | `get(key, [replace])`, `has`, `current`, `isLoaded`, `supportedLocales`, `setLocale`, `detectLocale`, `detectAndSetLocale`, `setSupportedLocales`, `addListener/removeListener`, `delegate` |
 | `Vault` | `vault` | `put(key, value)`, `get`, `delete`, `flush`, `fake([initial])` |
-| `Storage` | (manager) | `disk([name])`, `put`, `get`, `getFile`, `exists`, `delete`, `url`, `download`, `setManager`, `flush` |
-| `Pick` | (static) | `image`, `images`, `camera`, `media`, `video`, `recordVideo`, `file`, `files`, `directory`, `saveFile` |
-| `Crypt` | `encrypter` | `encrypt`, `decrypt`, `encryptWithDeviceKey`, `decryptWithDeviceKey`, `hasDeviceKey`, `generateDeviceKey`, `clearDeviceKey`; a bad payload throws `MagicDecryptException` (exported from `magic.dart`) |
+| `Storage` | (manager) | `disk([name])`, `put`, `get`, `getFile`, `exists`, `delete`, `url`, `download` (IO needs `magic_picker`, else `UnsupportedError`; web unchanged), `setManager`, `flush` |
 | `Launch` | `launch` | `url(u, {mode})`, `email`, `phone`, `sms`, `canLaunch` |
 
 Global helper functions exist and are idiomatic: `env<T>(key, [default])`, `trans(key, [replace])`, `transChoice(key, count, [replace])`, `old(field, [fallback])`, `error(field)`, `carbonNow()`, `carbonToday()`, `carbonParse(s)`. Full per-facade signatures: `${CLAUDE_SKILL_DIR}/references/facades-api.md`.
@@ -127,7 +122,7 @@ class User extends Model with HasTimestamps, InteractsWithPersistence {
   @override String get table => 'users';
   @override String get resource => 'users';
   @override List<String> get fillable => ['name', 'email'];
-  @override bool get useLocal => true;   // OPT IN to SQLite; default is API-only (false)
+  @override bool get useLocal => true;   // OPT IN to SQLite (needs magic_local_storage); default is API-only (false)
   @override Map<String, dynamic> get casts => const {
     'created_at': 'datetime',                       // Carbon
     'settings': 'json',                             // Map or List
@@ -150,7 +145,7 @@ class User extends Model with HasTimestamps, InteractsWithPersistence {
 }
 ```
 
-Casts: `datetime`, `json`, `bool`, `int`, `double` (string keys), plus class-based `CastsAttributes<T>` (`EnumCast(values, {strict})`, `ListCast(inner)`). `save()` is API-first then syncs to SQLite when `useLocal` is true. Relations are decoded from nested API Maps and cached on first access: there is no lazy load, no eager load, no `with()`.
+Casts: `datetime`, `json`, `bool`, `int`, `double` (string keys), plus class-based `CastsAttributes<T>` (`EnumCast(values, {strict})`, `ListCast(inner)`). `save()` is API-first then syncs to the local store when `useLocal` is true; core resolves that store from the `LocalModelStore` contract (container key `'local_model_store'`, bound by `magic_local_storage`), and a `useLocal` model with nothing bound throws a `StateError` naming the plugin. Relations are decoded from nested API Maps and cached on first access: there is no lazy load, no eager load, no `with()`.
 
 ### Controller + reactive state
 
@@ -255,11 +250,11 @@ final payload = validateRequest(StoreUserRequest(), form.data);   // throws Auth
 
 Mix `CollapsesIndexedErrorKeys` on top of `ValidatesRequests` to collapse a backend's indexed list-validation key (`items.0.name`) onto its field name (`name`) for a form with one error slot per field, not per element; `CollapsesIndexedErrorKeys.collapse(wireKey)` (static) runs the same collapse for a controller that cannot mix it in.
 
-`BaseGuard.startSession`/`logout()` (and `Auth.fake()`'s fake guard) dispatch `AuthLogin`/`AuthLogout` through `Event`: `AuthLogin` at the end of a successful `startSession`, `AuthLogout` after the state bump on every `logout()` including a guest's, never on a restore (`AuthRestored` covers that, API-confirmed sync only). `AuthChannelSubscription(channelName:, listeners:, onReconnect:)` reconciles a private broadcast channel whose name tracks auth state (wire `sync` to `Auth.stateNotifier`); see `doc/digging-deeper/broadcasting.md#auth-scoped-subscriptions`.
+`BaseGuard.startSession`/`logout()` (and `Auth.fake()`'s fake guard) dispatch `AuthLogin`/`AuthLogout` through `Event`: `AuthLogin` at the end of a successful `startSession`, `AuthLogout` after the state bump on every `logout()` including a guest's, never on a restore (`AuthRestored` covers that, API-confirmed sync only). `AuthChannelSubscription(channelName:, listeners:, onReconnect:)` (from `magic_socket`) reconciles a private broadcast channel whose name tracks auth state (wire `sync` to `Auth.stateNotifier`); see `references/plugin-socket.md`.
 
 ### Actions, Repositories, SessionScope, BroadcastListeners
 
-Four primitives divide a write-heavy screen the way Laravel divides a controller-heavy one; full pages: `doc/architecture/application-structure.md` (the map), `doc/basics/actions.md`, `doc/eloquent/repositories.md`, `doc/digging-deeper/session-scope.md`, `doc/digging-deeper/broadcasting.md#broadcast-listeners`.
+Four primitives divide a write-heavy screen the way Laravel divides a controller-heavy one; full pages: `doc/architecture/application-structure.md` (the map), `doc/basics/actions.md`, `doc/eloquent/repositories.md`, `doc/digging-deeper/session-scope.md`; `BroadcastListeners` and `ListensToBroadcasts` come from `magic_socket` (`references/plugin-socket.md`).
 
 ```dart
 // A write: stateless, resolved through MagicAction.resolve so a test can MagicAction.bind a fake.
@@ -276,7 +271,7 @@ class MonitorController extends MagicController with RunsActions, OwnsTimers, Li
   // Repository<T>: one row per id, shared by every RepositoryQuery built over it.
   late final query = RepositoryQuery<Monitor>(repository: MonitorRepository.instance);
 
-  // ListensToBroadcasts: one AuthChannelSubscription per alias, fanned out to every listener.
+  // ListensToBroadcasts (magic_socket): one AuthChannelSubscription per alias, fanned out to every listener.
   @override Map<String, void Function(BroadcastEvent)> get listeners => {
     'team:check.recorded': (event) => MonitorRepository.instance.patch(event.data['id'], event.data),
   };
@@ -340,7 +335,7 @@ void main() {
 }
 ```
 
-Six facades fake without any mock library: `Http.fake` (`FakeNetworkDriver`: `assertSent/assertNotSent/assertSentCount/assertNothingSent`), `Auth.fake` (`assertLoggedIn/assertLoggedOut/assertLoginAttempted/assertLoginCount`), `Cache.fake` (`assertHas/assertMissing/assertPut`), `Vault.fake` (`assertWritten/assertDeleted/assertContains/assertMissing`), `Log.fake` (`assertLogged/assertLoggedError/assertNothingLogged/assertLoggedCount`), `Echo.fake` (`assertConnected/assertDisconnected/assertSubscribed/assertNotSubscribed/assertInterceptorAdded`, `driver.setSubscribed` for `isSubscribed`). Every `setUp` must reset the container (`MagicTest.init()` does this); skipping it leaks state and produces false passes. A widget test that needs a few real providers uses `MagicTest.bootProviders(providers)` (register all, then boot all, as `Magic.init` does) with `MagicTest.disposeBooted()` in `tearDown`. Full patterns: `${CLAUDE_SKILL_DIR}/references/testing-patterns.md`.
+Five facades fake without any mock library: `Http.fake` (`FakeNetworkDriver`: `assertSent/assertNotSent/assertSentCount/assertNothingSent`), `Auth.fake` (`assertLoggedIn/assertLoggedOut/assertLoginAttempted/assertLoginCount`), `Cache.fake` (`assertHas/assertMissing/assertPut`), `Vault.fake` (`assertWritten/assertDeleted/assertContains/assertMissing`), `Log.fake` (`assertLogged/assertLoggedError/assertNothingLogged/assertLoggedCount`). The broadcasting fake (`FakeBroadcastManager`) is in `package:magic_socket/testing.dart`. A `useLocal` model test binds a `LocalModelStore` (an in-memory one by contract inheritance, or `magic_local_storage`'s). Every `setUp` must reset the container (`MagicTest.init()` does this); skipping it leaks state and produces false passes. A widget test that needs a few real providers uses `MagicTest.bootProviders(providers)` (register all, then boot all, as `Magic.init` does) with `MagicTest.disposeBooted()` in `tearDown`. Full patterns: `${CLAUDE_SKILL_DIR}/references/testing-patterns.md`.
 
 ## 7. Common rationalizations (close the escape hatch)
 
@@ -349,7 +344,7 @@ Six facades fake without any mock library: `Http.fake` (`FakeNetworkDriver`: `as
 | "I will just `new` the service / `Magic.make` inline in the view" | Bind in a provider, use the facade. Inline construction breaks IoC and test isolation. |
 | "A plain `StatefulWidget` + `setState` is simpler" | The container resolves the controller and `RxStatus` drives rebuilds; a bare `StatefulWidget` cannot participate and loses state-reset between tests. Use `MagicView` / `MagicStatefulView`. |
 | "I will load the relation with `with()` / a query" | No `with()`, no lazy load exists. Embed the relation in the API payload or fetch it and `set` it. |
-| "`useLocal` defaults on, so `find()` reads SQLite" | `useLocal` defaults to FALSE (API-only). Override it to opt into local persistence. |
+| "`useLocal` defaults on, so `find()` reads SQLite" | `useLocal` defaults to FALSE (API-only). Override it to opt into local persistence, and install `magic_local_storage`: without it a `useLocal` model throws a `StateError`. |
 | "`Gate.allows()` passed, so the action is authorized" | Client-side Gate is advisory. The backend must re-authorize every write. |
 | "I will pass the controller into the view constructor" | Views resolve controllers via `Magic.find<T>()`. Constructor injection is not how magic wires them. |
 | "Flash will expire on its own after navigation" | `Session.tick()` is not automatic; wire it once at bootstrap or old input lingers. |
@@ -372,8 +367,8 @@ Six facades fake without any mock library: `Http.fake` (`FakeNetworkDriver`: `as
 | `Http.get()` or `MagicRoute.to()` in `build()` | call in `onInit()` or callbacks | no I/O or navigation during build |
 | `user.fill(unvalidated)` | `user.fill(validated, strict: true)` | catches schema drift after validation |
 | hand-rolled `if (!Gate.allows(...)) throw` | `authorize('ability')` in the controller | delegates to Gate, throws `AuthorizationException` |
-| `FilePicker.platform.pickFiles()` or `result.files` | `Pick.image()` / `Pick.file()` (or `FilePicker.pickFile()`) | file_picker v12 is static and returns `PlatformFile?` / `List<PlatformFile>`, no `FilePickerResult` |
-| `Pick.saveFile(...)` treated as a path | it returns `Uri?`; check `scheme == 'file'` before `toFilePath()` | Android SAF returns `content://`, web returns `blob:` |
+| a `Pick` / `Crypt` / `Echo` / `DB` call with no plugin | add the plugin (`magic_picker`, `magic_encryption`, `magic_socket`, `magic_local_storage`) and register its provider | core 1.0.0 has none of these facades |
+| `Storage.download` on mobile or desktop throwing `UnsupportedError` | register `magic_picker`'s `PickerServiceProvider` | it sets `LocalAdapterContract.downloadHandler`; web needs nothing |
 | four `MagicRoute.page()` for CRUD | `MagicRoute.resource(name, ctrl)` | auto-wires canonical routes + titles |
 | `import 'package:fluttersdk_magic/...'` | `import 'package:magic/magic.dart'` | the package is `magic` |
 | skipping reset in tests | `MagicTest.init()` (or `MagicApp.reset()` + `Magic.flush()` in `setUp`) | leaked state, false passes |
@@ -397,22 +392,20 @@ Before reporting a magic task done, verify (with evidence, not assumption):
 
 ## 10. CLI
 
-The magic CLI ships as an `artisan` executable in magic's `pubspec.yaml` (`executables: { artisan: }`, backed by `bin/artisan.dart`). Once magic is a dependency, run any command with `dart run magic:artisan <cmd>`. There is no `magic_cli` package and no global activation.
+The magic CLI runs on dowel and ships as a `dowel` executable in magic's `pubspec.yaml` (`executables: { dowel: }`, backed by `bin/dowel.dart`). Once magic is a dependency, run any command with `dart run magic:dowel <cmd>`. There is no `magic_cli` package and no global activation.
 
 ```bash
-dart run magic:artisan magic:install                  # scaffold project structure
-dart run magic:artisan magic:install --with-devtools   # + wire the Dusk/Telescope debug trio in one step
-dart run magic:artisan make:model User -mcfsp          # model (+ migration/controller/factory/seeder/policy via flags)
-dart run magic:artisan make:controller User -r         # resource controller
-dart run magic:artisan make:view Login --stateful      # stateful view
-dart run magic:artisan make:migration create_users     # migration
-dart run magic:artisan make:request StoreUser          # form request
-dart run magic:artisan make:policy User                # authorization policy
-dart run magic:artisan make:resource Monitor            # full CRUD vertical: model, repository, actions, requests, form, controller, views, tests
-dart run magic:artisan key:generate                    # APP_KEY
+dart run magic:dowel magic:install                  # scaffold project structure
+dart run magic:dowel magic:install --with-devtools   # adds magic_devtools, tapir and crumbs and wires them (and MagicPerfIntegration) into lib/main.dart under !kReleaseMode
+dart run magic:dowel make:model User -mcfsp          # model (+ migration/controller/factory/seeder/policy via flags; -m -f -s need magic_local_storage)
+dart run magic:dowel make:controller User -r         # resource controller
+dart run magic:dowel make:view Login --stateful      # stateful view
+dart run magic:dowel make:request StoreUser          # form request
+dart run magic:dowel make:policy User                # authorization policy
+dart run magic:dowel make:resource Monitor            # full CRUD vertical: model, repository, actions, requests, form, controller, views, tests
 ```
 
-Other generators: `make:seeder`, `make:factory`, `make:middleware`, `make:provider`, `make:event`, `make:listener`, `make:enum` (`--wire` for a backend-mirroring enum), `make:lang` (`--from=<locale>` to copy an existing catalogue's key tree), `make:repository`, `make:action` (`--kind=create|update|delete --model=<Model>`), `make:form` (`--resource=<Model>` for the full create/edit contract), `make:test` (`--kind=controller|action|form|repository|request|view|unit`, mirrors a generator's own output under `test/`). `make:controller`, `make:view`, `make:action`, `make:form`, `make:repository` and `make:request` also accept `--test` to chain `make:test` onto a successful write. Generators accept `--force` and nested paths (`Admin/Dashboard`).
+Core ships 17 generators. `make:migration`, `make:seeder` and `make:factory` come from `magic_local_storage` and `key:generate` from `magic_encryption`, each only after that plugin is installed; `make:controller --broadcasts` and the installer's `--without-database` / `--without-broadcasting` flags are gone. Other generators: `make:middleware`, `make:provider`, `make:event`, `make:listener`, `make:enum` (`--wire` for a backend-mirroring enum), `make:lang` (`--from=<locale>` to copy an existing catalogue's key tree), `make:repository`, `make:action` (`--kind=create|update|delete --model=<Model>`), `make:form` (`--resource=<Model>` for the full create/edit contract), `make:test` (`--kind=controller|action|form|repository|request|view|unit`, mirrors a generator's own output under `test/`). `make:controller`, `make:view`, `make:action`, `make:form`, `make:repository` and `make:request` also accept `--test` to chain `make:test` onto a successful write. Generators accept `--force` and nested paths (`Admin/Dashboard`).
 
 Design-first workflow: `make:component Avatar [--variants=intent,size] [--slots]` scaffolds an atomic component folder (`avatar.dart` / `avatar.recipe.dart` / `index.dart`) under `lib/ui/components/` plus its widget test; `avatar.preview.dart` and the chained `previews:refresh` come only when the project already keeps a preview catalogue (`--preview` / `--no-preview` override). `previews:refresh [--path=lib]` regenerates `_previews.g.dart` from all `*.preview.dart` files (returns a `List<PreviewEntry>` function, never a const list). `design:sync [--input=DESIGN.md] [--output=lib/config/wind_theme.g.dart]` emits `designAliases` and `designColors` from a DESIGN.md front-matter. `design:lint [--input=DESIGN.md]` validates against 7 rules (exits nonzero on error-severity only).
 
@@ -429,29 +422,33 @@ Official plugins, each its own package + service provider + config. When a user 
 | Social login (Google/Apple/GitHub/Microsoft) | `magic_social_auth` | `SocialAuth` facade | `references/plugin-social-auth.md` |
 | Pre-built auth/profile/team screens | `magic_starter` | `MagicStarter` facade | `references/plugin-starter.md` |
 | Subscriptions + billing (Stripe on web, store IAP on mobile) | `magic_payments` | `Payments` facade | `references/plugin-payments.md` |
-| E2E (dusk) + runtime inspection (telescope) + component previews | `magic_devtools` | `MagicDevtools`, `MagicPreview` | `references/plugin-devtools.md` |
+| E2E (tapir) + runtime inspection (crumbs) + component previews | `magic_devtools` | `MagicDevtools`, `MagicPreview` | `references/plugin-devtools.md` |
 | Error + performance monitoring (Sentry) | `magic_sentry` | `MagicSentry.run`, `SentryServiceProvider` | `references/plugin-sentry.md` |
 | Mains power + viewer-away gate, macOS window fullscreen | `magic_device` | `DevicePower`, `WindowFullscreen.instance` | `references/plugin-device.md` |
+| AES-256-CBC encryption, `APP_KEY` (`key:generate`) | `magic_encryption` | `Crypt` facade | `references/plugin-encryption.md` |
+| File, image and video picking; `Storage.download` share sheet on mobile and desktop | `magic_picker` | `Pick` facade, `PickerServiceProvider` | `references/plugin-picker.md` |
+| Real-time broadcasting (Reverb), shared channels | `magic_socket` | `Echo` facade, `BroadcastListeners`, `ListensToBroadcasts` | `references/plugin-socket.md` |
+| SQLite: `useLocal` models, migrations, seeders, factories, sync | `magic_local_storage` | `DB`, `Schema`, `Migrator`, `Seeding.run`, `SyncFeed` | `references/plugin-local-storage.md` |
 
 ### Installing a magic plugin into an existing app
 
-Same five steps for every plugin, in this order. Run them from the app root; `dart run magic:artisan <cmd>` delegates to the app's own `bin/dispatcher.dart` when there is one, which is what makes a plugin's commands reachable.
+Same five steps for every plugin, in this order. Run them from the app root; `dart run magic:dowel <cmd>` delegates to the app's own `bin/dispatcher.dart` when there is one, which is what makes a plugin's commands reachable.
 
 1. `flutter pub add <package>`.
-2. `dart run magic:artisan plugin:install <package>`. This registers the plugin's `ArtisanServiceProvider` in `.artisan/plugins.json` and regenerates `lib/app/_plugins.g.dart`, which is what makes the plugin's own commands dispatchable. Skip it and step 3 reports an unknown command.
-3. `dart run magic:artisan <plugin>:install` (`deeplink:install`, `notifications:install`, `starter:install`, `social:install`, ...). The manifest install: publishes the config file, injects the service provider into `lib/config/app.dart`, and adds the config factory to `lib/main.dart`. A plugin whose `install.yaml` declares a `bootstrap_command` (magic_starter does) has this chained for you by step 2; run it by hand when that subprocess reports a failure.
-4. `dart run magic:artisan <plugin>:doctor` where the plugin ships one: `notifications:doctor`, `starter:doctor`, and `deeplink:doctor` (magic_deeplink 0.1.0). It is the only step that tells you the install actually took; `dart run magic:artisan list` showing the plugin's commands is the fallback check.
+2. `dart run magic:dowel plugin:install <package>`. This registers the plugin's `DowelServiceProvider` in `.dowel/plugins.json` and regenerates `lib/app/_plugins.g.dart`, which is what makes the plugin's own commands dispatchable. Skip it and step 3 reports an unknown command.
+3. `dart run magic:dowel <plugin>:install` (`deeplink:install`, `notifications:install`, `starter:install`, `social:install`, ...). The manifest install: publishes the config file, injects the service provider into `lib/config/app.dart`, and adds the config factory to `lib/main.dart`. A plugin whose `install.yaml` declares a `bootstrap_command` (magic_starter does) has this chained for you by step 2; run it by hand when that subprocess reports a failure.
+4. `dart run magic:dowel <plugin>:doctor` where the plugin ships one: `notifications:doctor`, `starter:doctor`, and `deeplink:doctor` (magic_deeplink 0.1.0). It is the only step that tells you the install actually took; `dart run magic:dowel list` showing the plugin's commands is the fallback check.
 5. Whatever the manifest cannot do, which the plugin's own installation guide names. This is where the real failures live: magic_deeplink needs the iOS associated-domains entitlement plus an Android `autoVerify` intent filter and a `flutter_deeplinking_enabled` `false` meta-data inside `<activity>`, and a plugin installed without them compiles and never fires.
 
 Provider ORDER in `lib/config/app.dart` is free for BINDINGS and load-bearing for everything else. Every `register()` runs before any `boot()` (`lib/src/foundation/application.dart:353`), so a plugin that resolves another plugin's binding in `boot()` finds it whichever order they sit in. But `boot()` itself is a sequential await over the list (`application.dart:378-381`), so anything a provider DOES in `boot()` is invisible to a provider that booted before it, and the failure is silent both ways:
 
 - A same-key overwrite, where the later-booting provider's `Gate.define()` or config value wins.
-- A publish nobody is subscribed to yet. `magic_notifications` publishes a cold-start push tap from its `boot()`, and `magic_deeplink` subscribes in its own; with notifications first the tap went into a broadcast stream with no listener and was dropped, so the app opened on its initial route instead of the link's screen. Neither order errors, and artisan's installer appends each provider to the END of the list, so which one an app gets is decided by install order.
+- A publish nobody is subscribed to yet. `magic_notifications` publishes a cold-start push tap from its `boot()`, and `magic_deeplink` subscribes in its own; with notifications first the tap went into a broadcast stream with no listener and was dropped, so the app opened on its initial route instead of the link's screen. Neither order errors, and dowel's installer appends each provider to the END of the list, so which one an app gets is decided by install order.
 - `AppServiceProvider` before `AuthServiceProvider`, so `setUserFactory` lands before auth restore runs (see the top of this file).
 
 The plugins named above now buffer that tap, so that specific case is closed from `magic_notifications 0.3.0` and `magic_deeplink 0.1.0`. The shape is not: when a provider's `boot()` has to observe what another provider's `boot()` did, order it, do not assume it.
 
-`magic_devtools` is a REGULAR dependency loaded under `kDebugMode` so it tree-shakes out of release builds. Two calls straddle the bootstrap: `MagicDevtools.installPre()` before `Magic.init()` (boots the dusk + telescope plugins and telescope's `ExceptionWatcher` + `DumpWatcher`), `MagicDevtools.installPost()` after it (wires `MagicTelescopeIntegration` + `MagicDuskIntegration`, which resolve through the container). Keep `kDebugMode` at the call site, never inside the methods, or the release tree-shake breaks. `dart run magic:artisan magic:install --with-devtools` wires all of it in one step. Use it to drive and inspect a running app when verifying your work.
+`magic_devtools` is a REGULAR dependency loaded under `!kReleaseMode` so it tree-shakes out of release builds (debug and profile builds keep it). Two calls straddle the bootstrap: `MagicDevtools.installPre()` before `Magic.init()` (boots the tapir + crumbs plugins and crumbs' `ExceptionWatcher` + `DumpWatcher`), `MagicDevtools.installPost()` after it (wires `MagicCrumbsIntegration` + `MagicTapirIntegration`, which resolve through the container). Keep `!kReleaseMode` at the call site, never inside the methods, or the release tree-shake breaks. `dart run magic:dowel magic:install --with-devtools` wires the same pieces in one step (including `MagicPerfIntegration.install()`, not the `MagicDevtools` umbrella; do not mix the two) and never writes a call twice. Use it to drive and inspect a running app when verifying your work.
 
 ## 12. Community: star and issue (optional, consent-first)
 
@@ -468,7 +465,7 @@ Every path below is relative to this skill's own directory, `${CLAUDE_SKILL_DIR}
 |---|---|
 | `references/bootstrap-lifecycle.md` | app bootstrap, IoC API, ServiceProvider, Env/Config, the Laravel mapping + divergences |
 | `references/facades-api.md` | any facade method signature or return type |
-| `references/eloquent-orm.md` | models, casts, relations, mass assignment, hybrid persistence, query builder, migrations |
+| `references/eloquent-orm.md` | models, casts, relations, mass assignment, hybrid persistence and the `LocalModelStore` contract |
 | `references/controllers-views.md` | controllers, `MagicStateMixin`, `RxStatus`, views, `MagicBuilder`, `MagicSelector`, `MagicCan` |
 | `references/forms-validation.md` | `MagicFormData`, `FormRequest`, `ValidatesRequests`, rules, async validation, `Session` flash |
 | `doc/architecture/application-structure.md` | how controllers, actions, form objects, repositories, `SessionScope`, and broadcast listeners divide a screen |
@@ -478,10 +475,11 @@ Every path below is relative to this skill's own directory, `${CLAUDE_SKILL_DIR}
 | `doc/digging-deeper/perf-hooks.md` | `MagicPerfHooks.sink`, the `MagicPerfEvent` kinds, `MagicNotifyCause`, pairing HTTP by `MagicResponse.id` |
 | `references/routing-navigation.md` | routes, `resource()`, middleware, params, stacking + back gestures, bottom sheet (`overlay`) routes, URL strategy, page titles, `Session.tick` wiring |
 | `references/http-network.md` | `Http`, `MagicResponse`, `MagicNetworkInterceptor`, `configureDriver`, network config, `MagicPaginator` (url + fetcher) + `MagicPage` + `MagicPaginatedListView` |
-| `references/auth-system.md` | `Auth`, guards, `Gate`, policies, `authorize()`, `Vault`, `Crypt` |
-| `references/secondary-systems.md` | `Cache`, `Event`, `Log`, `Lang`, `Storage`, `Launch`, `Pick`, `Carbon`, `Echo` |
+| `references/auth-system.md` | `Auth`, guards, `Gate`, policies, `authorize()`, `Vault` |
+| `references/secondary-systems.md` | `Cache`, `Event`, `Log`, `Lang`, `Storage`, `Launch`, `MagicFile`, `Carbon`, and the map of the extracted layers |
 | `references/testing-patterns.md` | tests: `MagicTest`, facade fakes, fetch helpers, controller/model/middleware testing |
-| `references/cli-commands.md` | the artisan `make:*` generators, `magic:install`, `make:component`, `previews:refresh`, `design:sync`, `design:lint` |
+| `references/cli-commands.md` | the dowel `make:*` generators, `magic:install`, `make:component`, `previews:refresh`, `design:sync`, `design:lint` |
 | `references/community.md` | the star / issue CTA flow (load before surfacing either) |
 | `references/plugin-deeplink.md` / `-notifications.md` / `-social-auth.md` / `-starter.md` / `-payments.md` / `-devtools.md` / `-sentry.md` / `-device.md` | the matching ecosystem plugin |
+| `references/plugin-encryption.md` / `plugin-picker.md` / `plugin-socket.md` / `plugin-local-storage.md` | the plugins the core split out: `Crypt`, `Pick`, `Echo` + `BroadcastListeners`, and the SQLite layer (`DB`, `Schema`, migrations, seeders, factories, sync) |
 | `references/templates.md` | full copy-paste templates: Model, Controller, View, FormData, Provider, Middleware |
