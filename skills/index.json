@@ -137,6 +137,13 @@
             "files": [
                 "SKILL.md"
             ]
+        },
+        {
+            "name": "magic-payments",
+            "description": "Read the entitlement and run web or store purchases in a Magic app with the Payments facade and its two rails.",
+            "files": [
+                "SKILL.md"
+            ]
         }
     ]
 }
