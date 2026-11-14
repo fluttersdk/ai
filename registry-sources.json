@@ -79,7 +79,7 @@
     },
     "magic_starter": {
         "repo": "anilcancakir/magic_starter",
-        "branch": "main",
+        "branch": "master",
         "skill": "magic-starter",
         "replaces": []
     }
