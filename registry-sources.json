@@ -53,6 +53,18 @@
         "skill": "magic-devtools",
         "replaces": []
     },
+    "magic_encryption": {
+        "repo": "anilcancakir/magic_encryption",
+        "branch": "master",
+        "skill": "magic-encryption",
+        "replaces": []
+    },
+    "magic_local_storage": {
+        "repo": "anilcancakir/magic_local_storage",
+        "branch": "master",
+        "skill": "magic-local-storage",
+        "replaces": []
+    },
     "magic_notifications": {
         "repo": "anilcancakir/magic_notifications",
         "branch": "master",
@@ -65,6 +77,12 @@
         "skill": "magic-payments",
         "replaces": []
     },
+    "magic_picker": {
+        "repo": "anilcancakir/magic_picker",
+        "branch": "master",
+        "skill": "magic-picker",
+        "replaces": []
+    },
     "magic_sentry": {
         "repo": "anilcancakir/magic_sentry",
         "branch": "master",
@@ -75,6 +93,12 @@
         "repo": "anilcancakir/magic_social_auth",
         "branch": "master",
         "skill": "magic-social-auth",
+        "replaces": []
+    },
+    "magic_socket": {
+        "repo": "anilcancakir/magic_socket",
+        "branch": "master",
+        "skill": "magic-socket",
         "replaces": []
     },
     "magic_starter": {
