@@ -109,6 +109,13 @@
             "files": [
                 "SKILL.md"
             ]
+        },
+        {
+            "name": "magic-sentry",
+            "description": "Boot Sentry before Magic.init, report HTTP failures, track the user and mask URL tokens in a Magic app with magic_sentry.",
+            "files": [
+                "SKILL.md"
+            ]
         }
     ]
 }
