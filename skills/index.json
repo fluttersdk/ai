@@ -116,6 +116,13 @@
             "files": [
                 "SKILL.md"
             ]
+        },
+        {
+            "name": "magic-picker",
+            "description": "Pick files, images and videos in a Magic app with the Pick facade, and share downloads through magic_picker's PickerServiceProvider.",
+            "files": [
+                "SKILL.md"
+            ]
         }
     ]
 }
